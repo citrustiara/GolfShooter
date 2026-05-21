@@ -731,16 +731,25 @@
         <button class="primary" id="createBtn">Create Match</button>
         <button id="joinBtn">Join</button>
         <button class="ghost" id="soloBtn">Practice</button>
-        <button class="ghost" id="fpsTestBtn">Test FPS</button>
         <button class="ghost" id="randomBtn">Random Phrase</button>
       </div>
       <div class="error" id="menuError"></div>
     </div>
 
+    <div class="menu hidden" id="lobby">
+      <h1>Match Lobby</h1>
+      <p id="lobbyStatus">Connected! Choose a mode to start.</p>
+      <div class="menu-grid">
+        <button class="primary" id="startGolfBtn">Start Tournament</button>
+        <button class="ghost" id="startFpsBtn">Start FPS 1v1</button>
+        <button class="ghost" id="leaveBtn">Leave Match</button>
+      </div>
+    </div>
+
     <div class="result hidden" id="result">
       <h1 id="resultTitle">Winner</h1>
       <p id="resultBody"></p>
-      <button class="primary" id="restartBtn">Restart Tournament</button>
+      <button class="primary" id="restartBtn">Back to Lobby</button>
     </div>
 
     <div class="power hidden" id="power"><span id="powerFill"></span></div>
@@ -819,10 +828,15 @@
     const weaponSelectTimer = document.querySelector("#weaponSelectTimer");
     const weaponCards = document.querySelectorAll(".weapon-card");
 
+    const lobby = document.querySelector("#lobby");
+    const lobbyStatus = document.querySelector("#lobbyStatus");
+    const startGolfBtn = document.querySelector("#startGolfBtn");
+    const startFpsBtn = document.querySelector("#startFpsBtn");
+    const leaveBtn = document.querySelector("#leaveBtn");
+
     const createBtn = document.querySelector("#createBtn");
     const joinBtn = document.querySelector("#joinBtn");
     const soloBtn = document.querySelector("#soloBtn");
-    const fpsTestBtn = document.querySelector("#fpsTestBtn");
     const randomBtn = document.querySelector("#randomBtn");
     const restartBtn = document.querySelector("#restartBtn");
 
@@ -1032,8 +1046,15 @@
               startReload();
             }
             if (event.code === "Digit1") {
+              pickWeaponCard("pistol");
               switchWeapon("gun");
             } else if (event.code === "Digit2") {
+              pickWeaponCard("rifle");
+              switchWeapon("gun");
+            } else if (event.code === "Digit3") {
+              pickWeaponCard("sniper");
+              switchWeapon("gun");
+            } else if (event.code === "Digit4") {
               switchWeapon("melee");
             } else if (event.code === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0) {
               game.inspectTimer = 2.0;
@@ -1074,7 +1095,22 @@
     createBtn.addEventListener("click", createMatch);
     joinBtn.addEventListener("click", joinMatch);
     soloBtn.addEventListener("click", () => beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()));
-    fpsTestBtn.addEventListener("click", beginFpsTest);
+    startGolfBtn.addEventListener("click", () => {
+      if (game.role === "host") {
+        send({ type: "startTournament" });
+        startGolf();
+      }
+    });
+    startFpsBtn.addEventListener("click", () => {
+      if (game.role === "host") {
+        send({ type: "phaseFps" });
+        enterFps(false);
+      }
+    });
+    leaveBtn.addEventListener("click", () => {
+      closePeer();
+      showMenu();
+    });
     randomBtn.addEventListener("click", () => {
       phraseInput.value = generatePhrase();
       menuError.textContent = "";
@@ -1295,46 +1331,70 @@
       box(-48, 0, -40, 2, 2.5, 2);
       box(48, 2.5, 40, 6, 0.5, 6, 0x555555);
       box(48, 0, 40, 2, 2.5, 2);
-
       // Corner blocks
       box(-45, 0, -35, 8, 4, 8);
       box(45, 0, 35, 8, 4, 8);
       box(-45, 0, 35, 8, 4, 8);
       box(45, 0, -35, 8, 4, 8);
+
+      // Edge obstacles
+      box(0, 0, 50, 16, 6, 2, 0x444444);
+      box(0, 0, -50, 16, 6, 2, 0x444444);
+      box(50, 0, 0, 2, 6, 16, 0x444444);
+      box(-50, 0, 0, 2, 6, 16, 0x444444);
+
+      // Outer corner clusters
+      box(-52, 0, -52, 4, 8, 4, 0x333333);
+      box(52, 0, 52, 4, 8, 4, 0x333333);
+      box(-52, 0, 52, 4, 8, 4, 0x333333);
+      box(52, 0, -52, 4, 8, 4, 0x333333);
+
+      // Mid-edge cover
+      box(-35, 0, 48, 6, 3, 4);
+      box(35, 0, -48, 6, 3, 4);
+      box(48, 0, 35, 4, 3, 6);
+      box(-48, 0, -35, 4, 3, 6);
     }
 
     function makePlayerMesh(material) {
       const group = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.48, 1.2, 8, 18), material);
-      body.position.y = 0.85;
+      // Smaller body and head
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.0, 8, 18), material);
+      body.position.y = 0.65; // Lowered to fix levitation
       body.castShadow = true;
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 16), material);
-      head.position.y = 1.75;
+      const headGroup = new THREE.Group();
+      headGroup.name = "headGroup";
+      headGroup.position.y = 1.35; // Position for neck/head
+      
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), material);
       head.castShadow = true;
-      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.08), materials.gold);
-      visor.position.set(0, 1.78, -0.28);
-      group.add(body, head, visor);
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.08), materials.gold);
+      visor.position.set(0, 0.05, -0.24); // Front of head
+      headGroup.add(head, visor);
+      group.add(body, headGroup);
 
-      // Add simple gun and sword meshes for third person view
-      const gunPart = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.35), materials.wall);
-      gunPart.position.set(0.38, 0.85, -0.32);
+      // Gun mesh for third person view
+      const gunPart = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), materials.wall);
+      gunPart.position.set(0.3, 0.0, -0.25); // Right side, forward
       gunPart.name = "gun";
-      group.add(gunPart);
+      headGroup.add(gunPart);
 
       const meleePart = new THREE.Group();
       meleePart.name = "melee";
       meleePart.visible = false;
       
-      const clubShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.65, 8), materials.wall);
-      clubShaft.position.set(0.38, 0.85, -0.32);
-      clubShaft.rotation.x = Math.PI / 4;
+      const clubShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.75, 8), materials.wall);
+      clubShaft.position.set(0.3, -0.2, -0.2); 
+      clubShaft.rotation.x = Math.PI / 3;
       
-      const clubHead = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.08), materials.gold);
-      clubHead.position.set(0.42, 0.62, -0.55);
-      clubHead.rotation.x = Math.PI / 4;
+      // Golf club head: rotated so the shorter edge touches the pole
+      const clubHead = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.06), materials.gold);
+      clubHead.position.set(0.3, -0.5, -0.4);
+      clubHead.rotation.x = Math.PI / 3;
+      clubHead.rotation.y = 0.2;
       
       meleePart.add(clubShaft, clubHead);
-      group.add(meleePart);
+      headGroup.add(meleePart);
 
       return group;
     }
@@ -1527,7 +1587,7 @@
           connection.on("open", () => {
             game.connected = true;
             send({ type: "welcome", state: serializeGolfState() });
-            startGolf();
+            showLobby();
           });
         });
         peer.on("error", (error) => {
@@ -1570,19 +1630,8 @@
       game.connected = false;
       game.fpsMockStatic = false;
       showNetwork("Practice match", room);
-      startGolf();
-    }
-
-    function beginFpsTest() {
-      closePeer();
-      game.role = "solo";
-      game.localIndex = 0;
-      game.room = "";
-      game.connected = false;
-      showNetwork("FPS test target", "");
-      menu.classList.add("hidden");
-      hud.classList.remove("hidden");
-      enterFps(false, { staticMock: true });
+      
+      showLobby();
     }
 
     function attachConnection(connection) {
@@ -1605,6 +1654,10 @@
 
       if (message.type === "welcome") {
         applyGolfState(message.state);
+        showLobby();
+      }
+
+      if (message.type === "startTournament") {
         startGolf();
       }
 
@@ -1619,6 +1672,11 @@
 
       if (message.type === "phaseFps") {
         enterFps(false);
+      }
+
+      if (message.type === "fpsWeaponChoice") {
+        const remoteIdx = 1 - game.localIndex;
+        fps.players[remoteIdx].primaryWeapon = message.weapon;
       }
 
       if (message.type === "fpsState") {
@@ -1638,7 +1696,7 @@
         if (message.isMelee) {
           drawMeleeSwipe(origin, direction);
         } else {
-          drawLaser(origin, direction, message.length !== undefined ? message.length : (message.hit ? 18 : 11), message.hit);
+          drawLaser(origin, direction, message.length !== undefined ? message.length : (message.hit ? 18 : 11), message.hit, true);
         }
         if (message.target === game.localIndex) {
           const dmg = message.damage !== undefined ? message.damage : FPS_DAMAGE_PER_HIT;
@@ -1692,6 +1750,17 @@
       camera.up.set(0, 0, -1);
       camera.position.set(0, 18, 0.01);
       camera.lookAt(0, 0, 0);
+    }
+
+    function showMenu() {
+      game.phase = "menu";
+      menu.classList.remove("hidden");
+      lobby.classList.add("hidden");
+      hud.classList.add("hidden");
+      resultPanel.classList.add("hidden");
+      weaponSelectOverlay.classList.add("hidden");
+      overlay.classList.remove("fps");
+      showMenuScene();
     }
 
     function startGolf() {
@@ -2118,9 +2187,10 @@
       world.arenaRoot.visible = true;
       power.classList.add("hidden");
       resultPanel.classList.add("hidden");
-      
-      damageLayer.replaceChildren();
-      activeDamagePops.forEach(pop => pop.element.remove());
+      menu.classList.add("hidden");
+      lobby.classList.add("hidden");
+
+      damageLayer.replaceChildren();      activeDamagePops.forEach(pop => pop.element.remove());
       activeDamagePops.length = 0;
 
       overlay.classList.add("fps");
@@ -2598,9 +2668,9 @@
 
       // Per-weapon fire rates (ms between shots)
       const firerateMs = {
-        pistol: 400,
+        pistol: 160,
         rifle: 80,
-        sniper: 1800
+        sniper: 1000
       };
       if (now - game.lastShotAt < firerateMs[game.primaryWeapon]) return;
       game.lastShotAt = now;
@@ -2621,11 +2691,11 @@
       let direction;
       let spread = 0;
       if (game.primaryWeapon === "sniper" && !input.aiming) {
-        spread = 0.14; // Sniper hipfire: heavy spread
+        spread = 0.10; // Sniper hipfire: heavy spread
       } else if (game.primaryWeapon === "rifle" && !input.aiming) {
-        spread = 0.045; // Rifle hipfire: moderate spread
+        spread = 0.040; // Rifle hipfire: moderate spread
       } else if (game.primaryWeapon === "rifle" && input.aiming) {
-        spread = 0.005; // Rifle ADS: very accurate
+        spread = 0.002; // Rifle ADS: very accurate
       } else if (game.primaryWeapon === "pistol" && !input.aiming) {
         spread = 0.015; // Pistol hipfire: slight spread
       }
@@ -2721,9 +2791,9 @@
 
       drawMeleeSwipe(origin, direction);
 
-      const headCenter = opponent.pos.clone().add(new THREE.Vector3(0, 1.75, 0));
+      const headCenter = opponent.pos.clone().add(new THREE.Vector3(0, 1.35, 0));
       const distToHead = origin.distanceTo(headCenter);
-      const bodyCenter = opponent.pos.clone().add(new THREE.Vector3(0, 0.85, 0));
+      const bodyCenter = opponent.pos.clone().add(new THREE.Vector3(0, 0.65, 0));
       const distToBody = origin.distanceTo(bodyCenter);
 
       let hit = false;
@@ -2749,7 +2819,7 @@
 
       if (hit) {
         opponent.health = Math.max(0, opponent.health - dmg);
-        const popOffset = headshot ? 1.75 : 1.3;
+        const popOffset = headshot ? 1.35 : 0.65;
         showDamageDealt(dmg, opponent.pos.clone().add(new THREE.Vector3(0, popOffset, 0)), headshot);
       }
 
@@ -2792,11 +2862,11 @@
     }
 
     function rayHitsPlayer(origin, direction, player) {
-      const headCenter = player.pos.clone().add(new THREE.Vector3(0, 1.75, 0));
-      const headHitDist = rayHitsSphere(origin, direction, headCenter, 0.38);
+      const headCenter = player.pos.clone().add(new THREE.Vector3(0, 1.35, 0));
+      const headHitDist = rayHitsSphere(origin, direction, headCenter, 0.3);
 
-      const bodyCenter = player.pos.clone().add(new THREE.Vector3(0, 0.85, 0));
-      const bodyHitDist = rayHitsSphere(origin, direction, bodyCenter, FPS_PLAYER_HIT_RADIUS);
+      const bodyCenter = player.pos.clone().add(new THREE.Vector3(0, 0.65, 0));
+      const bodyHitDist = rayHitsSphere(origin, direction, bodyCenter, 0.65);
 
       if (headHitDist !== null && (bodyHitDist === null || headHitDist < bodyHitDist)) {
         return { distance: headHitDist, headshot: true };
@@ -2807,7 +2877,7 @@
       return null;
     }
 
-    function drawLaser(origin, direction, length, hit) {
+    function drawLaser(origin, direction, length, hit, isRemote = false) {
       const aimDirection = direction.clone().normalize();
       const right = new THREE.Vector3().crossVectors(aimDirection, new THREE.Vector3(0, 1, 0));
       if (right.lengthSq() < 0.001) right.set(1, 0, 0);
@@ -2815,13 +2885,11 @@
 
       // Trace starts from weapon barrel world position
       const start = new THREE.Vector3();
-      if (world.weaponTip) {
+      if (!isRemote && world.weaponTip) {
         world.weaponTip.getWorldPosition(start);
       } else {
-        start.copy(origin)
-          .addScaledVector(aimDirection, 0.35)
-          .addScaledVector(right, 0.38)
-          .add(new THREE.Vector3(0, -0.22, 0));
+        // For remote players or fallback, use origin provided in message
+        start.copy(origin);
       }
 
       const end = origin.clone().addScaledVector(aimDirection, length);
@@ -2959,7 +3027,21 @@
         const player = fps.players[i];
         mesh.position.copy(player.pos);
         mesh.rotation.y = player.yaw;
-        
+
+        const headGroup = mesh.getObjectByName("headGroup");
+        if (headGroup) {
+          headGroup.rotation.x = -player.pitch; // Flip the pitch so it points forward
+          const gun = headGroup.getObjectByName("gun");
+          const melee = headGroup.getObjectByName("melee");
+          if (gun && melee) {
+            gun.visible = (player.weapon === "gun");
+            melee.visible = (player.weapon === "melee");
+            if (player.primaryWeapon === "pistol") gun.scale.set(1, 1, 1);
+            else if (player.primaryWeapon === "rifle") gun.scale.set(1, 1, 1.8);
+            else if (player.primaryWeapon === "sniper") gun.scale.set(1, 1, 3.2);
+          }
+        }
+
         if (game.phase === "fps") {
           // Normal play: hide self
           mesh.visible = (i !== game.localIndex);
@@ -2973,7 +3055,6 @@
         }
       }
     }
-
     function startVictoryLap(winner, reason, announce = true) {
       if (game.phase === "result" || game.phase === "fpsVictoryLap") return;
       game.phase = "fpsVictoryLap";
@@ -3001,6 +3082,9 @@
       damageLayer.replaceChildren();
       power.classList.add("hidden");
 
+      // Hide lobby/restart button for guests
+      restartBtn.classList.toggle("hidden", game.role === "guest");
+
       // Remove victory banner
       const banner = document.getElementById("victoryBanner");
       if (banner) banner.remove();
@@ -3012,17 +3096,41 @@
         ? `Tie broken by deathmatch. Golf card: ${totals[0]} - ${totals[1]}.`
         : `Final golf card: ${totals[0]} - ${totals[1]}.`;
       updateHud();
-      if (game.role !== "solo") {
-        window.setTimeout(() => closePeer(), 400);
-      }
     }
 
     function restartTournament(announce = true) {
+      if (announce && game.role === "guest") return; // Only host/solo can trigger
+      
       resultPanel.classList.add("hidden");
-      scene.background = new THREE.Color(0x8fd3f4);
-      scene.fog = new THREE.Fog(0x8fd3f4, 32, 84);
-      if (announce) send({ type: "restart" });
-      startGolf();
+      if (announce) {
+        send({ type: "restart" });
+        showLobby();
+      } else {
+        // Guest received the signal
+        showLobby();
+      }
+    }
+
+    function showLobby() {
+      game.phase = "lobby";
+      lobby.classList.remove("hidden");
+      menu.classList.add("hidden");
+      resultPanel.classList.add("hidden");
+      hud.classList.add("hidden");
+      weaponSelectOverlay.classList.add("hidden");
+      overlay.classList.remove("fps");
+      showMenuScene();
+      
+      // Update lobby buttons based on role
+      if (game.role === "guest") {
+        startGolfBtn.classList.add("hidden");
+        startFpsBtn.classList.add("hidden");
+        lobbyStatus.textContent = "Waiting for host to start...";
+      } else {
+        startGolfBtn.classList.remove("hidden");
+        startFpsBtn.classList.remove("hidden");
+        lobbyStatus.textContent = game.role === "solo" ? "Solo practice. Choose a mode." : "Peer connected! You are the host.";
+      }
     }
 
     function updateHud() {
@@ -3088,7 +3196,10 @@
     }
 
     function cycleWeaponCard(direction) {
-      if (game.phase !== "fps" || game.countdown <= 0) return;
+      if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
+      if (game.phase === "fps" && game.countdown <= 0) {
+        // Still allow switching gun subtype if active weapon is gun
+      }
       const weapons = ["pistol", "rifle", "sniper"];
       const currentIdx = weapons.indexOf(game.primaryWeapon);
       const nextIdx = (currentIdx + direction + weapons.length) % weapons.length;
@@ -3096,7 +3207,7 @@
     }
 
     function pickWeaponCard(wp) {
-      if (game.phase !== "fps" || game.countdown <= 0) return;
+      if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
       weaponCards.forEach(c => c.classList.remove("active"));
       const card = document.querySelector(`.weapon-card[data-weapon='${wp}']`);
       if (card) card.classList.add("active");
