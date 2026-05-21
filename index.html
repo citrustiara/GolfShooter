@@ -142,8 +142,55 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 10px;
+      gap: 12px;
       pointer-events: none;
+    }
+
+    .ability-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .ability-slot {
+      position: relative;
+      width: 54px;
+      height: 54px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 18px;
+      overflow: hidden;
+    }
+
+    .ability-slot .key-hint {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .ability-slot .cooldown-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 0%;
+      background: rgba(255, 255, 255, 0.3);
+      transition: height 100ms linear;
+    }
+
+    .ability-slot .cooldown-text {
+      position: relative;
+      z-index: 2;
+      font-size: 14px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
 
     .fps-hud .chip {
@@ -628,7 +675,6 @@
   <div class="overlay" id="overlay">
     <div class="topbar">
       <div class="hud hidden" id="hud">
-        <div class="chip">Phase<strong id="phaseText">Golf</strong></div>
         <div class="chip">Hole<strong id="holeText">1</strong></div>
         <div class="chip">Turn<strong id="turnText">You</strong></div>
         <div class="chip">Strokes<strong id="strokeText">0 - 0</strong></div>
@@ -640,6 +686,20 @@
     </div>
 
     <div class="fps-hud" id="fpsHud">
+      <div class="ability-container hidden" id="abilityContainer">
+        <div class="ability-slot" id="jumpAbility">
+          <span class="key-hint">E</span>
+          <div class="cooldown-overlay" id="jumpOverlay"></div>
+          <span class="cooldown-text" id="jumpCDText"></span>
+          <span class="ability-icon">↑</span>
+        </div>
+        <div class="ability-slot" id="healAbility">
+          <span class="key-hint">Q</span>
+          <div class="cooldown-overlay" id="healOverlay"></div>
+          <span class="cooldown-text" id="healCDText"></span>
+          <span class="ability-icon">✚</span>
+        </div>
+      </div>
       <div class="chip hidden" id="healthChip">Health<strong id="healthText">100</strong></div>
       <div class="chip hidden" id="weaponChip">Weapon<strong id="weaponText">Gun</strong></div>
       <div class="chip hidden" id="ammoChip">Ammo<strong id="ammoText">7 / 7</strong></div>
@@ -728,12 +788,16 @@
     const menuError = document.querySelector("#menuError");
     const phraseText = document.querySelector("#phraseText");
     const networkText = document.querySelector("#networkText");
-    const phaseText = document.querySelector("#phaseText");
     const holeText = document.querySelector("#holeText");
     const turnText = document.querySelector("#turnText");
     const strokeText = document.querySelector("#strokeText");
     const healthChip = document.querySelector("#healthChip");
     const healthText = document.querySelector("#healthText");
+    const abilityContainer = document.querySelector("#abilityContainer");
+    const jumpOverlay = document.querySelector("#jumpOverlay");
+    const healOverlay = document.querySelector("#healOverlay");
+    const jumpCDText = document.querySelector("#jumpCDText");
+    const healCDText = document.querySelector("#healCDText");
     const power = document.querySelector("#power");
     const powerFill = document.querySelector("#powerFill");
     const shotArrow = document.querySelector("#shotArrow");
@@ -778,8 +842,8 @@
     const FPS_BASE_MOUSE_SENSITIVITY = 0.0022;
     const FPS_PLAYER_HIT_RADIUS = 0.88;
     const FPS_AIM_SENSITIVITY_MULTIPLIER = 0.42;
-    const FPS_DEFAULT_FOV = 62;
-    const FPS_AIM_FOV = 42;
+    const FPS_DEFAULT_FOV = 90;
+    const FPS_AIM_FOV = 64;
     const FPS_SNIPER_AIM_FOV = 14;
 
     const holes = [
@@ -942,6 +1006,9 @@
       if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(event.code)) event.preventDefault();
       
       if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
+        // Request pointer lock on first interaction
+        if (!input.pointerLocked) canvas.requestPointerLock?.();
+
         if (game.countdown > 0) {
           // Weapon select phase: navigate cards with arrows/WASD or pick directly with 1/2/3
           if (event.code === "ArrowLeft" || event.code === "ArrowUp" || event.code === "KeyA" || event.code === "KeyW") {
@@ -1127,6 +1194,10 @@
       const SIZE = 112;
       const HALF = SIZE / 2;
 
+      // Reset world obstacles and platforms
+      world.obstacles = [];
+      world.platforms = [];
+
       // Large open floor
       const floor = new THREE.Mesh(new THREE.BoxGeometry(SIZE, 0.5, SIZE), materials.floor);
       floor.position.y = -0.25;
@@ -1172,10 +1243,10 @@
         world.arenaRoot.add(mesh);
       }
 
-      // Obstacles, Platforms, and Ramps
+      // Obstacles and Platforms
       const obstacleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 });
       
-      const box = (x, y, z, sx, sy, sz, color = 0x444444, isPlatform = false) => {
+      const box = (x, y, z, sx, sy, sz, color = 0x444444, isPlatform = true) => {
         const mat = color === 0x444444 ? obstacleMat : new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
         mesh.position.set(x, y + sy / 2, z);
@@ -1187,38 +1258,49 @@
         return mesh;
       };
 
-      const ramp = (x, z, sx, sz, height, rotation = 0) => {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.4, Math.sqrt(sz * sz + height * height)), obstacleMat);
-        mesh.position.set(x, height / 2, z);
-        mesh.rotation.y = rotation;
-        mesh.rotation.x = -Math.atan2(height, sz);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        world.arenaRoot.add(mesh);
-        world.obstacles.push(mesh);
-        world.platforms.push(mesh); // Can stand on ramps
-      };
-
-      // Center High Platform
-      box(0, 4, 0, 12, 0.5, 12, 0x555555, true);
-      box(0, 0, 0, 4, 4, 4); // Pillar
-
-      // Side Platforms
-      box(-20, 3, -15, 8, 0.5, 8, 0x555555, true);
-      box(20, 3, 15, 8, 0.5, 8, 0x555555, true);
-
-      // Ramps to platforms
-      ramp(-20, -23, 6, 8, 3, 0);
-      ramp(20, 23, 6, 8, 3, Math.PI);
-
-      // Scattered cover
-      box(-35, 0, -25, 6, 3, 6);
-      box(35, 0, 25, 6, 3, 6);
-      box(-35, 0, 25, 6, 3, 6);
-      box(35, 0, -25, 6, 3, 6);
+      // Complex central structure
+      box(0, 0, 0, 8, 12, 8); // Taller Core pillar
+      box(0, 5, 0, 24, 0.5, 24, 0x555555); // Larger Top platform
+      box(0, 8.5, 0, 10, 0.5, 10, 0x666666); // Higher second tier
       
-      box(-10, 0, 15, 4, 5, 2);
-      box(10, 0, -15, 4, 5, 2);
+      // Mazelike walls
+      // Blue side (negative X)
+      box(-15, 0, -10, 2, 4.5, 20);
+      box(-20, 0, 15, 18, 4.5, 2);
+      box(-32, 0, -5, 2, 4.5, 25);
+      box(-28, 0, -18, 12, 4.5, 2);
+      box(-12, 0, 25, 2, 6, 8, 0x444444); // Tall pillar
+      
+      // Coral side (positive X)
+      box(15, 0, 10, 2, 4.5, 20);
+      box(20, 0, -15, 18, 4.5, 2);
+      box(32, 0, 5, 2, 4.5, 25);
+      box(28, 0, 18, 12, 4.5, 2);
+      box(12, 0, -25, 2, 6, 8, 0x444444); // Tall pillar
+
+      // Symmetry and central cover
+      box(0, 0, 32, 20, 4, 2);
+      box(0, 0, -32, 20, 4, 2);
+      box(-8, 0, 0, 2, 5, 10);
+      box(8, 0, 0, 2, 5, 10);
+
+      // Small pillars for parkour
+      box(-12, 0, -12, 4, 2.5, 4, 0x666666);
+      box(12, 0, 12, 4, 2.5, 4, 0x666666);
+      box(-12, 0, 12, 4, 4.2, 4, 0x666666);
+      box(12, 0, -12, 4, 4.2, 4, 0x666666);
+
+      // Elevated sniper perches
+      box(-48, 2.5, -40, 6, 0.5, 6, 0x555555);
+      box(-48, 0, -40, 2, 2.5, 2);
+      box(48, 2.5, 40, 6, 0.5, 6, 0x555555);
+      box(48, 0, 40, 2, 2.5, 2);
+
+      // Corner blocks
+      box(-45, 0, -35, 8, 4, 8);
+      box(45, 0, 35, 8, 4, 8);
+      box(-45, 0, 35, 8, 4, 8);
+      box(45, 0, -35, 8, 4, 8);
     }
 
     function makePlayerMesh(material) {
@@ -1441,9 +1523,12 @@
             return;
           }
           attachConnection(connection);
-          game.connected = true;
-          send({ type: "welcome", state: serializeGolfState() });
-          startGolf();
+          // Wait for the 'open' event on the connection before sending 'welcome'
+          connection.on("open", () => {
+            game.connected = true;
+            send({ type: "welcome", state: serializeGolfState() });
+            startGolf();
+          });
         });
         peer.on("error", (error) => {
           setMenuError(error.type === "unavailable-id" ? "That phrase is already hosting. Pick another." : `Connection broker: ${error.type}`);
@@ -2204,7 +2289,8 @@
         }
       }
 
-      if (slideKeyPressed && player.grounded && !player.sliding) {
+      // Enable buffered sliding: if key is held while landing, trigger slide
+      if (slideKeyActive && player.grounded && !player.sliding) {
         const horizontalVel = new THREE.Vector3(player.vel.x, 0, player.vel.z);
         // Can only slide if moving
         if (horizontalVel.length() > 2.0) {
@@ -2366,7 +2452,7 @@
 
       // Expand FOV during slides for speed effects
       const baseFov = player.sliding ? FPS_DEFAULT_FOV + 8 : FPS_DEFAULT_FOV;
-      const aimFov = (game.primaryWeapon === "sniper") ? FPS_SNIPER_AIM_FOV : (game.primaryWeapon === "rifle" ? FPS_AIM_FOV : 52);
+      const aimFov = (game.primaryWeapon === "sniper") ? FPS_SNIPER_AIM_FOV : (game.primaryWeapon === "rifle" ? 50 : 58);
       const targetFov = input.aiming ? aimFov : baseFov;
       camera.fov += (targetFov - camera.fov) * 0.18;
       camera.updateProjectionMatrix();
@@ -2428,6 +2514,7 @@
           targetGunPos.x -= lift * 0.5;
           targetGunRot.z += rotate;
           targetGunRot.x += rotate * 0.2;
+          targetGunRot.y += Math.sin(progress * Math.PI) * 0.6; // Turn to show side
         }
 
         // Smoothly lerp gun to active (or reload-dip) pose
@@ -2465,7 +2552,9 @@
           const progress = (2.0 - game.inspectTimer) / 2.0;
           const rotate = Math.sin(progress * Math.PI) * 1.2;
           targetMeleeRot.y += rotate;
-          targetMeleePos.y += Math.sin(progress * Math.PI) * 0.1;
+          targetMeleeRot.z += rotate * 0.5; // Added tilt
+          targetMeleePos.y += Math.sin(progress * Math.PI) * 0.15;
+          targetMeleePos.x -= Math.sin(progress * Math.PI) * 0.1;
         }
 
         world.meleeWeapon.position.lerp(targetMeleePos, alpha);
@@ -2938,7 +3027,6 @@
 
     function updateHud() {
       const totals = totalStrokes();
-      phaseText.textContent = game.phase === "fps" ? "FPS" : game.phase === "result" ? "Done" : "Golf";
       holeText.textContent = game.phase === "fps" ? "Tie" : `${game.holeIndex + 1}`;
       if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
         turnText.textContent = "Live";
@@ -2953,15 +3041,24 @@
       healthChip.classList.toggle("hidden", !isFps);
       healthText.textContent = `${Math.ceil(fps.players[game.localIndex].health)}`;
 
+      abilityContainer.classList.toggle("hidden", !isFps);
+      if (isFps) {
+        // Update ability UI
+        const jumpProgress = Math.max(0, game.jumpCooldown / 6.0);
+        jumpOverlay.style.height = `${jumpProgress * 100}%`;
+        jumpCDText.textContent = game.jumpCooldown > 0 ? Math.ceil(game.jumpCooldown) : "";
+
+        const healProgress = Math.max(0, game.healCooldown / 10.0);
+        healOverlay.style.height = `${healProgress * 100}%`;
+        healCDText.textContent = game.healCooldown > 0 ? Math.ceil(game.healCooldown) : "";
+      }
+
       weaponChip.classList.toggle("hidden", !isFps);
-      const jumpCD = game.jumpCooldown > 0 ? ` [${Math.ceil(game.jumpCooldown)}s]` : "";
-      const healCD = game.healCooldown > 0 ? ` [${Math.ceil(game.healCooldown)}s]` : "";
       weaponText.textContent = (game.activeWeapon === "gun"
         ? (game.primaryWeapon === "pistol" ? "Pistol" : (game.primaryWeapon === "rifle" ? "Rifle" : "Sniper"))
-        : "Club") + jumpCD + healCD;
+        : "Club");
 
-      ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun");
-      if (game.activeWeapon === "gun") {
+      ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun");      if (game.activeWeapon === "gun") {
         const currentAmmo = game.ammo[game.primaryWeapon];
         const maxAmmo = game.primaryWeapon === "pistol" ? 7 : (game.primaryWeapon === "rifle" ? 25 : 5);
         ammoText.textContent = game.reloading ? "RELOAD" : `${currentAmmo} / ${maxAmmo}`;
