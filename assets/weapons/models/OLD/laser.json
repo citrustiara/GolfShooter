@@ -1,33 +1,89 @@
 {
-  "label": "Minigun",
+  "label": "Laser",
   "parts": [
+    {
+      "name": "frame",
+      "type": "box",
+      "x": 0,
+      "y": -0.04,
+      "z": -0.05,
+      "sx": 0.126,
+      "sy": 0.18,
+      "sz": 0.454,
+      "rotX": 0,
+      "rotY": 0,
+      "rotZ": 0,
+      "color": 2245666
+    },
     {
       "name": "slide",
       "type": "box",
       "x": 0,
-      "y": 0.05,
+      "y": 0.08,
       "z": -0.1,
-      "sx": 0.168,
-      "sy": 0.157,
+      "sx": 0.13,
+      "sy": 0.1,
       "sz": 0.557,
       "rotX": 0,
       "rotY": 0,
       "rotZ": 0,
-      "color": 4891647
+      "color": 2245666
     },
     {
       "name": "barrel",
       "type": "cylinder",
       "x": 0,
-      "y": -0.01,
-      "z": -0.35,
+      "y": 0.08,
+      "z": -0.342,
       "sx": 0.042,
-      "sy": 0.95,
+      "sy": 0.925,
       "sz": 0.04,
       "rotX": 1.571,
       "rotY": 0,
       "rotZ": 0,
-      "color": 0
+      "color": 2245666
+    },
+    {
+      "name": "grip",
+      "type": "box",
+      "x": 0,
+      "y": -0.22,
+      "z": 0.112,
+      "sx": 0.105,
+      "sy": 0.28,
+      "sz": 0.13,
+      "rotX": -0.25,
+      "rotY": 0,
+      "rotZ": 0,
+      "color": 2245666
+    },
+    {
+      "name": "triggerGuard",
+      "type": "box",
+      "x": 0,
+      "y": -0.14,
+      "z": -0.05,
+      "sx": 0.042,
+      "sy": 0.1,
+      "sz": 0.13,
+      "rotX": 0,
+      "rotY": 0,
+      "rotZ": 0,
+      "color": 2245666
+    },
+    {
+      "name": "mag",
+      "type": "box",
+      "x": 0,
+      "y": -0.24,
+      "z": 0.112,
+      "sx": 0.095,
+      "sy": 0.24,
+      "sz": 0.119,
+      "rotX": -0.25,
+      "rotY": 0,
+      "rotZ": 0,
+      "color": 3800852
     },
     {
       "name": "topDetail",
@@ -41,7 +97,7 @@
       "rotX": 0,
       "rotY": 0,
       "rotZ": 0,
-      "color": 16773286
+      "color": 13434828
     },
     {
       "name": "sight",
@@ -55,7 +111,7 @@
       "rotX": 0,
       "rotY": 0,
       "rotZ": 0,
-      "color": 1789841
+      "color": 3800852
     },
     {
       "name": "glowL",
@@ -69,7 +125,7 @@
       "rotX": 0,
       "rotY": 0,
       "rotZ": 0,
-      "color": 7921919
+      "color": 3800852
     },
     {
       "name": "glowR",
@@ -83,54 +139,12 @@
       "rotX": 0,
       "rotY": 0,
       "rotZ": 0,
-      "color": 7921919
-    },
-    {
-      "name": "cylinder-1",
-      "type": "cylinder",
-      "x": 0,
-      "y": 0.11,
-      "z": -0.35,
-      "sx": 0.042,
-      "sy": 0.95,
-      "sz": 0.04,
-      "rotX": 1.571,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 0
-    },
-    {
-      "name": "cylinder-2",
-      "type": "cylinder",
-      "x": -0.07,
-      "y": 0.05,
-      "z": -0.35,
-      "sx": 0.042,
-      "sy": 0.95,
-      "sz": 0.04,
-      "rotX": 1.571,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 0
-    },
-    {
-      "name": "cylinder-3",
-      "type": "cylinder",
-      "x": 0.07,
-      "y": 0.05,
-      "z": -0.35,
-      "sx": 0.042,
-      "sy": 0.95,
-      "sz": 0.04,
-      "rotX": 1.571,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 0
+      "color": 3800852
     }
   ],
   "muzzle": {
     "x": 0,
     "y": 0.08,
-    "z": -1.28
+    "z": -1.22
   }
 }
