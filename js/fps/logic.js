@@ -61,13 +61,15 @@ export function setupArena() {
   world.arenaRoot.add(skyShell);
 
   // Thin perimeter walls
-  const edgeMat = new THREE.MeshBasicMaterial({ color: theme.edge });
-  const edgeH = 0.5;
+  const edgeMat = new THREE.MeshStandardMaterial({ color: theme.edge, roughness: 0.75, metalness: 0.22 });
+  const edgeH = 8.0;
   const wallDefs = makePerimeterWalls(floorDefs, edgeH);
   for (const w of wallDefs) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.sx, w.sy, w.sz), edgeMat);
     mesh.position.set(w.x, w.sy / 2, w.z);
     mesh.rotation.y = w.rot || 0;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     world.arenaRoot.add(mesh);
   }
 
@@ -309,16 +311,40 @@ function buildRooftopArena(box, platformOnly, decorBox, collidableDecorBox, stai
 
 function buildFoundryArena(box, platformOnly, decorBox, collidableDecorBox, stairRun, glassMat, enterableBuilding) {
   const emberMat = new THREE.MeshBasicMaterial({ color: 0xff5a24 });
-  enterableBuilding(0, -24, 12, 12, 8.8, 0x201719, 0x34202a, "front");
+  // Central glass tower / platform
   collidableDecorBox(0, 9.5, 0, 14, 0.16, 14, 0xff7a2f, 0, 0, glassMat);
 
-  enterableBuilding(-32, -32, 16, 16, 6.8, 0x211111, 0x4a1f1f, "front");
-  enterableBuilding(32, 32, 16, 16, 6.8, 0x1a1418, 0x4a2a19, "back");
-  enterableBuilding(-32, 32, 14, 14, 4.3, 0x2b191f, 0x5a2b21, "back");
-  enterableBuilding(32, -32, 14, 14, 4.3, 0x271e15, 0x6a3c1c, "front");
-  enterableBuilding(-46, 0, 10, 10, 13.5, 0x231018, 0x7a351f, "front");
-  enterableBuilding(46, 0, 10, 10, 13.5, 0x231018, 0x7a351f, "back");
+  // Outer U-walls/cover instead of tight buildings at spawn
+  // Spawn points are at (-50, 0) and (48, 0)
+  // Let's place a nice open stone/foundry wall around spawn
+  box(-46, 0, -6, 2, 4.5, 12, 0x211111);
+  box(-40, 0, 0, 8, 4.5, 2, 0x211111);
+  
+  box(44, 0, 6, 2, 4.5, 12, 0x1a1418);
+  box(38, 0, 0, 8, 4.5, 2, 0x1a1418);
 
+  // Open vertical platforms with cover walls (Tactical high-ground play!)
+  // Platform 1: bottom-left
+  platformOnly(-32, 4.5, -32, 14, 0.4, 14, 0x4a1f1f);
+  box(-38, 4.5, -32, 2, 1.2, 14, 0x211111); // waist-high cover wall
+  box(-32, 4.5, -38, 14, 1.2, 2, 0x211111); // waist-high cover wall
+
+  // Platform 2: top-right
+  platformOnly(32, 4.5, 32, 14, 0.4, 14, 0x4a2a19);
+  box(38, 4.5, 32, 2, 1.2, 14, 0x1a1418); // waist-high cover wall
+  box(32, 4.5, 38, 14, 1.2, 2, 0x1a1418); // waist-high cover wall
+
+  // Platform 3: top-left
+  platformOnly(-32, 4.5, 32, 14, 0.4, 14, 0x5a2b21);
+  box(-38, 4.5, 32, 2, 1.2, 14, 0x2b191f); // waist-high cover wall
+  box(-32, 4.5, 38, 14, 1.2, 2, 0x2b191f); // waist-high cover wall
+
+  // Platform 4: bottom-right
+  platformOnly(32, 4.5, -32, 14, 0.4, 14, 0x6a3c1c);
+  box(38, 4.5, -32, 2, 1.2, 14, 0x271e15); // waist-high cover wall
+  box(32, 4.5, -38, 14, 1.2, 2, 0x271e15); // waist-high cover wall
+
+  // Perimeter walls
   box(0, 0, -35, 34, 5.5, 3, 0x321617);
   box(0, 0, 35, 34, 5.5, 3, 0x321617);
   box(-35, 0, 0, 3, 5.5, 34, 0x321617);
@@ -328,11 +354,21 @@ function buildFoundryArena(box, platformOnly, decorBox, collidableDecorBox, stai
   platformOnly(-35, 5.75, 0, 4, 0.45, 36, 0x6e2a1a);
   platformOnly(35, 5.75, 0, 4, 0.45, 36, 0x6e2a1a);
 
+  // Stairs/Ramps to the platforms
   stairRun(-18, -24, 1, 0, 9, 3.2, 1.15, 0.58, 0x5c271a);
   stairRun(18, 24, -1, 0, 9, 3.2, 1.15, 0.58, 0x5c271a);
   stairRun(-24, 18, 0, -1, 8, 3.2, 1.15, 0.56, 0x3f2024);
   stairRun(24, -18, 0, 1, 8, 3.2, 1.15, 0.56, 0x3f2024);
 
+  // Central high platform for vertical play
+  platformOnly(0, 3.4, -12, 20, 0.42, 3, 0x7a351f);
+  platformOnly(0, 3.4, 12, 20, 0.42, 3, 0x7a351f);
+  
+  platformOnly(0, 6.5, 0, 12, 0.4, 12, 0x8c341f);
+  box(-5, 6.5, -5, 1, 1.2, 10, 0x321617); // Low cover wall
+  box(5, 6.5, -5, 1, 1.2, 10, 0x321617);  // Low cover wall
+
+  // Lava pits and path pillars
   for (const z of [-18, 18]) {
     decorBox(0, 0.05, z, 22, 0.08, 5, 0xff5a24, 0, 0, emberMat);
     box(-14, 0, z, 3, 1.5, 7, 0x201719);
@@ -340,11 +376,6 @@ function buildFoundryArena(box, platformOnly, decorBox, collidableDecorBox, stai
   }
   box(-8, 0, 0, 3, 4.5, 22, 0x181012);
   box(8, 0, 0, 3, 4.5, 22, 0x181012);
-  platformOnly(0, 3.4, -12, 20, 0.42, 3, 0x7a351f);
-  platformOnly(0, 3.4, 12, 20, 0.42, 3, 0x7a351f);
-  enterableBuilding(-58, -46, 12, 18, 10.5, 0x241417, 0x6e2a1a, "front");
-  enterableBuilding(-58, 46, 12, 18, 10.5, 0x241417, 0x6e2a1a, "back");
-  enterableBuilding(50, 0, 14, 12, 12.8, 0x1f1418, 0x7a351f, "front");
 }
 
 function buildNeedleCorridor(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding) {

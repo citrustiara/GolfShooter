@@ -15,6 +15,7 @@ export const networkLinks = {
   startGolf: null,
   enterFps: null,
   applyGolfState: null,
+  applyGolfHoleScored: null,
   applyFpsDuelState: null,
   serializeGolfState: null,
   resetFpsDuelState: null,
@@ -147,6 +148,10 @@ export function handleMessage(message) {
     networkLinks.startGolf(message.courseIds);
   }
 
+  if (message.type === "golfHoleScored") {
+    networkLinks.applyGolfHoleScored(message);
+  }
+
   if (message.type === "golfShot") {
     networkLinks.applyGolfState(message.state);
   }
@@ -157,7 +162,12 @@ export function handleMessage(message) {
 
   if (message.type === "phaseFps") {
     networkLinks.applyFpsDuelState(message.fpsState);
-    networkLinks.enterFps(false, { preserveFpsMatch: true });
+    networkLinks.enterFps(false, {
+      preserveFpsMatch: true,
+      randomTournament: game.randomTournament,
+      randomWeapon: game.randomWeapon,
+      randomLoadout: game.randomLoadout
+    });
   }
 
   if (message.type === "fpsWeaponChoice") {

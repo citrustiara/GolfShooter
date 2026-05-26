@@ -48,6 +48,10 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.16, now);
     blip(150, 0.045, 0.52, "square");
     blip(620, 0.025, 0.12, "sawtooth");
+  } else if (type === "laser") {
+    master.gain.setValueAtTime(0.14, now);
+    blip(980, 0.045, 0.65, "sawtooth");
+    blip(1450, 0.03, 0.22, "triangle");
   } else if (type === "shotgun") {
     master.gain.setValueAtTime(0.34, now);
     blip(96, 0.18, 0.92, "square");

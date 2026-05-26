@@ -29,7 +29,14 @@ export const materials = {
   gold: new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.34, emissive: 0x332200 }),
   metal: new THREE.MeshStandardMaterial({ color: 0x9fb5c3, metalness: 0.2, roughness: 0.36 }),
   floor: new THREE.MeshStandardMaterial({ color: 0x2d3940, roughness: 0.88 }),
-  laser: new THREE.LineBasicMaterial({ color: 0xfff0a6, transparent: true, opacity: 1 })
+  laser: new THREE.LineBasicMaterial({ color: 0xfff0a6, transparent: true, opacity: 1 }),
+  lava: new THREE.MeshStandardMaterial({
+    color: 0xff2200,
+    emissive: 0xff0500,
+    emissiveIntensity: 1.8,
+    roughness: 0.96,
+    metalness: 0.1
+  })
 };
 
 export function setupLighting() {

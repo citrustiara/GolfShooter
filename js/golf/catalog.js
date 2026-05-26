@@ -56,7 +56,7 @@ export const holeCatalog = [
     cup: new THREE.Vector3(14.4, 0.34, -13.7),
     walls: { x: 23, z: 17 },
     surfaces: [
-      { x: -8, z: 6, sx: 30, sz: 11 },
+      { x: -7, z: 6, sx: 32, sz: 11 },
       { x: 13.5, z: -4.8, sx: 11, sz: 28 }
     ],
     ice: [

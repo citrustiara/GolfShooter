@@ -1,11 +1,11 @@
 export const GOLF_AIM_SENSITIVITY = 0.0045;
 export const GOLF_MAX_SHOT_SPEED = 36;
 export const GOLF_GROUND_FRICTION = 0.986;
-export const GOLF_ICE_FRICTION = 0.9992;
+export const GOLF_ICE_FRICTION = 0.9998;
 export const CUP_PULL_RADIUS = 0.5;
 export const CUP_PULL_FORCE = 1.8;
 export const CUP_SINK_RADIUS = 0.34;
-export const CUP_SINK_SPEED_MAX = 5.0;
+export const CUP_SINK_SPEED_MAX = 3.0;
 export const CUP_SURFACE_Y = 0.19;
 export const FPS_DAMAGE_PER_HIT = 20;
 export const FPS_LASER_TTL = 0.2;
@@ -38,10 +38,11 @@ export const weaponCatalog = {
   minigun: { label: "Minigun", ammo: 100, damage: 5, crit: 1.5, reload: 3.2, fireDelay: 35, range: 120, spread: 0.065, aimSpread: 0.038, moveScale: 0.68, movePenalty: 0.62 },
   shotgun: { label: "Shotgun", ammo: 2, damage: 18, crit: 1.4, reload: 1.7, fireDelay: 720, range: 46, pellets: 8, spread: 0.16, moveScale: 1.12 },
   rocket: { label: "Rocket Launcher", ammo: 1, damage: 165, crit: 1, reload: 3.0, fireDelay: 900, projectile: "rocket", moveScale: 0.82 },
-  grenadeLauncher: { label: "Grenade Launcher", ammo: 3, damage: 125, crit: 1, reload: 2.4, fireDelay: 850, projectile: "grenadeLauncher", moveScale: 0.92 }
+  grenadeLauncher: { label: "Grenade Launcher", ammo: 3, damage: 125, crit: 1, reload: 2.4, fireDelay: 850, projectile: "grenadeLauncher", moveScale: 0.92 },
+  laser: { label: "Laser", ammo: 999, damage: 2, crit: 2, reload: 1.4, fireDelay: 25, range: 150, spread: 0.02, aimSpread: 0.001, moveScale: 1.0 }
 };
 
-export const randomTournamentWeapons = ["heavySniper", "minigun", "shotgun", "rocket", "grenadeLauncher", "melee"];
+export const randomTournamentWeapons = ["heavySniper", "minigun", "shotgun", "rocket", "grenadeLauncher", "melee", "laser"];
 
 export const wordsA = ["lucky", "turbo", "velvet", "neon", "tidy", "brave", "moonlit", "crisp", "sunny", "spicy"];
 export const wordsB = ["putter", "eagle", "fairway", "bogey", "driver", "caddie", "bunker", "birdie", "tee", "slice"];

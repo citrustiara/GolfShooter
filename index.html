@@ -69,21 +69,21 @@
         <span>Sensitivity</span>
         <span id="sensitivityValue">1.0x</span>
       </label>
-      <input id="sensitivityInput" type="range" min="0.4" max="2.6" step="0.1" value="1" />
+      <input id="sensitivityInput" type="range" min="0.3" max="2.6" step="0.1" value="1" />
     </div>
 
     <div class="menu" id="menu">
       <h1>Golf Duel</h1>
-      <p>Share a phrase or jump straight into testing.</p>
+
       <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="room phrase" />
       
-      <div style="margin: 14px auto 10px; width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 8px; background: rgba(0, 0, 0, 0.32); padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12);">
-        <label for="menuSensitivityInput" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; color: var(--muted); margin: 0 0 2px;">
-          <span>Aim Sensitivity</span>
-          <span id="menuSensitivityValue">1.0x</span>
-        </label>
-        <input id="menuSensitivityInput" type="range" min="0.4" max="2.6" step="0.1" value="1" style="min-height: 24px; padding: 0; accent-color: var(--gold); background: transparent; border: 0; cursor: pointer;" />
-      </div>
+
+
+
+
+
+
+
 
       <div class="menu-grid">
         <button class="primary" id="createBtn">Create Match</button>
@@ -102,17 +102,6 @@
         <button class="ghost" id="startFpsBtn">Start FPS 1v1</button>
         <button class="ghost" id="startRandomFpsBtn">Random FPS Duel</button>
         <button class="ghost" id="leaveBtn">Leave Match</button>
-      </div>
-      <div class="map-tools">
-        <textarea id="mapJsonInput" spellcheck="false" placeholder='{"version":1,"boxes":[]}'></textarea>
-        <div class="tool-row">
-          <button class="ghost" id="loadMapBtn">Load Map JSON</button>
-          <button class="ghost" id="saveMapBtn">Save Map JSON</button>
-        </div>
-        <div class="tool-row">
-          <input id="assetUrlInput" spellcheck="false" placeholder="optional .glb/.gltf URL" />
-          <button class="ghost" id="loadAssetBtn">Import</button>
-        </div>
       </div>
     </div>
 

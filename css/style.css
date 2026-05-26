@@ -448,32 +448,13 @@ input:focus {
   filter: grayscale(0.75);
 }
 
-.map-tools {
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.map-tools textarea {
-  width: 100%;
-  min-height: 76px;
-  resize: vertical;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.32);
-  color: var(--ink);
-  font: 12px/1.35 ui-monospace, "SFMono-Regular", Consolas, monospace;
-}
 
 .tool-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 8px;
   margin-top: 8px;
 }
+
 
 .tool-row:last-child {
   grid-template-columns: 1fr auto;

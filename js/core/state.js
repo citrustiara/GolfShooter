@@ -61,7 +61,8 @@ export const game = {
   buildCursor: null,
   visualRecoil: 0,
   lastShotPosition: new THREE.Vector3(),
-  golfFalling: false
+  golfFalling: false,
+  holeTransitionTimer: 0
 };
 
 export const input = {
@@ -92,6 +93,7 @@ export const world = {
   ballVel: new THREE.Vector3(),
   cup: null,
   golfAimArrow: null,
+  golfIsland: null,
   weapon: null,
   meleeWeapon: null,
   weaponTip: null,
