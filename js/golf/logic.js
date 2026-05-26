@@ -3,6 +3,7 @@ import { game, world, input } from "../core/state.js";
 import { materials } from "../core/engine.js";
 import { holeCatalog } from "./catalog.js";
 import { CUP_SURFACE_Y, HOLES_PER_TOURNAMENT } from "../core/constants.js";
+import { makeRampMesh } from "../core/ramps.js";
 
 export const holes = [];
 
@@ -73,6 +74,7 @@ export function clearCourseGeometry() {
   world.icePatches = [];
   world.bumpers = [];
   world.mounds = [];
+  world.ramps = [];
 }
 
 export function buildGolfCourse(hole) {
@@ -81,6 +83,7 @@ export function buildGolfCourse(hole) {
   }
   addCourseBoundary(hole);
   for (const ice of hole.ice || []) addIcePatch(ice);
+  for (const ramp of hole.ramps || []) addGolfRamp(ramp);
   for (const mound of hole.mounds || defaultMoundsForHole(hole)) addMound(mound);
 }
 
@@ -185,6 +188,18 @@ function addMound(hill) {
   world.courseRoot.add(mound);
   world.coursePieces.push(mound);
   world.mounds.push({ x: hill.x, z: hill.z, radius: hill.r * 0.86 });
+}
+
+function addGolfRamp(def) {
+  const ramp = { y: 0.19, ...def };
+  const mesh = makeRampMesh(
+    ramp,
+    new THREE.MeshStandardMaterial({ color: ramp.color ?? 0x72cf83, roughness: 0.82 }),
+    { surfaceOffset: 0 }
+  );
+  world.courseRoot.add(mesh);
+  world.coursePieces.push(mesh);
+  world.ramps.push(mesh.userData.ramp);
 }
 
 function defaultMoundsForHole(hole) {

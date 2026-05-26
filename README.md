@@ -13,6 +13,18 @@ python -m http.server 4173
 
 Then visit `http://localhost:4173`.
 
+## Content
+
+Maps and tuning data live outside the runtime code:
+
+- FPS arenas: `maps/fps/*.json`
+- Golf holes: `maps/golf/*.json`
+- Map list: `maps/manifest.json`
+- Weapon stats: `assets/weapons/weapons.json`
+- FPS loadouts: `assets/weapons/loadouts.json`
+
+See `CONTENT_PIPELINE.md` for the map-editor export schema and plan.
+
 ## Multiplayer
 
 The page uses PeerJS cloud discovery with a shared room phrase. The host creates

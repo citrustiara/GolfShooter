@@ -30,19 +30,8 @@ export const FPS_KILLS_TO_WIN_MAP = 2;
 export const RADAR_DURATION = 2;
 export const RADAR_COOLDOWN = 9;
 
-export const weaponCatalog = {
-  pistol: { label: "Pistol", ammo: 7, damage: 34, crit: 2, reload: 1.0, fireDelay: 160, range: 150, spread: 0.015, moveScale: 1.08 },
-  rifle: { label: "Rifle", ammo: 25, damage: 10, crit: 2, reload: 1.4, fireDelay: 80, range: 150, spread: 0.04, aimSpread: 0.002, moveScale: 1.0 },
-  sniper: { label: "Sniper", ammo: 5, damage: 65, crit: 2, reload: 1.8, fireDelay: 1000, range: 180, spread: 0.10, aimFov: FPS_SNIPER_AIM_FOV, moveScale: 0.88 },
-  heavySniper: { label: "Heavy Sniper", ammo: 1, damage: 999, crit: 1, reload: 5.0, fireDelay: 1300, range: 220, spread: 0.05, aimFov: FPS_SNIPER_AIM_FOV, moveScale: 0.72 },
-  minigun: { label: "Minigun", ammo: 100, damage: 5, crit: 1.5, reload: 3.2, fireDelay: 35, range: 120, spread: 0.065, aimSpread: 0.038, moveScale: 0.68, movePenalty: 0.62 },
-  shotgun: { label: "Shotgun", ammo: 2, damage: 18, crit: 1.4, reload: 1.7, fireDelay: 720, range: 46, pellets: 8, spread: 0.16, moveScale: 1.12 },
-  rocket: { label: "Rocket Launcher", ammo: 1, damage: 165, crit: 1, reload: 3.0, fireDelay: 900, projectile: "rocket", moveScale: 0.82 },
-  grenadeLauncher: { label: "Grenade Launcher", ammo: 3, damage: 125, crit: 1, reload: 2.4, fireDelay: 850, projectile: "grenadeLauncher", moveScale: 0.92 },
-  laser: { label: "Laser", ammo: 999, damage: 2, crit: 2, reload: 1.4, fireDelay: 25, range: 150, spread: 0.02, aimSpread: 0.001, moveScale: 1.0 }
-};
-
-export const randomTournamentWeapons = ["heavySniper", "minigun", "shotgun", "rocket", "grenadeLauncher", "melee", "laser"];
+export const weaponCatalog = {};
+export const randomTournamentWeapons = [];
 
 export const wordsA = ["lucky", "turbo", "velvet", "neon", "tidy", "brave", "moonlit", "crisp", "sunny", "spicy"];
 export const wordsB = ["putter", "eagle", "fairway", "bogey", "driver", "caddie", "bunker", "birdie", "tee", "slice"];

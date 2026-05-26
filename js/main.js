@@ -12,24 +12,14 @@ import { closePeer, createMatch, joinMatch, send, initNetworkLinks } from "./cor
 import { holes, resetTournamentState, resetGolfHole, setupGolfObjects, applyTournamentHoleIds, drawTournamentHoleIds } from "./golf/logic.js";
 import { setupArena, makePlayerMesh, clampArenaPosition, isPointInsideArena, getArenaSpawnPoints } from "./fps/logic.js";
 import { fpsArenaThemes } from "./fps/themes.js";
+import { loadGameContent } from "./content/loader.js";
+import { rampSurfaceY, rampUphillDirection } from "./core/ramps.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
 const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null;
-const weaponIds = Object.keys(weaponCatalog);
-const standardWeaponIds = ["pistol", "rifle", "sniper"];
-const normalWeaponChoices = [
-  { active: "gun", primary: "pistol" },
-  { active: "gun", primary: "rifle" },
-  { active: "gun", primary: "sniper" },
-  { active: "melee", primary: "pistol" }
-];
-const randomLoadoutPresets = [
-  { id: "tank", hp: 999, speed: 0.62, abilities: ["grenade"], cooldowns: { grenade: 4.2 } },
-  { id: "duelist", hp: 100, speed: 1.18, abilities: ["jump", "heal"], cooldowns: { jump: 2.8, heal: 7.5 } },
-  { id: "scout", hp: 75, speed: 1.35, abilities: ["jump", "radar"], cooldowns: { jump: 2.2, radar: 6.5 } },
-  { id: "bomber", hp: 140, speed: 0.95, abilities: ["grenade", "radar"], cooldowns: { grenade: 3.8, radar: 8 } },
-  { id: "standard", hp: 100, speed: 1.0, abilities: ["jump", "heal", "grenade", "radar"], cooldowns: {} }
-];
+let weaponIds = Object.keys(weaponCatalog);
+let standardWeaponIds = ["pistol", "rifle", "sniper"];
+let randomLoadoutPresets = [];
 
 function weaponConfig(id = game.primaryWeapon) { return weaponCatalog[id] || weaponCatalog.pistol; }
 function weaponMaxAmmo(id = game.primaryWeapon) { return weaponConfig(id).ammo; }
@@ -37,9 +27,10 @@ function weaponLabelText(id = game.primaryWeapon) { return id === "melee" ? "Clu
 function freshAmmoState() { return Object.fromEntries(weaponIds.map((id) => [id, weaponMaxAmmo(id)])); }
 function chooseRandomTournamentWeapon() { return randomTournamentWeapons[Math.floor(Math.random() * randomTournamentWeapons.length)] || "heavySniper"; }
 function isRandomMeleeWeapon(id = game.randomWeapon) { return id === "melee"; }
-function chooseRandomLoadout() { return randomLoadoutPresets[Math.floor(Math.random() * randomLoadoutPresets.length)] || randomLoadoutPresets[0]; }
+function defaultLoadout() { return { id: "standard", hp: 100, speed: 1.0, abilities: ["jump", "heal", "grenade", "radar"], cooldowns: {} }; }
+function chooseRandomLoadout() { const presets = randomLoadoutPresets.length ? randomLoadoutPresets : [defaultLoadout()]; return presets[Math.floor(Math.random() * presets.length)] || presets[0]; }
 function chooseRandomFpsMap(exclude = -1) { const choices = fpsArenaThemes.map((_, index) => index).filter((index) => index !== exclude); return choices[Math.floor(Math.random() * choices.length)] ?? 0; }
-function activeLoadout() { return game.randomTournament && game.randomLoadout ? game.randomLoadout : randomLoadoutPresets[randomLoadoutPresets.length - 1]; }
+function activeLoadout() { return game.randomTournament && game.randomLoadout ? game.randomLoadout : (randomLoadoutPresets[randomLoadoutPresets.length - 1] || defaultLoadout()); }
 function abilityAllowed(name) { return activeLoadout().abilities.includes(name); }
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
 function jumpAbilityStrength() { return 21; }
@@ -190,8 +181,9 @@ function updateShotArrow() {
   shaft.position.x = length * 0.5;
   head.position.x = length + 0.18;
 }
-function simulateShot(direction, power, local = false) { if (game.ballMoving || power <= 0.04) return; const dir = direction.clone().setY(0); if (dir.lengthSq() <= 0.0001) return; dir.normalize(); game.lastShotPosition.copy(world.ball.position); game.lastShotPosition.y = 0.53; game.golfFalling = false; game.ballMoving = true; world.ball.position.y = 0.53; game.strokesThisHole[game.currentPlayer]++; playSound("golfHit"); world.ballVel.copy(dir.multiplyScalar(power * GOLF_MAX_SHOT_SPEED)); if (world.golfAimArrow) world.golfAimArrow.visible = false; shotArrow.classList.add("hidden"); if (local && game.role !== "solo") send({ type: "golfShot", state: serializeGolfState() }); updateHud(); }
+function simulateShot(direction, power, local = false) { if (game.ballMoving || power <= 0.04) return; const dir = direction.clone().setY(0); if (dir.lengthSq() <= 0.0001) return; dir.normalize(); game.lastShotPosition.copy(world.ball.position); game.lastShotPosition.y = golfBallSurfaceY(); game.golfFalling = false; game.ballMoving = true; world.ball.position.y = golfBallSurfaceY(); game.strokesThisHole[game.currentPlayer]++; playSound("golfHit"); world.ballVel.copy(dir.multiplyScalar(power * GOLF_MAX_SHOT_SPEED)); if (world.golfAimArrow) world.golfAimArrow.visible = false; shotArrow.classList.add("hidden"); if (local && game.role !== "solo") send({ type: "golfShot", state: serializeGolfState() }); updateHud(); }
 function isBallOnGolfSurface(hole) {
+  if (golfRampAt(world.ball.position)) return true;
   return (hole?.surfaces || []).some((surface) => {
     if (surface.type === "circle") return flatDistance(world.ball.position, surface) <= surface.r + 0.4;
     const rot = -(surface.rot || 0);
@@ -204,7 +196,7 @@ function resetGolfAfterFall(hole) {
   game.golfFalling = false;
   game.strokesThisHole[game.currentPlayer]++;
   world.ball.position.copy(game.lastShotPosition.lengthSq() > 0 ? game.lastShotPosition : hole.start);
-  world.ball.position.y = 0.53;
+  world.ball.position.y = golfBallSurfaceY();
   world.ballVel.set(0, 0, 0);
   game.aimPower = 0;
   powerFill.style.width = "0%";
@@ -219,15 +211,22 @@ function resolveGolfBall(dt) {
   const wasOnIce = isBallOnIce();
   world.ballVel.y = 0; // Constrain to X-Z plane
   world.ball.position.addScaledVector(world.ballVel, dt);
-  world.ball.position.y = 0.53;
+  world.ball.position.y = golfBallSurfaceY();
   if (!isBallOnGolfSurface(hole)) { resetGolfAfterFall(hole); return; }
+  const ramp = golfRampAt(world.ball.position);
+  if (ramp) {
+    const downhill = rampUphillDirection(ramp.ramp).multiplyScalar(-1);
+    const slope = ramp.ramp.height / Math.max(0.001, ramp.ramp.length);
+    world.ballVel.addScaledVector(downhill, 18 * slope * dt);
+    world.ball.position.y = ramp.y + 0.34;
+  }
   world.ballVel.multiplyScalar(Math.pow(wasOnIce ? GOLF_ICE_FRICTION : GOLF_GROUND_FRICTION, dt * 60));
   if (!isBallOnGolfSurface(hole)) {
     resetGolfAfterFall(hole);
     return;
   } else if (game.golfFalling) {
     game.golfFalling = false;
-    world.ball.position.y = 0.53;
+    world.ball.position.y = golfBallSurfaceY();
   }
   for (const mound of world.mounds) {
     const d = flatDistance(world.ball.position, mound);
@@ -262,7 +261,7 @@ function resolveGolfBall(dt) {
     scoreHole();
     return;
   }
-  if (ballSpeed < 0.08) { world.ballVel.set(0, 0, 0); game.ballMoving = false; world.ball.position.y = 0.53; }
+  if (ballSpeed < 0.08) { world.ballVel.set(0, 0, 0); game.ballMoving = false; world.ball.position.y = golfBallSurfaceY(); }
 }
 function isBallOnIce() {
   return world.icePatches.some((ice) => {
@@ -384,7 +383,7 @@ function nextHole() {
 }
 function totalStrokes() { return game.holeScores.map(ps => ps.reduce((a, b) => (a || 0) + (b || 0), 0)); }
 function serializeGolfState() { return { currentPlayer: game.currentPlayer, holeIndex: game.holeIndex, holeScores: game.holeScores, strokesThisHole: game.strokesThisHole, ballPos: { x: world.ball.position.x, z: world.ball.position.z }, ballVel: { x: world.ballVel.x, z: world.ballVel.z }, token: game.golfResolveToken }; }
-function applyGolfState(s) { if (!s) return; const holeChanged = s.holeIndex !== game.holeIndex; game.currentPlayer = s.currentPlayer; game.holeIndex = s.holeIndex; game.holeScores = s.holeScores; game.strokesThisHole = s.strokesThisHole; if (holeChanged) resetGolfHole(); world.ball.position.set(s.ballPos.x, 0.53, s.ballPos.z); world.ballVel.set(s.ballVel.x, 0, s.ballVel.z); game.ballMoving = world.ballVel.lengthSq() > 0; updateHud(); }
+function applyGolfState(s) { if (!s) return; const holeChanged = s.holeIndex !== game.holeIndex; game.currentPlayer = s.currentPlayer; game.holeIndex = s.holeIndex; game.holeScores = s.holeScores; game.strokesThisHole = s.strokesThisHole; if (holeChanged) resetGolfHole(); world.ball.position.set(s.ballPos.x, 0.53, s.ballPos.z); world.ball.position.y = golfBallSurfaceY(); world.ballVel.set(s.ballVel.x, 0, s.ballVel.z); game.ballMoving = world.ballVel.lengthSq() > 0; updateHud(); }
 
 function updateFps(dt, now) {
   if (game.countdown > 0) { game.countdown -= dt; countdown.textContent = Math.ceil(game.countdown); countdown.classList.remove("hidden"); if (game.countdown <= 0) countdown.classList.add("hidden"); }
@@ -460,6 +459,8 @@ function updateFpsMovement(dt) {
   if (input.keys.has("Space") && p.grounded) { p.vel.y = 9.2; p.grounded = false; playSound("jump"); } if (input.keys.has("KeyE") && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has("KeyQ") && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
   p.vel.y += fps.gravity * dt; p.pos.addScaledVector(p.vel, dt);
   let onPlat = false; for (const plat of world.platforms) { const b = new THREE.Box3().setFromObject(plat); const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42, insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42, crossedTop = previousY >= b.max.y - 0.05 && p.pos.y <= b.max.y + 0.72; if (insideX && insideZ && p.vel.y <= 0 && crossedTop) { p.pos.y = b.max.y; p.vel.y = 0; onPlat = true; break; } }
+  const rampY = fpsRampSurfaceY(p.pos, previousY, p.vel.y);
+  if (rampY !== null) { p.pos.y = rampY; p.vel.y = 0; onPlat = true; }
   if (p.pos.y <= 1) { p.pos.y = 1; p.vel.y = 0; p.grounded = true; } else p.grounded = onPlat;
   if (!wasGrounded && p.grounded) playSound("land");
   if (p.pos.y < -8) {
@@ -468,8 +469,19 @@ function updateFpsMovement(dt) {
     p.vel.set(0, 0, 0);
   }
   clampArenaPosition(p.pos, 0.5);
-  for (const obs of world.obstacles) { const b = new THREE.Box3().setFromObject(obs); if (p.pos.y >= b.max.y - 0.08) continue; if (p.pos.x > b.min.x - 0.4 && p.pos.x < b.max.x + 0.4 && p.pos.z > b.min.z - 0.4 && p.pos.z < b.max.z + 0.4 && p.pos.y > b.min.y && p.pos.y < b.max.y) { const dx = Math.min(Math.abs(p.pos.x - b.min.x), Math.abs(p.pos.x - b.max.x)), dz = Math.min(Math.abs(p.pos.z - b.min.z), Math.abs(p.pos.z - b.max.z)); if (dx < dz) p.pos.x = p.pos.x < (b.min.x + b.max.x) / 2 ? b.min.x - 0.4 : b.max.x + 0.4; else p.pos.z = p.pos.z < (b.min.z + b.max.z) / 2 ? b.min.z - 0.4 : b.max.z + 0.4; } }
+  for (const obs of world.obstacles) { if (obs.userData?.isRamp) continue; const b = new THREE.Box3().setFromObject(obs); if (p.pos.y >= b.max.y - 0.08) continue; if (p.pos.x > b.min.x - 0.4 && p.pos.x < b.max.x + 0.4 && p.pos.z > b.min.z - 0.4 && p.pos.z < b.max.z + 0.4 && p.pos.y > b.min.y && p.pos.y < b.max.y) { const dx = Math.min(Math.abs(p.pos.x - b.min.x), Math.abs(p.pos.x - b.max.x)), dz = Math.min(Math.abs(p.pos.z - b.min.z), Math.abs(p.pos.z - b.max.z)); if (dx < dz) p.pos.x = p.pos.x < (b.min.x + b.max.x) / 2 ? b.min.x - 0.4 : b.max.x + 0.4; else p.pos.z = p.pos.z < (b.min.z + b.max.z) / 2 ? b.min.z - 0.4 : b.max.z + 0.4; } }
   clampArenaPosition(p.pos, 0.5);
+}
+
+function fpsRampSurfaceY(pos, previousY, velocityY) {
+  let best = null;
+  for (const ramp of world.ramps) {
+    const y = rampSurfaceY(ramp, pos, 0.42);
+    if (y === null) continue;
+    const closeEnough = previousY >= y - 0.9 && pos.y <= y + 0.9;
+    if (velocityY <= 2 && closeEnough && (!best || y > best)) best = y;
+  }
+  return best;
 }
 function updateGrenades(dt) { for (let i = world.grenades.length - 1; i >= 0; i--) { const g = world.grenades[i]; if (g.kind === "rocket") { g.mesh.position.addScaledVector(g.vel, dt); } else { g.vel.y += (g.gravity ?? GRENADE_GRAVITY) * dt; g.mesh.position.addScaledVector(g.vel, dt); } g.mesh.rotation.x += 5 * dt; g.mesh.rotation.y += 3 * dt; g.timer -= dt; const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1); const hitObstacle = projectileHitObstacle(g); const hitPlayer = projectileHitPlayer(g); const hitGround = g.mesh.position.y < 0.2; if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") { g.mesh.position.y = 0.2; g.vel.y *= -0.4; g.vel.x *= 0.8; g.vel.z *= 0.8; } if (outOfArena || hitObstacle || hitPlayer || (hitGround && g.kind === "grenadeLauncher") || g.timer <= 0) { if (g.localAuthority) explodeGrenade(g); else createExplosion(g.mesh.position.clone(), grenadeRadius(g) * 0.45); world.arenaRoot.remove(g.mesh); world.grenades.splice(i, 1); } } }
 function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
@@ -678,7 +690,8 @@ function switchWeapon(wt) { if ((game.phase !== "fps" && game.phase !== "fpsVict
 function selectPrimaryWeapon(wp, animate = false) { if (game.randomTournament || !standardWeaponIds.includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
 function cycleWeaponCard(dir) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = standardWeaponIds, nI = (ws.indexOf(game.primaryWeapon) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
 function pickWeaponCard(wp, animate = false) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; weaponCards.forEach(c => c.classList.toggle("active", c.getAttribute("data-weapon") === wp)); selectPrimaryWeapon(wp, animate); }
-function cycleActiveWeapon(dir) { if (game.randomTournament) return; const cI = game.activeWeapon === "melee" ? normalWeaponChoices.length - 1 : Math.max(0, normalWeaponChoices.findIndex(i => i.active === "gun" && i.primary === game.primaryWeapon)); const n = normalWeaponChoices[(cI + dir + normalWeaponChoices.length) % normalWeaponChoices.length]; if (n.active === "melee") switchWeapon("melee"); else pickWeaponCard(n.primary, true); }
+function normalWeaponChoices() { return [...standardWeaponIds.map((primary) => ({ active: "gun", primary })), { active: "melee", primary: standardWeaponIds[0] || "pistol" }]; }
+function cycleActiveWeapon(dir) { if (game.randomTournament) return; const choices = normalWeaponChoices(); const cI = game.activeWeapon === "melee" ? choices.length - 1 : Math.max(0, choices.findIndex(i => i.active === "gun" && i.primary === game.primaryWeapon)); const n = choices[(cI + dir + choices.length) % choices.length]; if (n.active === "melee") switchWeapon("melee"); else pickWeaponCard(n.primary, true); }
 function requestWeaponSwap(aw, pw = game.primaryWeapon) { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; game.pendingActiveWeapon = aw; game.pendingPrimaryWeapon = pw; game.weaponSwapTimer = WEAPON_SWAP_DURATION; game.weaponSwapCommitted = false; game.inspectTimer = 0; input.aiming = false; updateHud(); }
 function updateWeaponSwap(dt) { if (game.weaponSwapTimer <= 0) return; game.weaponSwapTimer = Math.max(0, game.weaponSwapTimer - dt); if (!game.weaponSwapCommitted && game.weaponSwapTimer <= WEAPON_SWAP_DURATION * 0.5) { applyWeaponState(game.pendingActiveWeapon, game.pendingPrimaryWeapon); game.weaponSwapCommitted = true; } }
 function applyWeaponState(aw, pw = game.primaryWeapon) { if (game.randomTournament) { if (isRandomMeleeWeapon()) { aw = "melee"; pw = "pistol"; } else { aw = "gun"; pw = game.randomWeapon; } } else if (aw !== "melee" && !standardWeaponIds.includes(pw)) pw = "pistol"; const changed = game.primaryWeapon !== pw || game.activeWeapon !== aw; game.activeWeapon = aw; game.primaryWeapon = pw; fps.players[game.localIndex].weapon = aw; fps.players[game.localIndex].primaryWeapon = pw; weaponCards.forEach(c => c.classList.toggle("active", aw === "gun" && c.getAttribute("data-weapon") === pw)); if (aw === "melee") game.reloading = false; if (changed) { syncPrimaryWeaponModel(); send({ type: "fpsWeaponChoice", weapon: pw }); } updateHud(); }
@@ -842,6 +855,48 @@ function weaponLabel(wp) {
   return "Club";
 }
 
+function applyLoadedContent(content) {
+  if (Array.isArray(content.standardWeaponIds) && content.standardWeaponIds.length) {
+    standardWeaponIds = content.standardWeaponIds;
+  }
+  if (Array.isArray(content.loadouts) && content.loadouts.length) {
+    randomLoadoutPresets = content.loadouts;
+  }
+  weaponIds = Object.keys(weaponCatalog);
+  game.ammo = freshAmmoState();
+  syncWeaponCardText();
+}
+
+function syncWeaponCardText() {
+  weaponCards.forEach((card) => {
+    const id = card.getAttribute("data-weapon");
+    const cfg = weaponCatalog[id];
+    if (!cfg) return;
+    const title = card.querySelector("h3");
+    const stats = card.querySelectorAll(".weapon-stat");
+    if (title) title.textContent = cfg.label.toUpperCase();
+    if (stats[0]) stats[0].textContent = `Damage: ${cfg.damage} (${Math.round(cfg.damage * (cfg.crit || 1))} Crit)`;
+    if (stats[1]) stats[1].textContent = `Ammo: ${cfg.ammo} Rounds`;
+    if (stats[2]) stats[2].textContent = `Type: ${cfg.projectile ? "Projectile" : (cfg.fireDelay <= 90 ? "Full-Auto" : "Semi-Auto")}`;
+  });
+}
+
+function golfRampAt(pos, margin = 0.34) {
+  let best = null;
+  for (const ramp of world.ramps) {
+    const y = rampSurfaceY(ramp, pos, margin);
+    if (y === null) continue;
+    if (!best || y > best.y) best = { ramp, y };
+  }
+  return best;
+}
+
+function golfBallSurfaceY() {
+  const ramp = golfRampAt(world.ball.position);
+  return ramp ? ramp.y + 0.34 : 0.53;
+}
+
+applyLoadedContent(await loadGameContent());
 setupLighting(); setupGolfObjects(); setupArena(); 
 scene.add(world.golfRoot, world.arenaRoot); world.arenaRoot.visible = false;
 setupWeapon(); resize(); applyTournamentHoleIds(drawTournamentHoleIds()); resetGolfHole(); showMenuScene(); updateHud(); 

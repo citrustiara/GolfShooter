@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { game, world, fps, input } from "../core/state.js";
 import { materials, scene } from "../core/engine.js";
 import { fpsArenaThemes } from "./themes.js";
+import { makeRampMesh } from "../core/ramps.js";
 
 export function setupArena() {
   const mapIndex = game.fpsMapIndex || 0;
@@ -23,6 +24,7 @@ export function setupArena() {
   // Reset world obstacles and platforms
   world.obstacles = [];
   world.platforms = [];
+  world.ramps = [];
   world.lasers = [];
   world.grenades = [];
   world.explosions = [];
@@ -145,7 +147,27 @@ export function setupArena() {
     return mesh;
   };
 
-  const stairRun = () => null;
+  const ramp = (x, y, z, width, length, height, rot = 0, color = 0x5ab0ff) => {
+    if (!isBoxInsideArena({ x, z, sx: Math.max(width, length), sz: Math.max(width, length) }, floorDefs, 0.2)) return null;
+    const mesh = makeRampMesh(
+      { x, y, z, width, length, height, rot },
+      new THREE.MeshStandardMaterial({ color, roughness: 0.68 }),
+      { surfaceOffset: 1 }
+    );
+    world.arenaRoot.add(mesh);
+    world.ramps.push(mesh.userData.ramp);
+    world.obstacles.push(mesh);
+    return mesh;
+  };
+
+  const stairRun = (x, z, dirX, dirZ, steps, width, stepDepth, stepHeight, color = 0x5ab0ff) => {
+    const len = steps * stepDepth;
+    const height = steps * stepHeight;
+    const rot = Math.atan2(dirX, dirZ);
+    const centerX = x + dirX * len * 0.5;
+    const centerZ = z + dirZ * len * 0.5;
+    return ramp(centerX, 1, centerZ, width, len, height, rot, color);
+  };
 
   const enterableBuilding = (x, z, sx, sz, h, color, roofColor = color, doorSide = "front") => {
     const wallT = 0.75;
@@ -176,7 +198,9 @@ export function setupArena() {
     decorBox(x + sign * 7.6, 2.15, z + 1.5, 1.0, 0.22, 7.5, 0xffd166, 0, 0);
   };
 
-  if (mapIndex === 0) {
+  if (hasExternalMapContent(theme)) {
+    applyFpsMapContent(theme, box, platformOnly, decorBox, collidableDecorBox, ramp);
+  } else if (mapIndex === 0) {
     box(-15, 0, -10, 2, 4.5, 20);
     box(-20, 0, 15, 18, 4.5, 2);
     box(-32, 0, -5, 2, 4.5, 25);
@@ -250,8 +274,8 @@ export function setupArena() {
     buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding);
   }
 
-  applyCustomArenaMap(box, platformOnly, decorBox);
-  loadImportedArenaAsset(theme);
+  applyCustomArenaMap(box, platformOnly, decorBox, collidableDecorBox, ramp);
+  loadImportedArenaAssets(theme);
 }
 
 function applyFpsArenaTheme(theme) {
@@ -588,30 +612,116 @@ function addExposedSide(walls, floors, floor, side, edgeH) {
   }
 }
 
-function applyCustomArenaMap(box, platformOnly, decorBox) {
-  const map = game.fpsCustomMap;
-  if (!map || !Array.isArray(map.boxes)) return;
-  for (const item of map.boxes) {
-    const color = Number(item.color || 0x555555);
-    if (item.decor) decorBox(item.x, item.y || 0, item.z, item.sx || 2, item.sy || 2, item.sz || 2, color);
-    else if (item.platformOnly) platformOnly(item.x, item.y || 0, item.z, item.sx || 3, item.sy || 0.5, item.sz || 3, color);
-    else box(item.x, item.y || 0, item.z, item.sx || 3, item.sy || 2, item.sz || 3, color, item.isPlatform !== false);
-  }
+function hasExternalMapContent(theme) {
+  return Array.isArray(theme?.boxes) || Array.isArray(theme?.platforms) || Array.isArray(theme?.ramps) || Array.isArray(theme?.collision) || Array.isArray(theme?.decor);
 }
 
-function loadImportedArenaAsset(theme) {
+function applyFpsMapContent(map, box, platformOnly, decorBox, collidableDecorBox, ramp) {
+  for (const item of map.boxes || []) {
+    if (item.decor) addMapDecor(item, decorBox, collidableDecorBox);
+    else if (item.platformOnly) addMapPlatform(item, platformOnly);
+    else addMapBox(item, box);
+  }
+  for (const item of map.platforms || []) addMapPlatform(item, platformOnly);
+  for (const item of map.ramps || []) addMapRamp(item, ramp);
+  for (const item of map.collision || []) addMapCollision(item, box);
+  for (const item of map.decor || []) addMapDecor(item, decorBox, collidableDecorBox);
+}
+
+function addMapBox(item, box) {
+  const mesh = box(
+    item.x, item.y || 0, item.z,
+    item.sx || 3, item.sy || 2, item.sz || 3,
+    Number(item.color ?? 0x555555),
+    item.isPlatform !== false
+  );
+  applyMapObjectFlags(mesh, item);
+}
+
+function addMapPlatform(item, platformOnly) {
+  const mesh = platformOnly(
+    item.x, item.y || 0, item.z,
+    item.sx || 3, item.sy || 0.5, item.sz || 3,
+    Number(item.color ?? 0x555555)
+  );
+  applyMapObjectFlags(mesh, item);
+}
+
+function addMapRamp(item, ramp) {
+  const mesh = ramp(
+    item.x, item.y ?? 1, item.z,
+    item.width ?? item.sx ?? 4,
+    item.length ?? item.sz ?? 8,
+    item.height ?? item.sy ?? 2,
+    item.rot ?? item.rotY ?? 0,
+    Number(item.color ?? 0x5ab0ff)
+  );
+  applyMapObjectFlags(mesh, item);
+}
+
+function addMapCollision(item, box) {
+  const mesh = box(
+    item.x, item.y || 0, item.z,
+    item.sx || 3, item.sy || 2, item.sz || 3,
+    Number(item.color ?? 0xff00ff),
+    item.isPlatform === true
+  );
+  applyMapObjectFlags(mesh, { ...item, visible: item.visible === true });
+}
+
+function addMapDecor(item, decorBox, collidableDecorBox) {
+  const add = item.collidable ? collidableDecorBox : decorBox;
+  const mesh = add(
+    item.x, item.y || 0, item.z,
+    item.sx || 2, item.sy || 2, item.sz || 2,
+    Number(item.color ?? 0x78e0ff),
+    item.rotX || 0,
+    item.rotY || 0
+  );
+  applyMapObjectFlags(mesh, item);
+}
+
+function applyMapObjectFlags(mesh, item) {
+  if (!mesh) return;
+  if (item.rotX !== undefined || item.rotY !== undefined || item.rotZ !== undefined) {
+    mesh.rotation.set(item.rotX || 0, item.rotY || 0, item.rotZ || 0);
+  }
+  if (item.name) mesh.name = item.name;
+  if (item.visible === false) mesh.visible = false;
+}
+
+function applyCustomArenaMap(box, platformOnly, decorBox, collidableDecorBox, ramp) {
+  const map = game.fpsCustomMap;
+  if (!map) return;
+  applyFpsMapContent(map, box, platformOnly, decorBox, collidableDecorBox, ramp);
+}
+
+function loadImportedArenaAssets(theme) {
+  for (const asset of theme.assets || []) loadArenaAsset(asset);
+  for (const asset of game.fpsCustomMap?.assets || []) loadArenaAsset(asset);
   const url = game.fpsImportedAssetUrl?.trim();
+  if (url) loadArenaAsset({ url, collidable: true });
+}
+
+function loadArenaAsset(asset) {
+  const url = typeof asset === "string" ? asset : asset?.url;
   if (!url) return;
+  const spec = typeof asset === "string" ? {} : asset;
   const loader = new GLTFLoader();
   loader.load(url, (gltf) => {
     const root = gltf.scene;
-    root.position.set(0, 0, 0);
-    root.scale.setScalar(1);
+    const pos = spec.position || {};
+    const rot = spec.rotation || {};
+    const scale = spec.scale || 1;
+    root.position.set(pos.x || 0, pos.y || 0, pos.z || 0);
+    root.rotation.set(rot.x || 0, rot.y || 0, rot.z || 0);
+    if (typeof scale === "number") root.scale.setScalar(scale);
+    else root.scale.set(scale.x || 1, scale.y || 1, scale.z || 1);
     root.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        world.obstacles.push(child);
+        if (spec.collidable === true) world.obstacles.push(child);
       }
     });
     world.arenaRoot.add(root);

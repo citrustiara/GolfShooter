@@ -1,0 +1,62 @@
+import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+
+export function normalizeRamp(def = {}) {
+  const width = Number(def.width ?? def.sx ?? 4);
+  const length = Number(def.length ?? def.sz ?? 8);
+  return {
+    ...def,
+    x: Number(def.x || 0),
+    y: Number(def.y || 0),
+    z: Number(def.z || 0),
+    width,
+    length,
+    height: Number(def.height ?? def.sy ?? 2),
+    rot: Number(def.rot ?? def.rotY ?? 0)
+  };
+}
+
+export function makeRampMesh(def, material, options = {}) {
+  const ramp = normalizeRamp(def);
+  const yOffset = Number(options.surfaceOffset || 0);
+  const w = ramp.width / 2;
+  const l = ramp.length / 2;
+  const h = ramp.height;
+  const vertices = new Float32Array([
+    -w, 0, -l,  w, 0, -l,  w, 0,  l, -w, 0,  l,
+    -w, 0, -l,  w, 0, -l,  w, h,  l, -w, h,  l
+  ]);
+  const indices = [
+    4, 5, 6, 4, 6, 7,
+    0, 3, 2, 0, 2, 1,
+    0, 4, 7, 0, 7, 3,
+    1, 2, 6, 1, 6, 5,
+    3, 7, 6, 3, 6, 2,
+    0, 1, 5, 0, 5, 4
+  ];
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(ramp.x, ramp.y - yOffset, ramp.z);
+  mesh.rotation.y = ramp.rot;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.ramp = ramp;
+  mesh.userData.isRamp = true;
+  return mesh;
+}
+
+export function rampSurfaceY(rampDef, point, margin = 0) {
+  const ramp = normalizeRamp(rampDef);
+  const local = new THREE.Vector3(point.x - ramp.x, 0, point.z - ramp.z)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), -ramp.rot);
+  if (Math.abs(local.x) > ramp.width / 2 + margin || Math.abs(local.z) > ramp.length / 2 + margin) return null;
+  const t = Math.max(0, Math.min(1, (local.z + ramp.length / 2) / ramp.length));
+  return ramp.y + t * ramp.height;
+}
+
+export function rampUphillDirection(rampDef) {
+  const ramp = normalizeRamp(rampDef);
+  return new THREE.Vector3(Math.sin(ramp.rot), 0, Math.cos(ramp.rot)).normalize();
+}

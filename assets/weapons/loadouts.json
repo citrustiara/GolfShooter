@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "loadouts": [
+    {
+      "id": "tank",
+      "hp": 999,
+      "speed": 0.62,
+      "abilities": [
+        "grenade"
+      ],
+      "cooldowns": {
+        "grenade": 4.2
+      }
+    },
+    {
+      "id": "duelist",
+      "hp": 100,
+      "speed": 1.18,
+      "abilities": [
+        "jump",
+        "heal"
+      ],
+      "cooldowns": {
+        "jump": 2.8,
+        "heal": 7.5
+      }
+    },
+    {
+      "id": "scout",
+      "hp": 75,
+      "speed": 1.35,
+      "abilities": [
+        "jump",
+        "radar"
+      ],
+      "cooldowns": {
+        "jump": 2.2,
+        "radar": 6.5
+      }
+    },
+    {
+      "id": "bomber",
+      "hp": 140,
+      "speed": 0.95,
+      "abilities": [
+        "grenade",
+        "radar"
+      ],
+      "cooldowns": {
+        "grenade": 3.8,
+        "radar": 8
+      }
+    },
+    {
+      "id": "standard",
+      "hp": 100,
+      "speed": 1,
+      "abilities": [
+        "jump",
+        "heal",
+        "grenade",
+        "radar"
+      ],
+      "cooldowns": {}
+    }
+  ]
+}

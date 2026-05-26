@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "fpsMaps": [
+    "fps/neon-depot.json",
+    "fps/sunlit-rooftops.json",
+    "fps/ember-foundry.json",
+    "fps/needle-corridor.json",
+    "fps/skyhook-spires.json"
+  ],
+  "golfMaps": [
+    "golf/ice-runway.json",
+    "golf/long-canal.json",
+    "golf/l-bend.json",
+    "golf/circle-loop.json",
+    "golf/wide-horseshoe.json",
+    "golf/zigzag-freeze.json"
+  ]
+}

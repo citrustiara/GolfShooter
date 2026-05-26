@@ -85,6 +85,7 @@ export const world = {
   icePatches: [],
   bumpers: [],
   mounds: [],
+  ramps: [],
   obstacles: [],
   platforms: [],
   arenaFloors: [],

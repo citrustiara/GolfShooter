@@ -1,0 +1,805 @@
+{
+  "version": 1,
+  "id": "neon-depot",
+  "name": "Neon Depot",
+  "sky": 1054754,
+  "fog": 1054754,
+  "fogNear": 60,
+  "fogFar": 160,
+  "shape": "long",
+  "bounds": {
+    "x": 92,
+    "z": 42
+  },
+  "spawnPoints": [
+    {
+      "x": -66,
+      "z": 0
+    },
+    {
+      "x": 66,
+      "z": 0
+    }
+  ],
+  "floors": [
+    {
+      "x": 0,
+      "z": 0,
+      "sx": 184,
+      "sz": 84
+    }
+  ],
+  "floor": 2963776,
+  "gridA": 7921919,
+  "gridB": 3358800,
+  "edge": 1718858,
+  "boxes": [
+    {
+      "x": -15,
+      "y": 0,
+      "z": -10,
+      "sx": 2,
+      "sy": 4.5,
+      "sz": 20,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -20,
+      "y": 0,
+      "z": 15,
+      "sx": 18,
+      "sy": 4.5,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -32,
+      "y": 0,
+      "z": -5,
+      "sx": 2,
+      "sy": 4.5,
+      "sz": 25,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -28,
+      "y": 0,
+      "z": -18,
+      "sx": 12,
+      "sy": 4.5,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -12,
+      "y": 0,
+      "z": 25,
+      "sx": 2,
+      "sy": 6,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 15,
+      "y": 0,
+      "z": 10,
+      "sx": 2,
+      "sy": 4.5,
+      "sz": 20,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 20,
+      "y": 0,
+      "z": -15,
+      "sx": 18,
+      "sy": 4.5,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 32,
+      "y": 0,
+      "z": 5,
+      "sx": 2,
+      "sy": 4.5,
+      "sz": 25,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 28,
+      "y": 0,
+      "z": 18,
+      "sx": 12,
+      "sy": 4.5,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 12,
+      "y": 0,
+      "z": -25,
+      "sx": 2,
+      "sy": 6,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": 32,
+      "sx": 20,
+      "sy": 4,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "z": -32,
+      "sx": 20,
+      "sy": 4,
+      "sz": 2,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -8,
+      "y": 0,
+      "z": 0,
+      "sx": 2,
+      "sy": 5,
+      "sz": 10,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "z": 0,
+      "sx": 2,
+      "sy": 5,
+      "sz": 10,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -12,
+      "y": 0,
+      "z": -12,
+      "sx": 4,
+      "sy": 2.5,
+      "sz": 4,
+      "color": 6710886,
+      "isPlatform": true
+    },
+    {
+      "x": 12,
+      "y": 0,
+      "z": 12,
+      "sx": 4,
+      "sy": 2.5,
+      "sz": 4,
+      "color": 6710886,
+      "isPlatform": true
+    },
+    {
+      "x": -12,
+      "y": 0,
+      "z": 12,
+      "sx": 4,
+      "sy": 4.2,
+      "sz": 4,
+      "color": 6710886,
+      "isPlatform": true
+    },
+    {
+      "x": 12,
+      "y": 0,
+      "z": -12,
+      "sx": 4,
+      "sy": 4.2,
+      "sz": 4,
+      "color": 6710886,
+      "isPlatform": true
+    },
+    {
+      "x": -3.8,
+      "y": 1.45,
+      "z": -20,
+      "sx": 5.5,
+      "sy": 0.45,
+      "sz": 5.5,
+      "color": 3116886,
+      "isPlatform": true
+    },
+    {
+      "x": 3.8,
+      "y": 2.65,
+      "z": -24.5,
+      "sx": 4.8,
+      "sy": 0.45,
+      "sz": 4.8,
+      "color": 4760933,
+      "isPlatform": true
+    },
+    {
+      "x": 10.5,
+      "y": 3.9,
+      "z": -20,
+      "sx": 4.2,
+      "sy": 0.45,
+      "sz": 4.2,
+      "color": 7524227,
+      "isPlatform": true
+    },
+    {
+      "x": 3.8,
+      "y": 1.45,
+      "z": 20,
+      "sx": 5.5,
+      "sy": 0.45,
+      "sz": 5.5,
+      "color": 9260287,
+      "isPlatform": true
+    },
+    {
+      "x": -3.8,
+      "y": 2.65,
+      "z": 24.5,
+      "sx": 4.8,
+      "sy": 0.45,
+      "sz": 4.8,
+      "color": 5943551,
+      "isPlatform": true
+    },
+    {
+      "x": -10.5,
+      "y": 3.9,
+      "z": 20,
+      "sx": 4.2,
+      "sy": 0.45,
+      "sz": 4.2,
+      "color": 16740193,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 5.9,
+      "z": -28,
+      "sx": 32,
+      "sy": 0.45,
+      "sz": 3.2,
+      "color": 2251898,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 5.9,
+      "z": 28,
+      "sx": 32,
+      "sy": 0.45,
+      "sz": 3.2,
+      "color": 8005685,
+      "isPlatform": true
+    },
+    {
+      "x": -28,
+      "y": 5.9,
+      "z": 0,
+      "sx": 3.2,
+      "sy": 0.45,
+      "sz": 32,
+      "color": 8018974,
+      "isPlatform": true
+    },
+    {
+      "x": 28,
+      "y": 5.9,
+      "z": 0,
+      "sx": 3.2,
+      "sy": 0.45,
+      "sz": 32,
+      "color": 2652757,
+      "isPlatform": true
+    },
+    {
+      "x": -40,
+      "y": 0.75,
+      "z": -8,
+      "sx": 3.8,
+      "sy": 0.45,
+      "sz": 3.8,
+      "color": 5943551,
+      "isPlatform": true
+    },
+    {
+      "x": -34.7,
+      "y": 1.9,
+      "z": -11.8,
+      "sx": 3.3,
+      "sy": 0.45,
+      "sz": 3.3,
+      "color": 16765286,
+      "isPlatform": true
+    },
+    {
+      "x": -29.8,
+      "y": 3.15,
+      "z": -9.1,
+      "sx": 3.1,
+      "sy": 0.45,
+      "sz": 3.1,
+      "color": 5943551,
+      "isPlatform": true
+    },
+    {
+      "x": -25.7,
+      "y": 4.35,
+      "z": -4.8,
+      "sx": 3.6,
+      "sy": 0.45,
+      "sz": 3.6,
+      "color": 16765286,
+      "isPlatform": true
+    },
+    {
+      "x": 40,
+      "y": 0.75,
+      "z": 8,
+      "sx": 3.8,
+      "sy": 0.45,
+      "sz": 3.8,
+      "color": 16740193,
+      "isPlatform": true
+    },
+    {
+      "x": 34.7,
+      "y": 1.9,
+      "z": 4.2,
+      "sx": 3.3,
+      "sy": 0.45,
+      "sz": 3.3,
+      "color": 8315560,
+      "isPlatform": true
+    },
+    {
+      "x": 29.8,
+      "y": 3.15,
+      "z": 6.9,
+      "sx": 3.1,
+      "sy": 0.45,
+      "sz": 3.1,
+      "color": 16740193,
+      "isPlatform": true
+    },
+    {
+      "x": 25.7,
+      "y": 4.35,
+      "z": 11.2,
+      "sx": 3.6,
+      "sy": 0.45,
+      "sz": 3.6,
+      "color": 8315560,
+      "isPlatform": true
+    },
+    {
+      "x": -39,
+      "y": 0,
+      "z": 18,
+      "sx": 8,
+      "sy": 1.2,
+      "sz": 2.6,
+      "color": 5943551,
+      "isPlatform": true
+    },
+    {
+      "x": -44,
+      "y": 0,
+      "z": 25,
+      "sx": 2.6,
+      "sy": 2.1,
+      "sz": 2.6,
+      "color": 8315560,
+      "isPlatform": true
+    },
+    {
+      "x": -34,
+      "y": 0,
+      "z": 28,
+      "sx": 5.8,
+      "sy": 1.6,
+      "sz": 2.4,
+      "color": 16765286,
+      "isPlatform": true
+    },
+    {
+      "x": 39,
+      "y": 0,
+      "z": -18,
+      "sx": 8,
+      "sy": 1.2,
+      "sz": 2.6,
+      "color": 16740193,
+      "isPlatform": true
+    },
+    {
+      "x": 44,
+      "y": 0,
+      "z": -25,
+      "sx": 2.6,
+      "sy": 2.1,
+      "sz": 2.6,
+      "color": 16765286,
+      "isPlatform": true
+    },
+    {
+      "x": 34,
+      "y": 0,
+      "z": -28,
+      "sx": 5.8,
+      "sy": 1.6,
+      "sz": 2.4,
+      "color": 8315560,
+      "isPlatform": true
+    },
+    {
+      "x": -48,
+      "y": 0,
+      "z": -40,
+      "sx": 2,
+      "sy": 2.5,
+      "sz": 2,
+      "color": 3233645,
+      "isPlatform": true
+    },
+    {
+      "x": -45,
+      "y": 3.55,
+      "z": -36,
+      "sx": 4,
+      "sy": 0.45,
+      "sz": 4,
+      "color": 5943551,
+      "isPlatform": true
+    },
+    {
+      "x": 48,
+      "y": 0,
+      "z": 40,
+      "sx": 2,
+      "sy": 2.5,
+      "sz": 2,
+      "color": 7156025,
+      "isPlatform": true
+    },
+    {
+      "x": 45,
+      "y": 3.55,
+      "z": 36,
+      "sx": 4,
+      "sy": 0.45,
+      "sz": 4,
+      "color": 16740193,
+      "isPlatform": true
+    },
+    {
+      "x": -45,
+      "y": 0,
+      "z": -35,
+      "sx": 8,
+      "sy": 4,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 45,
+      "y": 0,
+      "z": 35,
+      "sx": 8,
+      "sy": 4,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -45,
+      "y": 0,
+      "z": 35,
+      "sx": 8,
+      "sy": 4,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 45,
+      "y": 0,
+      "z": -35,
+      "sx": 8,
+      "sy": 4,
+      "sz": 8,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 50,
+      "y": 0,
+      "z": 0,
+      "sx": 2,
+      "sy": 6,
+      "sz": 16,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -50,
+      "y": 0,
+      "z": 0,
+      "sx": 2,
+      "sy": 6,
+      "sz": 16,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": 48,
+      "y": 0,
+      "z": 35,
+      "sx": 4,
+      "sy": 3,
+      "sz": 6,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -48,
+      "y": 0,
+      "z": -35,
+      "sx": 4,
+      "sy": 3,
+      "sz": 6,
+      "color": 4473924,
+      "isPlatform": true
+    },
+    {
+      "x": -27.31,
+      "y": 0,
+      "z": -33,
+      "sx": 4.62,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 2569018,
+      "isPlatform": true
+    },
+    {
+      "x": -22.69,
+      "y": 0,
+      "z": -33,
+      "sx": 4.62,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 2569018,
+      "isPlatform": true
+    },
+    {
+      "x": -25,
+      "y": 0,
+      "z": -23,
+      "sx": 14,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 2569018,
+      "isPlatform": true
+    },
+    {
+      "x": -32,
+      "y": 0,
+      "z": -28,
+      "sx": 0.75,
+      "sy": 5.7,
+      "sz": 10,
+      "color": 2569018,
+      "isPlatform": true
+    },
+    {
+      "x": -18,
+      "y": 0,
+      "z": -28,
+      "sx": 0.75,
+      "sy": 5.7,
+      "sz": 10,
+      "color": 2569018,
+      "isPlatform": true
+    },
+    {
+      "x": 25,
+      "y": 0,
+      "z": 23,
+      "sx": 14,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 3614509,
+      "isPlatform": true
+    },
+    {
+      "x": 22.69,
+      "y": 0,
+      "z": 33,
+      "sx": 4.62,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 3614509,
+      "isPlatform": true
+    },
+    {
+      "x": 27.31,
+      "y": 0,
+      "z": 33,
+      "sx": 4.62,
+      "sy": 5.7,
+      "sz": 0.75,
+      "color": 3614509,
+      "isPlatform": true
+    },
+    {
+      "x": 18,
+      "y": 0,
+      "z": 28,
+      "sx": 0.75,
+      "sy": 5.7,
+      "sz": 10,
+      "color": 3614509,
+      "isPlatform": true
+    },
+    {
+      "x": 32,
+      "y": 0,
+      "z": 28,
+      "sx": 0.75,
+      "sy": 5.7,
+      "sz": 10,
+      "color": 3614509,
+      "isPlatform": true
+    },
+    {
+      "x": -8,
+      "y": 0,
+      "z": -38,
+      "sx": 18,
+      "sy": 5.4,
+      "sz": 2.2,
+      "color": 3228234,
+      "isPlatform": true
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "z": 38,
+      "sx": 18,
+      "sy": 5.4,
+      "sz": 2.2,
+      "color": 4862264,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 7.05,
+      "z": 0,
+      "sx": 30,
+      "sy": 0.2,
+      "sz": 4.4,
+      "color": 7071231,
+      "isPlatform": true
+    },
+    {
+      "x": 0,
+      "y": 7.05,
+      "z": 0,
+      "sx": 4.4,
+      "sy": 0.2,
+      "sz": 30,
+      "color": 7071231,
+      "isPlatform": true
+    }
+  ],
+  "platforms": [
+    {
+      "x": -25,
+      "y": 5.85,
+      "z": -28,
+      "sx": 15.2,
+      "sy": 0.5,
+      "sz": 11.2,
+      "color": 1778987
+    },
+    {
+      "x": 25,
+      "y": 5.85,
+      "z": 28,
+      "sx": 15.2,
+      "sy": 0.5,
+      "sz": 11.2,
+      "color": 2759455
+    },
+    {
+      "x": -8,
+      "y": 5.55,
+      "z": -38,
+      "sx": 19,
+      "sy": 0.45,
+      "sz": 3.2,
+      "color": 2503997
+    },
+    {
+      "x": 8,
+      "y": 5.55,
+      "z": 38,
+      "sx": 19,
+      "sy": 0.45,
+      "sz": 3.2,
+      "color": 3810603
+    }
+  ],
+  "collision": [],
+  "decor": [],
+  "assets": [],
+  "ramps": [
+    {
+      "name": "blue-depot-ramp",
+      "x": -17.2,
+      "y": 1,
+      "z": -33.1,
+      "width": 3.2,
+      "length": 8.4,
+      "height": 3.36,
+      "rot": 1.5708,
+      "color": 3438776
+    },
+    {
+      "name": "red-depot-ramp",
+      "x": 18.8,
+      "y": 1,
+      "z": 28.9,
+      "width": 3.2,
+      "length": 8.4,
+      "height": 3.36,
+      "rot": 1.5708,
+      "color": 12077118
+    },
+    {
+      "name": "north-depot-ramp",
+      "x": -28,
+      "y": 1,
+      "z": 21.6,
+      "width": 3.2,
+      "length": 8.4,
+      "height": 3.36,
+      "rot": 0,
+      "color": 12095535
+    },
+    {
+      "name": "south-depot-ramp",
+      "x": 28,
+      "y": 1,
+      "z": -20.4,
+      "width": 3.2,
+      "length": 8.4,
+      "height": 3.36,
+      "rot": 0,
+      "color": 4037221
+    }
+  ]
+}
