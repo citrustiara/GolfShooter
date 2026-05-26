@@ -152,7 +152,7 @@ export function setupArena() {
     const mesh = makeRampMesh(
       { x, y, z, width, length, height, rot },
       new THREE.MeshStandardMaterial({ color, roughness: 0.68 }),
-      { surfaceOffset: 1 }
+      { surfaceOffset: 0 }
     );
     world.arenaRoot.add(mesh);
     world.ramps.push(mesh.userData.ramp);
@@ -502,7 +502,7 @@ function buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, gla
 }
 
 export function getArenaFloorDefs(theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]) {
-  if (Array.isArray(theme.floors) && theme.floors.length) return theme.floors;
+  if (Array.isArray(theme.floors)) return theme.floors;
   if (theme.shape === "circle") return [{ type: "circle", x: 0, z: 0, r: theme.bounds.x }];
   return [{ x: 0, z: 0, sx: theme.bounds.x * 2, sz: theme.bounds.z * 2 }];
 }
@@ -512,6 +512,7 @@ export function getArenaSpawnPoints(theme = fpsArenaThemes[game.fpsMapIndex] || 
 }
 
 export function isPointInsideArena(point, floors = world.arenaFloors, margin = 0) {
+  if (!floors || floors.length === 0) return true;
   return floors.some((floor) => {
     if (floor.type === "circle") {
       return Math.hypot(point.x - floor.x, point.z - floor.z) <= floor.r - margin;

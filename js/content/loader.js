@@ -49,7 +49,22 @@ async function loadMapList(manifest) {
 async function loadWeaponContent() {
   const weaponConfig = await loadJson(WEAPON_CONFIG_URL);
   const loadoutConfig = await loadJson(LOADOUT_CONFIG_URL);
-  replaceObject(weaponCatalog, weaponConfig.weapons || {});
+  
+  const weapons = weaponConfig.weapons || {};
+  const weaponIds = Object.keys(weapons);
+  await Promise.all(weaponIds.map(async (id) => {
+    try {
+      const modelData = await loadJson(`assets/weapons/models/${id}.json`);
+      if (modelData) {
+        if (modelData.parts) weapons[id].parts = modelData.parts;
+        if (modelData.muzzle) weapons[id].muzzle = modelData.muzzle;
+      }
+    } catch (err) {
+      console.warn(`Could not load model for weapon ${id}:`, err);
+    }
+  }));
+
+  replaceObject(weaponCatalog, weapons);
   replaceArray(randomTournamentWeapons, weaponConfig.randomTournamentWeapons || []);
   return {
     standardWeaponIds: weaponConfig.standardWeapons || [],

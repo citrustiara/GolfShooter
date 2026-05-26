@@ -557,6 +557,30 @@ input:focus {
   height: 2px;
 }
 
+.reload-progress {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 20px);
+  transform: translateX(-50%);
+  width: 48px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.reload-bar {
+  width: 0%;
+  height: 100%;
+  background: #5ab0ff;
+  box-shadow: 0 0 8px rgba(90, 176, 255, 0.9);
+  transition: width 30ms linear;
+}
+
 .hit-marker {
   position: absolute;
   left: 50%;

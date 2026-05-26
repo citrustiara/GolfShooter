@@ -22,16 +22,16 @@ export function makeRampMesh(def, material, options = {}) {
   const l = ramp.length / 2;
   const h = ramp.height;
   const vertices = new Float32Array([
-    -w, 0, -l,  w, 0, -l,  w, 0,  l, -w, 0,  l,
-    -w, 0, -l,  w, 0, -l,  w, h,  l, -w, h,  l
+    -w, 0, -l, w, 0, -l, -w, 0, l, w, 0, l,
+    -w, h, l, w, h, l,
   ]);
   const indices = [
-    4, 5, 6, 4, 6, 7,
-    0, 3, 2, 0, 2, 1,
-    0, 4, 7, 0, 7, 3,
-    1, 2, 6, 1, 6, 5,
-    3, 7, 6, 3, 6, 2,
-    0, 1, 5, 0, 5, 4
+    0, 1, 3, 0, 3, 2,
+    2, 3, 5, 2, 5, 4,
+    0, 2, 4, 0, 4, 1,
+    1, 4, 5, 1, 5, 3,
+    0, 4, 2,
+    1, 3, 5,
   ];
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
