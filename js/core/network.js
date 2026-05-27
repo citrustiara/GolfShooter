@@ -109,6 +109,8 @@ export async function joinMatch() {
   try {
     peer = new Peer(undefined, { debug: 1 });
     peer.on("open", () => {
+      sessionStorage.setItem("gd_room", room);
+      sessionStorage.setItem("gd_role", "guest");
       attachConnection(peer.connect(room, { reliable: true }));
     });
     peer.on("error", (error) => { if (menuError) menuError.textContent = `Connection broker: ${error.type}`; });

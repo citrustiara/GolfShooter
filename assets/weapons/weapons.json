@@ -10,7 +10,8 @@
       "fireDelay": 160,
       "range": 150,
       "spread": 0.015,
-      "moveScale": 1.08
+      "moveScale": 0.96,
+      "recoil": 0.42
     },
     "rifle": {
       "label": "Rifle",
@@ -22,7 +23,8 @@
       "range": 150,
       "spread": 0.04,
       "aimSpread": 0.002,
-      "moveScale": 1
+      "moveScale": 0.88,
+      "recoil": 0.42
     },
     "sniper": {
       "label": "Sniper",
@@ -34,7 +36,8 @@
       "range": 180,
       "spread": 0.1,
       "aimFov": 14,
-      "moveScale": 0.88
+      "moveScale": 0.78,
+      "recoil": 0.42
     },
     "heavySniper": {
       "label": "Heavy Sniper",
@@ -46,7 +49,8 @@
       "range": 220,
       "spread": 0.05,
       "aimFov": 14,
-      "moveScale": 0.72
+      "moveScale": 0.64,
+      "recoil": 0.42
     },
     "minigun": {
       "label": "Minigun",
@@ -58,8 +62,9 @@
       "range": 120,
       "spread": 0.065,
       "aimSpread": 0.038,
-      "moveScale": 0.68,
-      "movePenalty": 0.62
+      "moveScale": 0.60,
+      "movePenalty": 0.62,
+      "recoil": 0.18
     },
     "shotgun": {
       "label": "Shotgun",
@@ -71,7 +76,8 @@
       "range": 46,
       "pellets": 8,
       "spread": 0.16,
-      "moveScale": 1.12
+      "moveScale": 1.00,
+      "recoil": 0.7
     },
     "rocket": {
       "label": "Rocket Launcher",
@@ -81,7 +87,8 @@
       "reload": 3,
       "fireDelay": 900,
       "projectile": "rocket",
-      "moveScale": 0.82
+      "moveScale": 0.73,
+      "recoil": 0.85
     },
     "grenadeLauncher": {
       "label": "Grenade Launcher",
@@ -91,7 +98,8 @@
       "reload": 2.4,
       "fireDelay": 850,
       "projectile": "grenadeLauncher",
-      "moveScale": 0.92
+      "moveScale": 0.82,
+      "recoil": 0.85
     },
     "laser": {
       "label": "Laser",
@@ -103,7 +111,8 @@
       "range": 150,
       "spread": 0.02,
       "aimSpread": 0.001,
-      "moveScale": 1
+      "moveScale": 0.88,
+      "recoil": 0.0
     },
     "melee": {
       "label": "Club",
@@ -113,7 +122,8 @@
       "reload": 1,
       "fireDelay": 600,
       "range": 4.5,
-      "moveScale": 1.34
+      "moveScale": 1.18,
+      "recoil": 0.0
     }
   },
   "standardWeapons": [

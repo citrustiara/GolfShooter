@@ -32,6 +32,7 @@ export const RADAR_COOLDOWN = 9;
 
 export const weaponCatalog = {};
 export const randomTournamentWeapons = [];
+export const tournamentCombinations = [];
 
 export const wordsA = ["lucky", "turbo", "velvet", "neon", "tidy", "brave", "moonlit", "crisp", "sunny", "spicy"];
 export const wordsB = ["putter", "eagle", "fairway", "bogey", "driver", "caddie", "bunker", "birdie", "tee", "slice"];

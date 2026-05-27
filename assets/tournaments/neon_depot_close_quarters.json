@@ -1,0 +1,7 @@
+{
+  "id": "neon_depot_close_quarters",
+  "map": "fps/neon-depot.json",
+  "weapons": ["shotgun", "melee"],
+  "hp": 150,
+  "abilities": ["jump", "heal"]
+}

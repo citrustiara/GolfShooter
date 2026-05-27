@@ -123,6 +123,7 @@ export function setupArena() {
     mesh.receiveShadow = true;
     world.arenaRoot.add(mesh);
     world.platforms.push(mesh);
+    world.obstacles.push(mesh);
     return mesh;
   };
 
@@ -739,26 +740,26 @@ export function makePlayerMesh(material) {
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1114, roughness: 0.5, metalness: 0.45 });
   const barrelMat = new THREE.MeshStandardMaterial({ color: 0x9fb5c3, roughness: 0.32, metalness: 0.65 });
   
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.0, 8, 18), material);
-  body.position.y = 0.65;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.94, 8, 18), material);
+  body.position.y = 0.89;
   body.castShadow = true;
   
-  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.5, 0.12), armorMat);
-  chestPlate.position.set(0, 0.82, -0.26);
+  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.6, 0.14), armorMat);
+  chestPlate.position.set(0, 1.05, -0.3);
   chestPlate.castShadow = true;
   
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.08, 0.18), darkMat);
-  belt.position.set(0, 0.42, -0.05);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, 0.22), darkMat);
+  belt.position.set(0, 0.55, -0.05);
   
-  const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), armorMat);
-  shoulderL.position.set(-0.42, 1.04, -0.04);
+  const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), armorMat);
+  shoulderL.position.set(-0.5, 1.25, -0.04);
   shoulderL.scale.set(1.15, 0.72, 0.9);
   const shoulderR = shoulderL.clone();
-  shoulderR.position.x = 0.42;
+  shoulderR.position.x = 0.5;
   
   const headGroup = new THREE.Group();
   headGroup.name = "headGroup";
-  headGroup.position.y = 1.35;
+  headGroup.position.y = 1.58;
   
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), material);
   head.castShadow = true;
@@ -775,7 +776,22 @@ export function makePlayerMesh(material) {
   visor.position.set(0, -0.035, -0.288);
   
   headGroup.add(head, brow, eyeL, eyeR, visor);
-  group.add(body, chestPlate, belt, shoulderL, shoulderR, headGroup);
+  
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.48, 12), armorMat);
+  legL.position.set(-0.2, 0.3, 0);
+  legL.castShadow = true;
+  
+  const legR = legL.clone();
+  legR.position.x = 0.2;
+  
+  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.24), darkMat);
+  footL.position.set(-0.2, 0.04, -0.06);
+  footL.castShadow = true;
+  
+  const footR = footL.clone();
+  footR.position.x = 0.2;
+  
+  group.add(body, chestPlate, belt, shoulderL, shoulderR, headGroup, legL, legR, footL, footR);
 
   const gunPart = new THREE.Group();
   gunPart.name = "gun";

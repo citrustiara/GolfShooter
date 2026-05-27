@@ -1,0 +1,7 @@
+{
+  "id": "ember_foundry_laser_tag",
+  "map": "fps/ember-foundry.json",
+  "weapons": ["laser"],
+  "hp": 80,
+  "abilities": ["heal", "radar"]
+}

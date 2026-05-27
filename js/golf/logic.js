@@ -35,10 +35,14 @@ export function drawTournamentHoleIds() {
 export function applyTournamentHoleIds(courseIds) {
   const byId = new Map(holeCatalog.map((hole) => [hole.id, hole]));
   const picked = (Array.isArray(courseIds) ? courseIds : [])
-    .map((id) => byId.get(id))
+    .map((id) => {
+      if (typeof id === "object") return id;
+      if (id === "custom") return game.golfCustomMap;
+      return byId.get(id);
+    })
     .filter(Boolean);
   const fallback = holeCatalog.slice(0, HOLES_PER_TOURNAMENT);
-  holes.splice(0, holes.length, ...(picked.length === HOLES_PER_TOURNAMENT ? picked : fallback));
+  holes.splice(0, holes.length, ...(picked.length > 0 ? picked : fallback));
 }
 
 export function resetGolfHole() {

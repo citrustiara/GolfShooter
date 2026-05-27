@@ -3,7 +3,8 @@ import {
   GOLF_AIM_SENSITIVITY, GOLF_MAX_SHOT_SPEED, GOLF_GROUND_FRICTION, GOLF_ICE_FRICTION, CUP_PULL_RADIUS, CUP_PULL_FORCE, CUP_SINK_RADIUS, CUP_SINK_SPEED_MAX, CUP_SURFACE_Y, 
   FPS_LASER_TTL, FPS_BASE_MOUSE_SENSITIVITY, FPS_PLAYER_HIT_RADIUS, FPS_AIM_SENSITIVITY_MULTIPLIER, FPS_DEFAULT_FOV, FPS_AIM_FOV, FPS_SNIPER_AIM_FOV, 
   FPS_HEAD_HIT_RADIUS, FPS_BODY_HIT_RADIUS, GRENADE_COOLDOWN, GRENADE_SPEED, GRENADE_GRAVITY, GRENADE_SPLASH_RADIUS, GRENADE_MAX_DAMAGE, HOLES_PER_TOURNAMENT, 
-  FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, FPS_KILLS_TO_WIN_MAP, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons
+  FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, FPS_KILLS_TO_WIN_MAP, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons,
+  tournamentCombinations
 } from "./core/constants.js";
 import { canvas, renderer, scene, camera, clock, raycaster, materials, setupLighting, resize, lights } from "./core/engine.js";
 import { game, input, world, fps } from "./core/state.js";
@@ -16,6 +17,7 @@ import { loadGameContent } from "./content/loader.js";
 import { rampSurfaceY, rampUphillDirection } from "./core/ramps.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
+const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), mapUploadInput = document.querySelector("#mapUploadInput");
 const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null;
 let weaponIds = Object.keys(weaponCatalog);
 let standardWeaponIds = ["pistol", "rifle", "sniper"];
@@ -35,6 +37,79 @@ function abilityAllowed(name) { return activeLoadout().abilities.includes(name);
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
 function jumpAbilityStrength() { return 21; }
 function aimingSensitivityMultiplier() { const cfg = weaponConfig(); const aimFov = cfg.aimFov || FPS_AIM_FOV; return FPS_AIM_SENSITIVITY_MULTIPLIER * Math.sqrt(Math.max(0.08, aimFov / FPS_DEFAULT_FOV)); }
+function getSpawnY(spawn, theme) {
+  if (!spawn) return 1.0;
+  if (spawn.y !== undefined) return spawn.y;
+  let bestY = 1.0;
+  if (!theme) return bestY;
+  const spawnX = Number(spawn.x || 0);
+  const spawnZ = Number(spawn.z || 0);
+  const pointInBoxFootprint = (item, margin = 0.42) => {
+    const rot = Number(item.rot ?? item.rotY ?? 0);
+    const dx = spawnX - Number(item.x || 0);
+    const dz = spawnZ - Number(item.z || 0);
+    const c = Math.cos(-rot);
+    const s = Math.sin(-rot);
+    const localX = dx * c - dz * s;
+    const localZ = dx * s + dz * c;
+    return Math.abs(localX) <= Number(item.sx || 0) / 2 + margin &&
+      Math.abs(localZ) <= Number(item.sz || 0) / 2 + margin;
+  };
+  const considerBoxTop = (item) => {
+    if (!item || !pointInBoxFootprint(item)) return;
+    const topY = Number(item.y || 0) + Number(item.sy || 0);
+    if (topY > bestY) bestY = topY;
+  };
+  const floors = theme.floors || [];
+  for (const floor of floors) {
+    if (floor.type === "circle") {
+      if (Math.hypot(spawnX - floor.x, spawnZ - floor.z) <= (floor.r || 0) + 0.42) {
+        const y = Number(floor.y || 0);
+        if (y > bestY) bestY = y;
+      }
+    } else {
+      const halfX = Number(floor.sx || 1) / 2 + 0.42;
+      const halfZ = Number(floor.sz || 1) / 2 + 0.42;
+      if (Math.abs(spawnX - floor.x) <= halfX && Math.abs(spawnZ - floor.z) <= halfZ) {
+        const y = Number(floor.y || 0);
+        if (y > bestY) bestY = y;
+      }
+    }
+  }
+  const boxes = theme.boxes || [];
+  for (const box of boxes) {
+    if (box.isPlatform !== false || box.platformOnly) considerBoxTop(box);
+  }
+  for (const platform of theme.platforms || []) considerBoxTop(platform);
+  const ramps = theme.ramps || [];
+  for (const ramp of ramps) {
+    const y = rampSurfaceY(ramp, { x: spawnX, z: spawnZ }, 0.42);
+    if (y !== null && y > bestY) {
+      bestY = y;
+    }
+  }
+  return bestY + 0.05;
+}
+
+async function populateMapSelects() {
+  if (golfMapSelect.options.length > 1) return;
+  try {
+    const res = await fetch("maps/manifest.json");
+    const manifest = await res.json();
+    manifest.golfMaps?.forEach((path, i) => {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = path.split("/").pop().replace(".json", "");
+      golfMapSelect.appendChild(opt);
+    });
+    manifest.fpsMaps?.forEach((path, i) => {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = path.split("/").pop().replace(".json", "");
+      fpsMapSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.error("Failed to load map manifest", e);
+  }
+}
 
 function showMenuScene() {
   world.golfRoot.visible = true; world.arenaRoot.visible = false; camera.position.set(-28, 12, 28); camera.lookAt(0, 0, 0); camera.fov = 62; camera.updateProjectionMatrix();
@@ -99,7 +174,7 @@ function setupWeapon() {
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
 function showMenu() { game.phase = "menu"; menu.classList.remove("hidden"); lobby.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); document.querySelector("#network").classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); document.exitPointerLock?.(); showMenuScene(); }
-function showLobby() { game.phase = "lobby"; lobby.classList.remove("hidden"); menu.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); showMenuScene(); if (game.role === "guest") { startGolfBtn.classList.add("hidden"); startFpsBtn.classList.add("hidden"); startRandomFpsBtn?.classList.add("hidden"); lobbyStatus.textContent = "Waiting for host to start..."; } else { startGolfBtn.classList.remove("hidden"); startFpsBtn.classList.remove("hidden"); startRandomFpsBtn?.classList.remove("hidden"); lobbyStatus.textContent = game.role === "solo" ? "Solo practice. Choose a mode." : "Peer connected! You are the host."; } }
+function showLobby() { game.phase = "lobby"; lobby.classList.remove("hidden"); menu.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); showMenuScene(); if (game.role === "guest") { startGolfBtn.classList.add("hidden"); startFpsBtn.classList.add("hidden"); startRandomFpsBtn?.classList.add("hidden"); lobbyStatus.textContent = "Waiting for host to start..."; practiceMapOptions?.classList.add("hidden"); } else { startGolfBtn.classList.remove("hidden"); startFpsBtn.classList.remove("hidden"); startRandomFpsBtn?.classList.remove("hidden"); lobbyStatus.textContent = game.role === "solo" ? "Solo practice. Choose a mode." : "Peer connected! You are the host."; if (game.role === "solo" && practiceMapOptions) { practiceMapOptions.classList.remove("hidden"); startGolfBtn.textContent = "Play Selected Golf Map"; startFpsBtn.textContent = "Play Selected FPS Map"; startRandomFpsBtn.textContent = "Random Loadout Duel"; populateMapSelects(); } else { practiceMapOptions?.classList.add("hidden"); startGolfBtn.textContent = "Start Tournament"; startFpsBtn.textContent = "Start FPS 1v1"; startRandomFpsBtn.textContent = "Random FPS Duel"; } } }
 function startGolf(courseIds = null) { resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); updateHud(); }
 function applyGolfAtmosphere(hole) {
   if (!hole) return;
@@ -129,7 +204,7 @@ function enterFps(isSimulation = false, options = {}) {
   game.fpsRoundWinner = null; game.countdown = options.staticMock ? 0 : FPS_COUNTDOWN_DURATION; game.weaponSelectTimer = 0;
   const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], spawns = getArenaSpawnPoints(theme);
   const randomMelee = game.randomTournament && isRandomMeleeWeapon();
-  fps.players.forEach((p, i) => { const spawn = spawns[i] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, spawn.y ?? 1, spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.weapon = randomMelee ? "melee" : "gun"; p.primaryWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : "pistol"; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
+  fps.players.forEach((p, i) => { const spawn = spawns[i] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.weapon = randomMelee ? "melee" : "gun"; p.primaryWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : "pistol"; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
   game.ammo = freshAmmoState(); game.reloading = false; game.activeWeapon = randomMelee ? "melee" : "gun"; game.primaryWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : "pistol"; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
   if (game.role === "solo") game.localIndex = 0;
   setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState("gun", game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
@@ -454,7 +529,7 @@ function updateFps(dt, now) {
   updateHud();
 }
 function updateFpsCamera(dt) {
-  const p = fps.players[game.localIndex]; p.yaw = input.yaw; p.pitch = input.pitch; p.currentCamHeight = moveTowards(p.currentCamHeight || 0.72, p.sliding ? 0.35 : 0.72, dt * 2.5);
+  const p = fps.players[game.localIndex]; p.yaw = input.yaw; p.pitch = input.pitch; p.currentCamHeight = moveTowards(p.currentCamHeight || 1.58, p.sliding ? 0.8 : 1.58, dt * 2.5);
   game.visualRecoil = moveTowards(game.visualRecoil, 0, dt * 9);
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
   const cfg = weaponConfig(game.primaryWeapon);
@@ -467,15 +542,72 @@ function updateWeaponModel(dt, p) {
   const cfg = weaponConfig(game.primaryWeapon);
   weapon.scale.setScalar(game.activeWeapon === "gun" ? (cfg.scale || 1.0) * 0.82 : 0.78);
   const fpOffset = cfg.firstPersonOffset || { x: 0.22, y: -0.3, z: -0.34 };
-  let offset = camDir.clone().multiplyScalar(-fpOffset.z).add(right.clone().multiplyScalar(fpOffset.x + swayX)).add(up.clone().multiplyScalar(fpOffset.y + bob));
-  if (input.aiming && game.activeWeapon === "gun") {
+
+  // Calculate inspect progress (0.0 to 1.0)
+  let inspectProgress = 0;
+  if (game.inspectTimer > 0) {
+    const inspectTotal = 2.0;
+    const elapsed = inspectTotal - game.inspectTimer;
+    if (elapsed < 0.5) {
+      inspectProgress = Math.sin((elapsed / 0.5) * Math.PI / 2);
+    } else if (elapsed > 1.5) {
+      inspectProgress = Math.sin(((inspectTotal - elapsed) / 0.5) * Math.PI / 2);
+    } else {
+      inspectProgress = 1.0;
+    }
+  }
+
+  // Interpolate weapon offset based on inspect progress to center it and bring it closer
+  const targetX = THREE.MathUtils.lerp(fpOffset.x, 0.02, inspectProgress);
+  const targetY = THREE.MathUtils.lerp(fpOffset.y, -0.16, inspectProgress);
+  const targetZ = THREE.MathUtils.lerp(fpOffset.z, -0.24, inspectProgress);
+
+  let offset = camDir.clone().multiplyScalar(-targetZ).add(right.clone().multiplyScalar(targetX + swayX)).add(up.clone().multiplyScalar(targetY + bob));
+  if (input.aiming && game.activeWeapon === "gun" && inspectProgress === 0) {
     const longGun = game.primaryWeapon === "sniper" || game.primaryWeapon === "heavySniper";
     offset = camDir.clone().multiplyScalar(-fpOffset.z - (longGun ? 0.06 : 0.1)).add(right.clone().multiplyScalar(fpOffset.x * 0.15 + swayX)).add(up.clone().multiplyScalar(fpOffset.y - (longGun ? 0.24 : 0.16) + bob));
   }
   offset.add(camDir.clone().multiplyScalar(-game.visualRecoil * 0.12)).add(up.clone().multiplyScalar(game.visualRecoil * 0.04));
-  let animY = 0, animRotZ = 0; if (game.weaponSwapTimer > 0) animY = -Math.sin((game.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5; else if (game.reloading) { const t = game.reloadTimer / (game.primaryWeapon === "pistol" ? 1.0 : 1.4); animRotZ = Math.sin(t * Math.PI) * 0.6; animY = -Math.abs(Math.sin(t * Math.PI)) * 0.15; } else if (game.inspectTimer > 0) animRotZ = Math.sin(game.inspectTimer * 2) * 0.4; else if (game.activeWeapon === "melee" && game.meleeSwingTimer > 0) { const progress = (0.25 - game.meleeSwingTimer) / 0.25; animY = -Math.sin(progress * Math.PI) * 1.5; }
+
+  // Compute animation-related Y offset
+  let animY = 0;
+  if (game.weaponSwapTimer > 0) {
+    animY = -Math.sin((game.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5;
+  } else if (game.reloading) {
+    const total = cfg.reload || 1.4;
+    const t = game.reloadTimer / total;
+    const reloadFactor = Math.sin(t * Math.PI);
+    
+    // Dynamic drop amount to prevent clipping through floor
+    let dropAmount = 0.75;
+    let groundY = world.arenaFloors.length > 0 ? 0.0 : -60;
+    for (const plat of world.platforms) {
+      const b = new THREE.Box3().setFromObject(plat);
+      if (camera.position.x > b.min.x && camera.position.x < b.max.x && camera.position.z > b.min.z && camera.position.z < b.max.z) {
+        groundY = Math.max(groundY, b.max.y);
+      }
+    }
+    for (const ramp of world.ramps) {
+      const y = rampSurfaceY(ramp, camera.position, 0);
+      if (y !== null) groundY = Math.max(groundY, y);
+    }
+    const minWeaponY = groundY + 0.18;
+    const weaponYWithoutAnim = camera.position.y + offset.y;
+    const maxAllowableDrop = weaponYWithoutAnim - minWeaponY;
+    if (maxAllowableDrop > 0 && dropAmount > maxAllowableDrop) {
+      dropAmount = Math.max(0.15, maxAllowableDrop);
+    }
+    
+    animY = -reloadFactor * dropAmount;
+  } else if (game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
+    const progress = (0.25 - game.meleeSwingTimer) / 0.25;
+    animY = -Math.sin(progress * Math.PI) * 1.5;
+  }
+
   weapon.position.copy(camera.position).add(offset).add(up.clone().multiplyScalar(animY));
-  let groundY = world.arenaFloors.length > 0 ? 1.0 : -60;
+
+  // Apply ground safety clamp for normal movement
+  let groundY = world.arenaFloors.length > 0 ? 0.0 : -60;
   for (const plat of world.platforms) {
     const b = new THREE.Box3().setFromObject(plat);
     if (weapon.position.x > b.min.x && weapon.position.x < b.max.x && weapon.position.z > b.min.z && weapon.position.z < b.max.z) {
@@ -490,22 +622,32 @@ function updateWeaponModel(dt, p) {
   if (weapon.position.y < minWeaponY) {
     weapon.position.y = minWeaponY;
   }
-  weapon.quaternion.copy(camera.quaternion); weapon.rotateZ(animRotZ);
+
+  // Apply camera orientation and add local rotations for inspection
+  weapon.quaternion.copy(camera.quaternion);
+  if (inspectProgress > 0) {
+    weapon.rotateY(1.3 * inspectProgress);
+    weapon.rotateX(0.15 * inspectProgress);
+    weapon.rotateZ(-0.25 * inspectProgress);
+  }
 }
 function updateFpsMovement(dt) {
   const p = fps.players[game.localIndex], theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw)), right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(), move = new THREE.Vector3(), previousY = p.pos.y;
   if (input.keys.has("KeyW")) move.add(forward); if (input.keys.has("KeyS")) move.sub(forward); if (input.keys.has("KeyA")) move.sub(right); if (input.keys.has("KeyD")) move.add(right); if (move.lengthSq() > 0) move.normalize();
   const wasGrounded = p.grounded;
+  const wasGroundSurface = p.groundSurface || null;
   const slideKey = input.keys.has("ShiftLeft") || input.keys.has("ControlLeft"), slidePressed = slideKey && !input.slideKeyWasDown, wantsSlide = slidePressed && p.grounded && move.lengthSq() > 0 && game.slideCooldown <= 0;
-  const cfg = weaponConfig();
-  const meleeSpeedBoost = game.activeWeapon === "melee" ? 1.16 : 1;
-  const weaponMoveScale = (cfg.moveScale || 1) * activeLoadout().speed * meleeSpeedBoost * (game.primaryWeapon === "minigun" && input.shootHeld ? cfg.movePenalty : 1);
+  const activeWeaponId = game.activeWeapon === "melee" ? "melee" : game.primaryWeapon;
+  const cfg = weaponConfig(activeWeaponId);
+  const weaponMoveScale = (cfg.moveScale || 1) * activeLoadout().speed * (activeWeaponId === "minigun" && input.shootHeld ? cfg.movePenalty : 1);
   if (wantsSlide) { game.slideTimer = 0.58; game.slideCooldown = 0.65; p.vel.addScaledVector(move, 7.5 * weaponMoveScale); playSound("slide"); }
   p.sliding = game.slideTimer > 0 && p.grounded;
   input.slideKeyWasDown = slideKey;
-  const accel = p.sliding ? 32 : (p.grounded ? 120 : 25), maxSpeed = (p.sliding ? 22 : 14.5) * weaponMoveScale;
+  
+  // Snappy movement: accel 220, friction 0.80 when moving, 0.65 when stopping
+  const accel = p.sliding ? 32 : (p.grounded ? 220 : 25), maxSpeed = (p.sliding ? 22 : 14.5) * weaponMoveScale;
   p.vel.addScaledVector(move, accel * weaponMoveScale * dt);
-  const baseFriction = p.sliding ? 0.976 : (p.grounded ? 0.88 : 0.985);
+  const baseFriction = p.sliding ? 0.976 : (p.grounded ? (move.lengthSq() > 0 ? 0.80 : 0.65) : 0.985);
   const friction = Math.pow(baseFriction, dt * 60);
   p.vel.x *= friction;
   p.vel.z *= friction;
@@ -515,51 +657,130 @@ function updateFpsMovement(dt) {
     p.vel.x *= s;
     p.vel.z *= s;
   }
+  
   if (input.keys.has("Space") && p.grounded) { p.vel.y = 9.2; p.grounded = false; playSound("jump"); } if (input.keys.has("KeyE") && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has("KeyQ") && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
   p.vel.y += fps.gravity * dt; p.pos.addScaledVector(p.vel, dt);
-  let onPlat = false;
-  for (const plat of world.platforms) {
-    const b = new THREE.Box3().setFromObject(plat);
-    const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42;
-    const insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42;
-    const crossedTop = previousY >= b.max.y - 0.05 && p.pos.y <= b.max.y + 0.01;
-    if (insideX && insideZ && p.vel.y <= 0 && crossedTop) {
-      p.pos.y = b.max.y;
-      p.vel.y = 0;
-      onPlat = true;
-      break;
+  
+  // Ceiling collision check: stop player from phasing through ceilings when jumping upwards
+  if (p.vel.y > 0) {
+    const PLAYER_HEIGHT = 1.78;
+    const previousHead = previousY + PLAYER_HEIGHT;
+    const currentHead = p.pos.y + PLAYER_HEIGHT;
+    const CEILING_TOLERANCE = 0.20;
+    const ceilingBlockers = [...world.platforms, ...world.obstacles];
+    for (const block of ceilingBlockers) {
+      if (block.userData?.isRamp) continue;
+      const b = new THREE.Box3().setFromObject(block);
+      const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42;
+      const insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42;
+      if (insideX && insideZ) {
+        if (previousHead <= b.min.y + CEILING_TOLERANCE && currentHead >= b.min.y) {
+          p.pos.y = b.min.y - PLAYER_HEIGHT - 0.01;
+          p.vel.y = 0;
+          break;
+        }
+      }
     }
   }
-  const rampY = fpsRampSurfaceY(p.pos, previousY, p.vel.y);
-  if (rampY !== null) { p.pos.y = rampY; p.vel.y = 0; onPlat = true; }
-  if (world.arenaFloors.length > 0 && p.pos.y <= 1) { p.pos.y = 1; p.vel.y = 0; p.grounded = true; } else p.grounded = onPlat;
+  
+  let onPlat = false;
+  let platSurface = null;
+  const GROUND_SNAP = 0.28;
+  
+  // Snap to ramps first
+  const rampY = fpsRampSurfaceY(p, previousY, p.vel.y, wasGrounded, wasGroundSurface);
+  if (rampY !== null) {
+    p.pos.y = rampY;
+    p.vel.y = 0;
+    onPlat = true;
+  } else {
+    // Check platforms
+    for (const plat of world.platforms) {
+      const b = new THREE.Box3().setFromObject(plat);
+      const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42;
+      const insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42;
+      const canSnap = (wasGrounded && wasGroundSurface === plat) ||
+                      (previousY >= b.max.y - 0.05 && p.pos.y <= b.max.y);
+      if (insideX && insideZ && p.vel.y <= 0 && canSnap) {
+        p.pos.y = b.max.y;
+        p.vel.y = 0;
+        onPlat = true;
+        platSurface = plat;
+        break;
+      }
+    }
+    if (onPlat) {
+      p.groundSurface = platSurface;
+    }
+  }
+
+  // Check floors
+  let onFloor = false;
+  let bestFloorY = -Infinity;
+  for (const floor of world.arenaFloors) {
+    if (floor.type === "circle") {
+      if (Math.hypot(p.pos.x - floor.x, p.pos.z - floor.z) <= floor.r + 0.42) {
+        const y = Number(floor.y || 0);
+        if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
+      }
+    } else {
+      const halfX = (floor.sx || 1) / 2 + 0.42;
+      const halfZ = (floor.sz || 1) / 2 + 0.42;
+      if (Math.abs(p.pos.x - floor.x) <= halfX && Math.abs(p.pos.z - floor.z) <= halfZ) {
+        const y = Number(floor.y || 0);
+        if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
+      }
+    }
+  }
+
+  if (!onPlat && onFloor && p.pos.y <= bestFloorY) {
+    p.pos.y = bestFloorY;
+    p.vel.y = 0;
+    p.grounded = true;
+    p.groundSurface = "floor";
+  } else {
+    p.grounded = onPlat;
+    if (!p.grounded) {
+      p.groundSurface = null;
+    }
+  }
+  
   if (!wasGrounded && p.grounded) playSound("land");
   if (p.pos.y < -8) {
     p.health = 0;
     updateHud();
     startVictoryLap(1 - game.localIndex, "deathmatch");
     const spawn = getArenaSpawnPoints(theme)[game.localIndex] || { x: 0, z: 0 };
-    p.pos.set(spawn.x, spawn.y ?? 1, spawn.z);
+    p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
     p.vel.set(0, 0, 0);
   }
-  clampArenaPosition(p.pos, 0.5);
+  clampArenaPosition(p.pos, 0.42);
   for (const obs of world.obstacles) {
     if (obs.userData?.isRamp) {
-      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.4);
+      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42);
     } else {
-      resolvePlayerVsMeshObb(p.pos, obs, 0.4);
+      resolvePlayerVsMeshObb(p.pos, obs, 0.42);
     }
   }
-  clampArenaPosition(p.pos, 0.5);
+  clampArenaPosition(p.pos, 0.42);
 }
 
-function fpsRampSurfaceY(pos, previousY, velocityY) {
+function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface) {
   let best = null;
+  let bestRamp = null;
+  const GROUND_SNAP = 0.28;
   for (const ramp of world.ramps) {
-    const y = rampSurfaceY(ramp, pos, 0.42);
+    const y = rampSurfaceY(ramp, p.pos, 0.42);
     if (y === null) continue;
-    const closeEnough = previousY >= y - 0.05 && pos.y <= y + 0.01;
-    if (velocityY <= 0 && closeEnough && (!best || y > best)) best = y;
+    const canSnap = (wasGrounded && wasGroundSurface === ramp) ||
+                    (previousY >= y - 0.05 && p.pos.y <= y);
+    if (velocityY <= 0 && canSnap && (!best || y > best)) {
+      best = y;
+      bestRamp = ramp;
+    }
+  }
+  if (best !== null) {
+    p.groundSurface = bestRamp;
   }
   return best;
 }
@@ -586,7 +807,7 @@ function resolvePlayerVsRamp(position, ramp, radius) {
   const t = (clampedZ + halfLength) / ramp.length;
   const surfaceY = ramp.y + t * ramp.height;
   
-  const PLAYER_HEIGHT = 1.7;
+  const PLAYER_HEIGHT = 1.78;
   const GROUND_SNAP = 0.28;
   const LAND_TOLERANCE = 0.2;
   
@@ -640,11 +861,16 @@ function resolvePlayerVsMeshObb(position, mesh, radius) {
   const bottom = Math.min(...corners.map(c => c.y));
   const top = Math.max(...corners.map(c => c.y));
 
-  if (position.y >= top - 0.08 || position.y + 1.7 < bottom) return;
+  if (position.y >= top - 0.08 || position.y + 1.78 < bottom) return;
 
   const local = new THREE.Vector3(position.x, Math.max(bottom, Math.min(top, position.y)), position.z)
     .sub(center)
     .applyQuaternion(inverseQuaternion);
+
+  const localYAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion);
+  const sinPhi = Math.sqrt(Math.max(0, 1 - localYAxis.y * localYAxis.y));
+  const maxProj = 1.78 * Math.abs(localYAxis.y) + radius * sinPhi;
+  if (Math.abs(local.y) > halfSize.y + maxProj) return;
 
   const closestX = Math.max(-halfSize.x, Math.min(halfSize.x, local.x));
   const closestZ = Math.max(-halfSize.z, Math.min(halfSize.z, local.z));
@@ -677,7 +903,43 @@ function resolvePlayerVsMeshObb(position, mesh, radius) {
   position.x = worldPos.x;
   position.z = worldPos.z;
 }
-function updateGrenades(dt) { for (let i = world.grenades.length - 1; i >= 0; i--) { const g = world.grenades[i]; if (g.kind === "rocket") { g.mesh.position.addScaledVector(g.vel, dt); } else { g.vel.y += (g.gravity ?? GRENADE_GRAVITY) * dt; g.mesh.position.addScaledVector(g.vel, dt); } g.mesh.rotation.x += 5 * dt; g.mesh.rotation.y += 3 * dt; g.timer -= dt; const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1); const hitObstacle = projectileHitObstacle(g); const hitPlayer = projectileHitPlayer(g); const hitGround = g.mesh.position.y < 0.2; if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") { g.mesh.position.y = 0.2; g.vel.y *= -0.4; g.vel.x *= 0.8; g.vel.z *= 0.8; } if (outOfArena || hitObstacle || hitPlayer || (hitGround && g.kind === "grenadeLauncher") || g.timer <= 0) { if (g.localAuthority) explodeGrenade(g); else createExplosion(g.mesh.position.clone(), grenadeRadius(g) * 0.45); world.arenaRoot.remove(g.mesh); world.grenades.splice(i, 1); } } }
+function updateGrenades(dt) {
+  for (let i = world.grenades.length - 1; i >= 0; i--) {
+    const g = world.grenades[i];
+    if (g.kind === "rocket") {
+      g.mesh.position.addScaledVector(g.vel, dt);
+    } else {
+      g.vel.y += (g.gravity ?? GRENADE_GRAVITY) * dt;
+      g.mesh.position.addScaledVector(g.vel, dt);
+    }
+    
+    // Rockets should not rotate around X/Y to preserve forward direction
+    if (g.kind !== "rocket") {
+      g.mesh.rotation.x += 5 * dt;
+      g.mesh.rotation.y += 3 * dt;
+    }
+    
+    g.timer -= dt;
+    const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
+    const hitObstacle = projectileHitObstacle(g);
+    const hitPlayer = projectileHitPlayer(g);
+    const hitGround = g.mesh.position.y < 0.2;
+    
+    if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") {
+      g.mesh.position.y = 0.2;
+      g.vel.y *= -0.4;
+      g.vel.x *= 0.8;
+      g.vel.z *= 0.8;
+    }
+    
+    if (outOfArena || hitObstacle || hitPlayer || (hitGround && (g.kind === "rocket" || g.kind === "grenadeLauncher")) || g.timer <= 0) {
+      if (g.localAuthority) explodeGrenade(g);
+      else createExplosion(g.mesh.position.clone(), grenadeRadius(g) * 0.45);
+      world.arenaRoot.remove(g.mesh);
+      world.grenades.splice(i, 1);
+    }
+  }
+}
 function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   const group = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color: owner === game.localIndex ? 0x243c34 : 0x4a2528, roughness: 0.38, metalness: 0.28, emissive: options.supercharged ? 0xa74dff : 0x000000, emissiveIntensity: options.supercharged ? 0.9 : 0 });
@@ -685,7 +947,8 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   if (options.kind === "rocket") {
     const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.8, 14), bodyMat);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.28, 14), glowMat);
-    nose.position.y = 0.54;
+    nose.position.y = -0.14; // Align visual nose tip at local y = 0
+    shell.position.y = -0.68; // Align cylinder top at base of nose cone
     group.add(shell, nose);
     group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vel.clone().normalize());
   } else {
@@ -702,7 +965,22 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   world.arenaRoot.add(group);
   world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, isSupercharged: Boolean(options.supercharged) });
 }
-function throwGrenade() { if (game.phase !== "fps" || game.countdown > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return; game.grenadeCooldown = abilityCooldown("grenade", GRENADE_COOLDOWN); const p = fps.players[game.localIndex], origin = new THREE.Vector3(p.pos.x, p.pos.y + 0.72, p.pos.z), dir = directionFromAngles(p.yaw, p.pitch), vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel); spawnGrenade(origin, vel, true, game.localIndex); playSound("grenade"); send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex }); updateHud(); }
+function throwGrenade() {
+  if (game.phase !== "fps" || game.countdown > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
+  game.grenadeCooldown = abilityCooldown("grenade", GRENADE_COOLDOWN);
+  const p = fps.players[game.localIndex];
+  const origin = new THREE.Vector3();
+  if (world.weaponTip) {
+    world.weaponTip.getWorldPosition(origin);
+  } else {
+    origin.set(p.pos.x, p.pos.y + 0.65, p.pos.z);
+  }
+  const dir = directionFromAngles(p.yaw, p.pitch), vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel);
+  spawnGrenade(origin, vel, true, game.localIndex);
+  playSound("grenade");
+  send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex });
+  updateHud();
+}
 function activateJumpAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
 function activateHealAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
@@ -729,7 +1007,7 @@ function fireHitscan() {
   const cfg = weaponConfig();
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   if (cfg.projectile) { fireProjectileWeapon(cfg); return; }
-  game.lastShotAt = now; game.visualRecoil = Math.min(1.8, game.visualRecoil + (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42)); playSound(game.primaryWeapon === "heavySniper" ? "sniper" : game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
+  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon === "heavySniper" ? "sniper" : game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
   const shooter = fps.players[game.localIndex], oppIdx = 1 - game.localIndex, opponent = fps.players[oppIdx], origin = new THREE.Vector3(shooter.pos.x, shooter.pos.y + (shooter.currentCamHeight || 0.72), shooter.pos.z);
   const pelletCount = cfg.pellets || 1, pellets = []; let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null;
   for (let i = 0; i < pelletCount; i++) {
@@ -751,14 +1029,21 @@ function fireHitscan() {
     pellets.push({ dx: direction.x, dy: direction.y, dz: direction.z, length: len, hit: pelletHit });
     if (pelletHit) { anyHit = true; anyHeadshot ||= pelletHS; totalDamage += pelletDmg; bestLength = Math.min(bestLength, len); }
   }
-  if (anyHit) { opponent.health = Math.max(0, opponent.health - totalDamage); showDamageDealt(totalDamage, opponent.pos.clone().add(new THREE.Vector3(0, anyHeadshot ? 1.75 : 1.3, 0)), anyHeadshot); showHitMarker(anyHeadshot); updateHud(); }
+  if (anyHit) { opponent.health = Math.max(0, opponent.health - totalDamage); showDamageDealt(totalDamage, opponent.pos.clone().add(new THREE.Vector3(0, anyHeadshot ? 1.85 : 1.3, 0)), anyHeadshot); showHitMarker(anyHeadshot); updateHud(); }
   send({ type: "fpsShot", ox: origin.x, oy: origin.y, oz: origin.z, dx: firstDirection.x, dy: firstDirection.y, dz: firstDirection.z, hit: anyHit, length: bestLength, damage: totalDamage, target: anyHit ? oppIdx : null, headshot: anyHeadshot, weapon: game.primaryWeapon, pellets: pelletCount > 1 ? pellets : null });
   if (anyHit && opponent.health <= 0) startVictoryLap(game.localIndex, "deathmatch");
 }
 function fireProjectileWeapon(cfg) {
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
-  game.lastShotAt = now; game.visualRecoil = Math.min(1.8, game.visualRecoil + 0.85); playSound(cfg.projectile === "rocket" ? "rocket" : "grenade"); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
-  const shooter = fps.players[game.localIndex], origin = new THREE.Vector3(shooter.pos.x, shooter.pos.y + (shooter.currentCamHeight || 0.72), shooter.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : "grenade"); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
+  const shooter = fps.players[game.localIndex];
+  const origin = new THREE.Vector3();
+  if (world.weaponTip) {
+    world.weaponTip.getWorldPosition(origin);
+  } else {
+    origin.set(shooter.pos.x, shooter.pos.y + 0.65, shooter.pos.z);
+  }
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
   if (cfg.projectile === "rocket") {
     const vel = dir.clone().multiplyScalar(58).add(shooter.vel.clone().multiplyScalar(0.25));
     spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
@@ -773,13 +1058,13 @@ function fireProjectileWeapon(cfg) {
 function fireMelee() {
   const now = performance.now(); if (now - game.lastShotAt < 250) return; game.lastShotAt = now; game.meleeSwingTimer = 0.25; playSound("melee");
   const s = fps.players[game.localIndex], oppIdx = 1 - game.localIndex, opp = fps.players[oppIdx], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  drawMeleeSwipe(origin, dir); const hC = opp.pos.clone().add(new THREE.Vector3(0, 1.35, 0)), bC = opp.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
+  drawMeleeSwipe(origin, dir); const hC = opp.pos.clone().add(new THREE.Vector3(0, 1.58, 0)), bC = opp.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
   let hit = false, hs = false; if (dH < 2.6 && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; } else if (dB < 2.6 && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; }
-  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, opp.pos.clone().add(new THREE.Vector3(0, hs ? 1.35 : 0.65, 0)), hs); showHitMarker(hs); }
+  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, opp.pos.clone().add(new THREE.Vector3(0, hs ? 1.58 : 0.65, 0)), hs); showHitMarker(hs); }
   send({ type: "fpsShot", ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? oppIdx : null, isMelee: true, headshot: hs }); if (hit && opp.health <= 0) startVictoryLap(game.localIndex, "deathmatch");
 }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
-function rayHitsPlayer(origin, direction, player) { const hC = player.pos.clone().add(new THREE.Vector3(0, 1.35, 0)), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = player.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
+function rayHitsPlayer(origin, direction, player) { const hC = player.pos.clone().add(new THREE.Vector3(0, 1.58, 0)), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = player.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
 function drawLaser(origin, direction, length, hit, isRemote = false, weaponType = "pistol") {
   const start = new THREE.Vector3(); if (!isRemote && world.weaponTip) world.weaponTip.getWorldPosition(start); else start.copy(origin);
   const end = origin.clone().addScaledVector(direction.clone().normalize(), length), mid = start.clone().add(end).multiplyScalar(0.5), isSniper = weaponType === "sniper";
@@ -819,7 +1104,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   if (game.phase === "result" || game.phase === "fpsVictoryLap") return;
   let mapOver = false, matchOver = reason === "strokes"; if (reason === "deathmatch" && !alreadyRecorded) { game.fpsKillWins[winner]++; mapOver = game.fpsKillWins[winner] >= FPS_KILLS_TO_WIN_MAP || (game.fpsKillWins[0] + game.fpsKillWins[1]) >= 3; if (mapOver) { game.fpsMapWins[winner]++; matchOver = game.fpsMapWins[winner] >= 2; game.fpsMatchOver = matchOver; } } else if (reason === "deathmatch") { mapOver = game.fpsKillWins[winner] >= FPS_KILLS_TO_WIN_MAP || (game.fpsKillWins[0] + game.fpsKillWins[1]) >= 3; matchOver = game.fpsMatchOver; }
   game.phase = "fpsVictoryLap"; game.result = { winner, reason, mapOver, matchOver }; game.fpsRoundWinner = winner; game.victoryLapStart = performance.now(); radarMarker.classList.add("hidden"); if (winner !== game.localIndex) { damageVignette.classList.remove("active"); activeDamagePops.forEach(p => p.element.remove()); activeDamagePops.length = 0; }
-  if (game.randomTournament && mapOver && !matchOver && announce) { game.randomWeapon = chooseRandomTournamentWeapon(); game.randomLoadout = chooseRandomLoadout(); game.maxHealth = game.randomLoadout.hp; }
+  if (game.randomTournament && mapOver && !matchOver && announce) { applyRandomTournamentCombination(game.fpsMapIndex); }
   showFpsToast((reason === "deathmatch" && !matchOver) ? (mapOver ? (winner === game.localIndex ? "MAP WON" : "MAP LOST") : (winner === game.localIndex ? "ROUND WON" : "ROUND LOST")) : (winner === game.localIndex ? "YOU WIN" : "YOU LOSE"));
   if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() }); updateHud();
 }
@@ -887,26 +1172,138 @@ function selectPrimaryWeapon(wp, animate = false) { if (game.randomTournament ||
 function cycleWeaponCard(dir) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = standardWeaponIds, nI = (ws.indexOf(game.primaryWeapon) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
 function pickWeaponCard(wp, animate = false) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; weaponCards.forEach(c => c.classList.toggle("active", c.getAttribute("data-weapon") === wp)); selectPrimaryWeapon(wp, animate); }
 function normalWeaponChoices() { return [...standardWeaponIds.map((primary) => ({ active: "gun", primary })), { active: "melee", primary: standardWeaponIds[0] || "pistol" }]; }
-function cycleActiveWeapon(dir) { if (game.randomTournament) return; const choices = normalWeaponChoices(); const cI = game.activeWeapon === "melee" ? choices.length - 1 : Math.max(0, choices.findIndex(i => i.active === "gun" && i.primary === game.primaryWeapon)); const n = choices[(cI + dir + choices.length) % choices.length]; if (n.active === "melee") switchWeapon("melee"); else pickWeaponCard(n.primary, true); }
-function requestWeaponSwap(aw, pw = game.primaryWeapon) { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; game.pendingActiveWeapon = aw; game.pendingPrimaryWeapon = pw; game.weaponSwapTimer = WEAPON_SWAP_DURATION; game.weaponSwapCommitted = false; game.inspectTimer = 0; input.aiming = false; updateHud(); }
+function applyRandomTournamentCombination(excludeMapIndex = -1) {
+  const choices = tournamentCombinations.filter(c => {
+    const mapId = c.map.split("/").pop().replace(".json", "");
+    const mapIndex = fpsArenaThemes.findIndex(t => t.id === mapId);
+    return mapIndex !== excludeMapIndex;
+  });
+  const validChoices = choices.length ? choices : tournamentCombinations;
+  const combo = validChoices[Math.floor(Math.random() * validChoices.length)];
+  if (!combo) return;
+
+  const mapId = combo.map.split("/").pop().replace(".json", "");
+  const mapIndex = fpsArenaThemes.findIndex(t => t.id === mapId);
+  game.fpsMapIndex = mapIndex !== -1 ? mapIndex : 0;
+  
+  game.randomLoadout = {
+    id: combo.id,
+    hp: combo.hp ?? 100,
+    speed: 1.0,
+    abilities: combo.abilities || ["jump", "heal", "grenade", "radar"],
+    weapons: combo.weapons || ["pistol"]
+  };
+  game.randomWeapon = game.randomLoadout.weapons[0] || "pistol";
+  game.maxHealth = game.randomLoadout.hp;
+}
+function cycleActiveWeapon(dir) {
+  if (game.randomTournament) {
+    if (game.randomLoadout && game.randomLoadout.weapons && game.randomLoadout.weapons.length > 1) {
+      const weapons = game.randomLoadout.weapons;
+      const currentWeaponId = game.activeWeapon === "melee" ? "melee" : game.primaryWeapon;
+      const currentIdx = weapons.indexOf(currentWeaponId);
+      if (currentIdx !== -1) {
+        const nextIdx = (currentIdx + dir + weapons.length) % weapons.length;
+        const nextWeapon = weapons[nextIdx];
+        if (nextWeapon === "melee") {
+          requestWeaponSwap("melee", game.primaryWeapon);
+        } else {
+          requestWeaponSwap("gun", nextWeapon);
+        }
+      }
+    }
+    return;
+  }
+  const choices = normalWeaponChoices();
+  const cI = game.activeWeapon === "melee" ? choices.length - 1 : Math.max(0, choices.findIndex(i => i.active === "gun" && i.primary === game.primaryWeapon));
+  const n = choices[(cI + dir + choices.length) % choices.length];
+  if (n.active === "melee") switchWeapon("melee");
+  else pickWeaponCard(n.primary, true);
+}
+function requestWeaponSwap(aw, pw = game.primaryWeapon) {
+  if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0) return;
+  if (game.randomTournament) {
+    if (!game.randomLoadout || !game.randomLoadout.weapons) return;
+    const targetWeapon = aw === "melee" ? "melee" : pw;
+    if (!game.randomLoadout.weapons.includes(targetWeapon)) return;
+  } else {
+    if (aw !== "melee" && !standardWeaponIds.includes(pw)) return;
+  }
+  game.pendingActiveWeapon = aw;
+  game.pendingPrimaryWeapon = pw;
+  game.weaponSwapTimer = WEAPON_SWAP_DURATION;
+  game.weaponSwapCommitted = false;
+  game.inspectTimer = 0;
+  input.aiming = false;
+  updateHud();
+}
 function updateWeaponSwap(dt) { if (game.weaponSwapTimer <= 0) return; game.weaponSwapTimer = Math.max(0, game.weaponSwapTimer - dt); if (!game.weaponSwapCommitted && game.weaponSwapTimer <= WEAPON_SWAP_DURATION * 0.5) { applyWeaponState(game.pendingActiveWeapon, game.pendingPrimaryWeapon); game.weaponSwapCommitted = true; } }
-function applyWeaponState(aw, pw = game.primaryWeapon) { if (game.randomTournament) { if (isRandomMeleeWeapon()) { aw = "melee"; pw = "pistol"; } else { aw = "gun"; pw = game.randomWeapon; } } else if (aw !== "melee" && !standardWeaponIds.includes(pw)) pw = "pistol"; const changed = game.primaryWeapon !== pw || game.activeWeapon !== aw; game.activeWeapon = aw; game.primaryWeapon = pw; fps.players[game.localIndex].weapon = aw; fps.players[game.localIndex].primaryWeapon = pw; weaponCards.forEach(c => c.classList.toggle("active", aw === "gun" && c.getAttribute("data-weapon") === pw)); if (aw === "melee") game.reloading = false; if (changed) { syncPrimaryWeaponModel(); send({ type: "fpsWeaponChoice", weapon: pw }); } updateHud(); }
+function applyWeaponState(aw, pw = game.primaryWeapon) {
+  if (game.randomTournament) {
+    if (game.randomLoadout && game.randomLoadout.weapons) {
+      const allowed = game.randomLoadout.weapons;
+      if (aw === "melee") {
+        if (!allowed.includes("melee")) {
+          aw = "gun";
+          pw = allowed.find(w => w !== "melee") || "pistol";
+        }
+      } else {
+        if (!allowed.includes(pw)) {
+          pw = allowed.find(w => w !== "melee") || "pistol";
+        }
+      }
+    } else {
+      if (isRandomMeleeWeapon()) { aw = "melee"; pw = "pistol"; }
+      else { aw = "gun"; pw = game.randomWeapon; }
+    }
+  } else {
+    if (aw !== "melee" && !standardWeaponIds.includes(pw)) pw = "pistol";
+  }
+  const changed = game.primaryWeapon !== pw || game.activeWeapon !== aw;
+  game.activeWeapon = aw;
+  game.primaryWeapon = pw;
+  fps.players[game.localIndex].weapon = aw;
+  fps.players[game.localIndex].primaryWeapon = pw;
+  weaponCards.forEach(c => c.classList.toggle("active", aw === "gun" && c.getAttribute("data-weapon") === pw));
+  if (aw === "melee") game.reloading = false;
+  if (changed) {
+    syncPrimaryWeaponModel();
+    send({ type: "fpsWeaponChoice", weapon: pw });
+  }
+  updateHud();
+}
 function syncPrimaryWeaponModel() {
   rebuildWeaponMesh(game.primaryWeapon, world.weapon);
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
 function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun") return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; updateHud(); }
-function resetFpsDuelState(randomTournament = false) { game.fpsMapIndex = chooseRandomFpsMap(); game.fpsMapWins = [0, 0]; game.fpsKillWins = [0, 0]; game.fpsMatchOver = false; game.randomTournament = randomTournament; game.fpsMode = randomTournament ? "randomTournament" : "standard"; game.randomWeapon = randomTournament ? chooseRandomTournamentWeapon() : "pistol"; game.randomLoadout = randomTournament ? chooseRandomLoadout() : null; game.maxHealth = game.randomLoadout?.hp || 100; }
+function resetFpsDuelState(randomTournament = false) {
+  game.fpsMapWins = [0, 0];
+  game.fpsKillWins = [0, 0];
+  game.fpsMatchOver = false;
+  game.randomTournament = randomTournament;
+  game.fpsMode = randomTournament ? "randomTournament" : "standard";
+  if (randomTournament) {
+    applyRandomTournamentCombination();
+  } else {
+    game.fpsMapIndex = chooseRandomFpsMap();
+    game.randomWeapon = "pistol";
+    game.randomLoadout = null;
+    game.maxHealth = 100;
+  }
+}
 function serializeFpsDuelState() { return { mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl }; }
 function applyFpsDuelState(s) { if (!s) return; game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins; game.fpsKillWins = s.killWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; updateHud(); }
-function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); r.targetPos.set(s.x, s.y, s.z); if (r.targetPos.y < -8) { const spawn = getArenaSpawnPoints(fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0])[s.player] || { x: 0, z: 0 }; r.targetPos.set(spawn.x, spawn.y ?? 1, spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
+function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]; const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 }; const x = Number.isFinite(s.x) ? s.x : spawn.x; const z = Number.isFinite(s.z) ? s.z : spawn.z; const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme); r.targetPos.set(x, y, z); if (r.targetPos.y < -8) { r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
 function resetNetworkMotion() {}
 function continueFpsDuel() {
   document.getElementById("victoryBanner")?.remove();
   if (game.role !== "guest") {
     if (game.result?.mapOver) {
-      game.fpsMapIndex = chooseRandomFpsMap(game.fpsMapIndex);
+      if (!game.randomTournament) {
+        game.fpsMapIndex = chooseRandomFpsMap(game.fpsMapIndex);
+      }
       game.fpsKillWins = [0, 0];
     }
     if (game.role === "host") {
@@ -951,6 +1348,8 @@ function updateGolfDragAim(e) {
 }
 function onPointerDown(e) {
   if (game.phase === "golf" && e.button !== 2) {
+    settingsBtn.classList.add("hidden");
+    settingsPanel.classList.add("hidden");
     game.dragging = true;
     game.dragStart.x = e.clientX;
     game.dragStart.y = e.clientY;
@@ -1017,7 +1416,42 @@ window.addEventListener("keydown", (e) => {
   const c = codeFromKeyEvent(e); if (e.code === "Escape" && game.phase === "fps") { document.exitPointerLock?.(); input.aiming = false; }
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();
   if ((game.phase === "fps" || game.phase === "fpsVictoryLap") && c.startsWith("Arrow")) e.preventDefault();
-  if (game.phase === "fps" || game.phase === "fpsVictoryLap") { if (!input.pointerLocked) requestPointerLockSafe(); if (game.countdown <= 0) { const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { if (c === "KeyR") startReload(); if (c === "ArrowLeft") cycleWeaponCard(-1); else if (c === "ArrowRight") cycleWeaponCard(1); else if (c === "ArrowUp") switchWeapon("gun"); else if (c === "ArrowDown") switchWeapon("melee"); else if (/^Digit[1-3]$/.test(c) && !game.randomTournament) pickWeaponCard(standardWeaponIds[Number(c.slice(5)) - 1] || "pistol", true); else if (c === "Digit4" && !game.randomTournament) switchWeapon("melee"); else if (c === "KeyB") toggleBuildMode(); else if (c === "KeyV") placeBuildBox(); else if (c === "KeyE") activateJumpAbility(); else if (c === "KeyQ") activateHealAbility(); else if (c === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0) game.inspectTimer = 2.0; else if (c === "KeyG") throwGrenade(); else if (c === "KeyC") activateRadar(); } } }
+  if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
+    if (!input.pointerLocked) requestPointerLockSafe();
+    if (game.countdown <= 0) {
+      const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
+      if (isW) {
+        if (c === "KeyR") startReload();
+        else if (c === "ArrowLeft") { if (game.randomTournament) cycleActiveWeapon(-1); else cycleWeaponCard(-1); }
+        else if (c === "ArrowRight") { if (game.randomTournament) cycleActiveWeapon(1); else cycleWeaponCard(1); }
+        else if (c === "ArrowUp") { if (game.randomTournament) cycleActiveWeapon(-1); else switchWeapon("gun"); }
+        else if (c === "ArrowDown") { if (game.randomTournament) cycleActiveWeapon(1); else switchWeapon("melee"); }
+        else if (/^Digit[1-9]$/.test(c)) {
+          const digit = Number(c.slice(5));
+          if (game.randomTournament) {
+            if (game.randomLoadout && game.randomLoadout.weapons) {
+              const weapons = game.randomLoadout.weapons;
+              if (digit <= weapons.length) {
+                const selectedWeapon = weapons[digit - 1];
+                if (selectedWeapon === "melee") requestWeaponSwap("melee", game.primaryWeapon);
+                else requestWeaponSwap("gun", selectedWeapon);
+              }
+            }
+          } else {
+            if (digit <= 3) pickWeaponCard(standardWeaponIds[digit - 1] || "pistol", true);
+            else if (digit === 4) switchWeapon("melee");
+          }
+        }
+        else if (c === "KeyB") toggleBuildMode();
+        else if (c === "KeyV") placeBuildBox();
+        else if (c === "KeyE") activateJumpAbility();
+        else if (c === "KeyQ") activateHealAbility();
+        else if (c === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0) game.inspectTimer = 2.0;
+        else if (c === "KeyG") throwGrenade();
+        else if (c === "KeyC") activateRadar();
+      }
+    }
+  }
 });
 window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "golf" && c === "Space" && canControlGolf() && !game.ballMoving) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
 document.addEventListener("pointerlockchange", () => input.pointerLocked = document.pointerLockElement === canvas);
@@ -1025,16 +1459,52 @@ document.addEventListener("mousemove", onMouseMove); document.addEventListener("
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!standardWeaponIds.includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));
 canvas.addEventListener("pointerdown", onPointerDown); window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", finishGolfDrag); window.addEventListener("mousedown", (e) => { if (e.button === 0 && game.phase === "golf") onPointerDown(e); }); window.addEventListener("mousemove", onPointerMove); window.addEventListener("mouseup", finishGolfDrag); canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 createBtn.addEventListener("click", createMatch); joinBtn.addEventListener("click", joinMatch); soloBtn.addEventListener("click", () => beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()));
-startGolfBtn.addEventListener("click", () => { if (game.role !== "guest") { const ids = drawTournamentHoleIds(); send({ type: "startTournament", courseIds: ids }); startGolf(ids); } });
-startFpsBtn.addEventListener("click", () => { if (game.role !== "guest") { resetFpsDuelState(false); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true }); } });
+startGolfBtn.addEventListener("click", () => { 
+  if (game.role !== "guest") { 
+    let ids = drawTournamentHoleIds();
+    if (game.role === "solo" && golfMapSelect?.value !== "") {
+      ids = [golfMapSelect.value];
+    }
+    send({ type: "startTournament", courseIds: ids }); 
+    startGolf(ids); 
+  } 
+});
+startFpsBtn.addEventListener("click", () => { 
+  if (game.role !== "guest") { 
+    resetFpsDuelState(false); 
+    if (game.role === "solo" && fpsMapSelect?.value !== "") {
+       if (fpsMapSelect.value === "custom" && game.fpsCustomMap) {
+         game.fpsMapIndex = 0;
+       } else {
+         game.fpsMapIndex = Number(fpsMapSelect.value);
+         game.fpsCustomMap = null;
+       }
+    } else {
+       game.fpsCustomMap = null;
+    }
+    send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); 
+    enterFps(false, { preserveFpsMatch: true }); 
+  } 
+});
 startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { resetFpsDuelState(true); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
 leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
 settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidden")); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); menuSensitivityInput?.addEventListener("input", () => syncSensitivity(menuSensitivityInput.value));
+fovInput?.addEventListener("input", () => syncFov(fovInput.value));
+ingameLeaveBtn?.addEventListener("click", () => { document.exitPointerLock?.(); closePeer(); showMenu(); });
+function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
 loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
 saveMapBtn?.addEventListener("click", () => { game.fpsCustomMap ||= { version: 1, boxes: [] }; const text = JSON.stringify(game.fpsCustomMap, null, 2); if (mapJsonInput) mapJsonInput.value = text; localStorage.setItem("golfDuelCustomArena", text); });
 loadAssetBtn?.addEventListener("click", () => { game.fpsImportedAssetUrl = assetUrlInput?.value.trim() || ""; localStorage.setItem("golfDuelArenaAsset", game.fpsImportedAssetUrl); if (game.phase === "fps") setupArena(); });
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
 phraseInput.value = generatePhrase(); syncSensitivity(1.0);
+const gdRoom = sessionStorage.getItem("gd_room");
+const gdRole = sessionStorage.getItem("gd_role");
+if (gdRoom && gdRole) {
+  phraseInput.value = gdRoom;
+  if (gdRole === "solo") beginLocalMatch(gdRoom);
+  else if (gdRole === "host") createMatch();
+  else if (gdRole === "guest") joinMatch();
+}
 try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; if (assetUrlInput) assetUrlInput.value = game.fpsImportedAssetUrl; } catch {}
 function showDamageTaken(amount) {
   damageVignette.classList.remove("active");
@@ -1109,3 +1579,4 @@ initNetworkLinks({
 });
 
 animate();
+

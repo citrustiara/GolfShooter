@@ -413,11 +413,31 @@ input:focus {
   margin-bottom: 12px;
 }
 
-.menu input {
+.menu input,
+.menu select {
   background: #0f1515;
   border-color: rgba(255, 255, 255, 0.34);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
   text-align: center;
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.menu select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.menu input[type="file"] {
+  padding: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
 .menu button {

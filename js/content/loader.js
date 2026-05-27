@@ -1,5 +1,5 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
-import { weaponCatalog, randomTournamentWeapons } from "../core/constants.js";
+import { weaponCatalog, randomTournamentWeapons, tournamentCombinations } from "../core/constants.js";
 import { fpsArenaThemes } from "../fps/themes.js";
 import { holeCatalog } from "../golf/catalog.js";
 
@@ -83,6 +83,21 @@ export async function loadGameContent() {
     Object.assign(result, await loadWeaponContent());
   } catch (error) {
     console.warn("Could not load weapon content.", error);
+  }
+  try {
+    const comboManifest = await loadJson("assets/tournaments/manifest.json");
+    const combos = await Promise.all((comboManifest.combinations || []).map(path => loadJson(path)));
+    replaceArray(tournamentCombinations, combos);
+  } catch (error) {
+    console.warn("Could not load tournament combinations manifest, using default presets.", error);
+    const defaultCombinations = [
+      { id: "neon_depot_close_quarters", map: "fps/neon-depot.json", weapons: ["shotgun", "melee"], hp: 150, abilities: ["jump", "heal"] },
+      { id: "sunlit_rooftops_snipers", map: "fps/sunlit-rooftops.json", weapons: ["sniper", "heavySniper"], hp: 100, abilities: ["jump", "radar"] },
+      { id: "ember_foundry_laser_tag", map: "fps/ember-foundry.json", weapons: ["laser"], hp: 80, abilities: ["heal", "radar"] },
+      { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade"] },
+      { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["rifle", "pistol"], hp: 120, abilities: ["jump", "grenade", "radar"] }
+    ];
+    replaceArray(tournamentCombinations, defaultCombinations);
   }
   return result;
 }

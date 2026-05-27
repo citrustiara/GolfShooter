@@ -98,6 +98,8 @@ export const world = {
   weapon: null,
   meleeWeapon: null,
   weaponTip: null,
+  meleeWeapon: null,
+  weaponTip: null,
   playerMeshes: [],
   lasers: [],
   grenades: [],
@@ -106,8 +108,8 @@ export const world = {
 
 export const fps = {
   players: [
-    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, primaryWeapon: "pistol" },
-    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, primaryWeapon: "pistol" }
+    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, primaryWeapon: "pistol" },
+    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, primaryWeapon: "pistol" }
   ],
   arenaHalf: 56,
   gravity: -30,

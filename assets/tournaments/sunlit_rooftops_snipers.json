@@ -1,0 +1,7 @@
+{
+  "id": "sunlit_rooftops_snipers",
+  "map": "fps/sunlit-rooftops.json",
+  "weapons": ["sniper", "heavySniper"],
+  "hp": 100,
+  "abilities": ["jump", "radar"]
+}
