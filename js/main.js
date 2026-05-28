@@ -1043,6 +1043,57 @@ function resolvePlayerVsMeshObb(position, mesh, radius) {
   position.x = worldPos.x;
   position.z = worldPos.z;
 }
+function collideGrenadeWithObstacle(g, obs, radius) {
+  if (!obs.geometry) return false;
+  if (!obs.geometry.boundingBox) obs.geometry.computeBoundingBox();
+  
+  const box3 = new THREE.Box3().setFromObject(obs);
+  const closestPoint = new THREE.Vector3();
+  box3.clampPoint(g.mesh.position, closestPoint);
+  
+  const diff = g.mesh.position.clone().sub(closestPoint);
+  const dist = diff.length();
+  
+  if (dist < radius) {
+    let normal;
+    let depth;
+    if (dist > 0.0001) {
+      normal = diff.clone().normalize();
+      depth = radius - dist;
+    } else {
+      const min = box3.min;
+      const max = box3.max;
+      const pos = g.mesh.position;
+      
+      const dl = pos.x - min.x;
+      const dr = max.x - pos.x;
+      const db = pos.y - min.y;
+      const dt = max.y - pos.y;
+      const df = pos.z - min.z;
+      const dk = max.z - pos.z;
+      
+      const minDist = Math.min(dl, dr, db, dt, df, dk);
+      normal = new THREE.Vector3();
+      if (minDist === dl) { normal.set(-1, 0, 0); depth = radius + dl; }
+      else if (minDist === dr) { normal.set(1, 0, 0); depth = radius + dr; }
+      else if (minDist === db) { normal.set(0, -1, 0); depth = radius + db; }
+      else if (minDist === dt) { normal.set(0, 1, 0); depth = radius + dt; }
+      else if (minDist === df) { normal.set(0, 0, -1); depth = radius + df; }
+      else { normal.set(0, 0, 1); depth = radius + dk; }
+    }
+    
+    g.mesh.position.addScaledVector(normal, depth);
+    
+    const dot = g.vel.dot(normal);
+    if (dot < 0) {
+      const normalVel = normal.clone().multiplyScalar(dot);
+      const tangentVel = g.vel.clone().sub(normalVel);
+      g.vel.copy(tangentVel.multiplyScalar(0.8).add(normalVel.multiplyScalar(-0.4)));
+    }
+    return true;
+  }
+  return false;
+}
 function updateGrenades(dt) {
   for (let i = world.grenades.length - 1; i >= 0; i--) {
     const g = world.grenades[i];
@@ -1060,19 +1111,48 @@ function updateGrenades(dt) {
     }
     
     g.timer -= dt;
+    
+    let hitObstacle = false;
+    if (g.kind === "rocket" || g.kind === "grenadeLauncher") {
+      hitObstacle = projectileHitObstacle(g);
+    } else {
+      for (const obs of world.obstacles) {
+        collideGrenadeWithObstacle(g, obs, 0.22);
+      }
+    }
+    
     const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
-    const hitObstacle = projectileHitObstacle(g);
     const hitPlayer = projectileHitPlayer(g);
-    const hitGround = g.mesh.position.y < 0.2;
+    
+    let hitGround = false;
+    let bestFloorY = -Infinity;
+    for (const floor of world.arenaFloors) {
+      if (floor.type === "circle") {
+        if (Math.hypot(g.mesh.position.x - floor.x, g.mesh.position.z - floor.z) <= floor.r) {
+          const y = Number(floor.y || 0);
+          if (y > bestFloorY) bestFloorY = y;
+        }
+      } else {
+        const halfX = (floor.sx || 1) / 2;
+        const halfZ = (floor.sz || 1) / 2;
+        if (Math.abs(g.mesh.position.x - floor.x) <= halfX && Math.abs(g.mesh.position.z - floor.z) <= halfZ) {
+          const y = Number(floor.y || 0);
+          if (y > bestFloorY) bestFloorY = y;
+        }
+      }
+    }
+    if (bestFloorY !== -Infinity && g.mesh.position.y < bestFloorY + 0.22) {
+      hitGround = true;
+    }
     
     if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") {
-      g.mesh.position.y = 0.2;
+      g.mesh.position.y = bestFloorY + 0.22;
       g.vel.y *= -0.4;
       g.vel.x *= 0.8;
       g.vel.z *= 0.8;
     }
     
-    if (outOfArena || hitObstacle || hitPlayer || (hitGround && (g.kind === "rocket" || g.kind === "grenadeLauncher")) || g.timer <= 0) {
+    if (outOfArena || hitObstacle || hitPlayer || (hitGround && (g.kind === "rocket" || g.kind === "grenadeLauncher")) || g.timer <= 0 || g.mesh.position.y < -8) {
       if (g.localAuthority) explodeGrenade(g);
       else createExplosion(g.mesh.position.clone(), grenadeRadius(g) * 0.45);
       world.arenaRoot.remove(g.mesh);
@@ -1180,17 +1260,38 @@ function fireHitscan() {
   send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: firstDirection.x, dy: firstDirection.y, dz: firstDirection.z, hit: anyHit, length: bestLength, damage: damages[0]?.damage || totalDamage, target: anyHit ? hitTarget : null, damages, headshot: anyHeadshot, weapon: game.primaryWeapon, pellets: pelletCount > 1 ? pellets : null });
   if (anyHit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
+function isPointInsideProjectileBlocker(point, radius = 0.18) {
+  const box = new THREE.Box3();
+  for (const obstacle of world.obstacles) {
+    box.setFromObject(obstacle);
+    if (box.distanceToPoint(point) < radius) return true;
+  }
+  return false;
+}
+function firstPersonProjectileOrigin(direction) {
+  const camPos = camera.position.clone();
+  const flatDir = directionFromAngles(input.yaw, 0);
+  const right = new THREE.Vector3().crossVectors(flatDir, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const visualMuzzle = camPos.clone()
+    .addScaledVector(direction, 0.55)
+    .addScaledVector(right, 0.14)
+    .addScaledVector(up, -0.12);
+
+  if (!isPointInsideProjectileBlocker(visualMuzzle)) return visualMuzzle;
+
+  for (const distance of [0.22, 0.36, 0.5, 0.68]) {
+    const fallback = camPos.clone().addScaledVector(direction, distance);
+    if (!isPointInsideProjectileBlocker(fallback, 0.12)) return fallback;
+  }
+  return camPos.clone().addScaledVector(direction, 0.16);
+}
 function fireProjectileWeapon(cfg) {
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : "grenade"); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
   const shooter = fps.players[game.localIndex];
-  const origin = new THREE.Vector3();
-  if (world.weaponTip) {
-    world.weaponTip.getWorldPosition(origin);
-  } else {
-    origin.set(shooter.pos.x, shooter.pos.y + 0.65, shooter.pos.z);
-  }
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const origin = firstPersonProjectileOrigin(dir);
   if (cfg.projectile === "rocket") {
     const vel = dir.clone().multiplyScalar(58).add(shooter.vel.clone().multiplyScalar(0.25));
     spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
@@ -1314,7 +1415,7 @@ function updateHud() {
       const el = document.querySelector(id);
       if (el) {
         el.classList.toggle("disabled", !abilityAllowed(name));
-        el.classList.toggle("hidden", game.randomTournament && !abilityAllowed(name));
+        el.classList.toggle("hidden", !abilityAllowed(name));
         const hint = el.querySelector(".key-hint");
         if (hint) {
           const rawKey = getAbilityKey(name);
@@ -1356,9 +1457,11 @@ function applyRandomTournamentCombination(excludeMapIndex = -1) {
   game.randomLoadout = {
     id: combo.id,
     hp: combo.hp ?? 100,
-    speed: 1.0,
+    speed: combo.speed ?? 1.0,
     abilities: combo.abilities || ["jump", "heal", "grenade", "radar"],
-    weapons: combo.weapons || ["pistol"]
+    weapons: combo.weapons || ["pistol"],
+    abilityKeys: combo.abilityKeys || {},
+    cooldowns: combo.cooldowns || {}
   };
   game.randomWeapon = game.randomLoadout.weapons[0] || "pistol";
   game.maxHealth = game.randomLoadout.hp;

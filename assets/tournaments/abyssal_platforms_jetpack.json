@@ -1,0 +1,10 @@
+{
+  "id": "abyssal_platforms_jetpack",
+  "map": "fps/abyssal-platforms.json",
+  "weapons": ["laser"],
+  "hp": 100,
+  "abilities": ["jetpack"],
+  "abilityKeys": {
+    "jetpack": "KeyE"
+  }
+}

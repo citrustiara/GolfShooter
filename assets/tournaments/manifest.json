@@ -4,6 +4,8 @@
     "assets/tournaments/sunlit_rooftops_snipers.json",
     "assets/tournaments/ember_foundry_laser_tag.json",
     "assets/tournaments/needle_corridor_explosive.json",
-    "assets/tournaments/skyhook_spires_vertical.json"
+    "assets/tournaments/skyhook_spires_vertical.json",
+    "assets/tournaments/abyssal_platforms_jetpack.json",
+    "assets/tournaments/enclosed_arena_shotgun.json"
   ]
 }

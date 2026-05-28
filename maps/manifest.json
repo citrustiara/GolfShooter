@@ -6,7 +6,8 @@
     "fps/ember-foundry.json",
     "fps/needle-corridor.json",
     "fps/skyhook-spires.json",
-    "fps/abyssal-platforms.json"
+    "fps/abyssal-platforms.json",
+    "fps/enclosed-arena.json"
   ],
   "golfMaps": [
     "golf/ice-runway.json",

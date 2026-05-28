@@ -76,7 +76,8 @@
       "range": 46,
       "pellets": 8,
       "spread": 0.16,
-      "moveScale": 1.00,
+      "aimSpread": 0.08,
+      "moveScale": 0.80,
       "recoil": 0.7
     },
     "rocket": {

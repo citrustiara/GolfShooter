@@ -1,0 +1,7 @@
+{
+  "id": "enclosed_arena_shotgun",
+  "map": "fps/enclosed-arena.json",
+  "weapons": ["shotgun"],
+  "hp": 100,
+  "abilities": ["grenade"]
+}
