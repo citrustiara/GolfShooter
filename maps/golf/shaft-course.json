@@ -1,0 +1,73 @@
+{
+  "id": "shaft-course",
+  "name": "Shaft Course",
+  "skyColor": 16758132,
+  "lightIntensity": 1.25,
+  "deathZoneY": -5,
+  "start": {
+    "x": -18,
+    "y": 0.34,
+    "z": 0
+  },
+  "cup": {
+    "x": 18,
+    "y": 0.34,
+    "z": 0
+  },
+  "walls": {
+    "x": 22,
+    "z": 10
+  },
+  "surfaces": [
+    {
+      "x": 0,
+      "z": 0,
+      "sx": 44,
+      "sz": 20
+    }
+  ],
+  "ice": [],
+  "bumpers": [
+    {
+      "name": "shaft",
+      "x": 0,
+      "z": 0,
+      "sx": 3,
+      "sz": 3,
+      "sy": 4.0,
+      "y": 2.19,
+      "color": 6045747
+    },
+    {
+      "name": "left-ball",
+      "x": -2.2,
+      "z": 0,
+      "sx": 2.4,
+      "sz": 2.4,
+      "sy": 2.0,
+      "y": 1.19,
+      "color": 6045747
+    },
+    {
+      "name": "right-ball",
+      "x": 2.2,
+      "z": 0,
+      "sx": 2.4,
+      "sz": 2.4,
+      "sy": 2.0,
+      "y": 1.19,
+      "color": 6045747
+    },
+    {
+      "name": "glans",
+      "x": 0,
+      "z": 0,
+      "sx": 3.6,
+      "sz": 3.6,
+      "sy": 1.2,
+      "y": 4.79,
+      "color": 14723486
+    }
+  ],
+  "ramps": []
+}

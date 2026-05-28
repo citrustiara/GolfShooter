@@ -86,7 +86,7 @@
     "abilities": ["jetpack"],
     "weapons": ["laser"],
     "abilityKeys": {
-      "jetpack": "KeyE"
+      "jetpack": "Space"
     }
   }
 }

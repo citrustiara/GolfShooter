@@ -1,0 +1,32 @@
+{
+  "id": "easy-straight",
+  "name": "Easy Straight",
+  "skyColor": 16766355,
+  "lightIntensity": 1.2,
+  "deathZoneY": -5,
+  "start": {
+    "x": -10,
+    "y": 0.34,
+    "z": 0
+  },
+  "cup": {
+    "x": 8,
+    "y": 0.34,
+    "z": 0
+  },
+  "walls": {
+    "x": 12,
+    "z": 4
+  },
+  "surfaces": [
+    {
+      "x": 0,
+      "z": 0,
+      "sx": 24,
+      "sz": 8
+    }
+  ],
+  "ice": [],
+  "bumpers": [],
+  "ramps": []
+}

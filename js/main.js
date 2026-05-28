@@ -52,7 +52,7 @@ function getAbilityKey(abilityName) {
     heal: "KeyQ",
     grenade: "KeyG",
     radar: "KeyC",
-    jetpack: "KeyE"
+    jetpack: "Space"
   };
   return defaults[abilityName] || "KeyE";
 }
@@ -905,7 +905,7 @@ function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface)
     const y = rampSurfaceY(ramp, p.pos, 0.42);
     if (y === null) continue;
     const canSnap = (wasGrounded && wasGroundSurface === ramp) ||
-                    (previousY >= y - 0.05 && p.pos.y <= y);
+                    (previousY >= y - 0.60 && p.pos.y <= y + 0.10);
     if (velocityY <= 0 && canSnap && (!best || y > best)) {
       best = y;
       bestRamp = ramp;
@@ -1319,7 +1319,15 @@ function fireMelee() {
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
 function rayHitsPlayer(origin, direction, player) { const hC = player.pos.clone().add(new THREE.Vector3(0, 1.58, 0)), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = player.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
 function drawLaser(origin, direction, length, hit, isRemote = false, weaponType = "pistol") {
-  const start = new THREE.Vector3(); if (!isRemote && world.weaponTip) world.weaponTip.getWorldPosition(start); else start.copy(origin);
+  const start = new THREE.Vector3();
+  if (!isRemote && world.weaponTip) {
+    world.weaponTip.getWorldPosition(start);
+    if (isPointInsideProjectileBlocker(start, 0.12)) {
+      start.copy(firstPersonProjectileOrigin(direction));
+    }
+  } else {
+    start.copy(origin);
+  }
   const end = origin.clone().addScaledVector(direction.clone().normalize(), length), mid = start.clone().add(end).multiplyScalar(0.5), isSniper = weaponType === "sniper";
   const isSperm = weaponType === "spermShooter" || weaponType === "heavySpermShooter";
   const r = (isSniper || weaponType === "heavySniper") ? (hit ? 0.07 : 0.052) : (hit ? 0.034 : 0.024), ttl = FPS_LASER_TTL, geometry = new THREE.CylinderGeometry(r, r, start.distanceTo(end), 8, 1, true);

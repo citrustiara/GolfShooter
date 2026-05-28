@@ -224,9 +224,12 @@ function defaultMoundsForHole(hole) {
 }
 
 function addBumper(def) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(def.sx, 0.5, def.sz), materials.wall);
-  mesh.position.set(def.x, 0.42, def.z);
-  mesh.rotation.y = def.rot;
+  const height = def.sy ?? 0.5;
+  const posY = def.y ?? 0.42;
+  const mat = def.color !== undefined ? new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7 }) : materials.wall;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(def.sx, height, def.sz), mat);
+  mesh.position.set(def.x, posY, def.z);
+  mesh.rotation.y = def.rot || 0;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   world.courseRoot.add(mesh);

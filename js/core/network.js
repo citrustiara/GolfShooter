@@ -138,8 +138,20 @@ export function attachConnection(connection) {
   });
   conn.on("data", (message) => handleMessage(message, connection));
   conn.on("close", () => {
+    const entry = connections.get(connection.peer);
+    if (entry && entry.playerIndex !== undefined) {
+      const idx = entry.playerIndex;
+      if (fps.players && fps.players[idx]) {
+        fps.players[idx].health = 0;
+      }
+    }
     connections.delete(connection.peer);
     game.connected = connections.size > 0 || Boolean(conn?.open);
+    if (game.role === "host") {
+      const maxIndex = Math.max(0, ...[...connections.values()].map(e => e.playerIndex));
+      game.playerCount = Math.max(1, maxIndex + 1);
+      broadcast({ type: "lobbyState", playerCount: game.playerCount });
+    }
     showNetwork(game.connected ? `P2P connected (${Math.max(1, game.playerCount)} players)` : "Peer disconnected", game.room);
   });
   conn.on("error", () => showNetwork("Peer connection error", game.room));
@@ -210,7 +222,7 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "lobbyState") {
-    game.playerCount = Math.max(game.playerCount, message.playerCount || game.playerCount);
+    game.playerCount = message.playerCount || game.playerCount;
     showNetwork(`P2P connected as P${game.localIndex + 1}. ${game.playerCount} players in lobby.`, game.room);
     networkLinks.showLobby();
   }

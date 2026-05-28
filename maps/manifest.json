@@ -7,7 +7,8 @@
     "fps/needle-corridor.json",
     "fps/skyhook-spires.json",
     "fps/abyssal-platforms.json",
-    "fps/enclosed-arena.json"
+    "fps/enclosed-arena.json",
+    "fps/shaft-arena.json"
   ],
   "golfMaps": [
     "golf/ice-runway.json",
@@ -15,6 +16,9 @@
     "golf/l-bend.json",
     "golf/circle-loop.json",
     "golf/wide-horseshoe.json",
-    "golf/zigzag-freeze.json"
+    "golf/zigzag-freeze.json",
+    "golf/easy-straight.json",
+    "golf/easy-funnel.json",
+    "golf/shaft-course.json"
   ]
 }

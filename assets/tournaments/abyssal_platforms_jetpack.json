@@ -5,6 +5,6 @@
   "hp": 100,
   "abilities": ["jetpack"],
   "abilityKeys": {
-    "jetpack": "KeyE"
+    "jetpack": "Space"
   }
 }
