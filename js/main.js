@@ -881,7 +881,7 @@ function updateFpsMovement(dt) {
   for (const obs of world.obstacles) {
     if (shouldSkipCompositeSurfaceCollision(p, obs)) continue;
     if (obs.userData?.isRamp) {
-      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42);
+      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42, p.vel.y);
     } else {
       resolvePlayerVsMeshObb(p.pos, obs, 0.42);
     }
@@ -943,7 +943,7 @@ function rotatePoint(x, z, angle) {
   return { x: x * c - z * s, z: x * s + z * c };
 }
 
-function resolvePlayerVsRamp(position, ramp, radius) {
+function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0) {
   const local = rotatePoint(position.x - ramp.x, position.z - ramp.z, ramp.rot);
   const halfWidth = ramp.width / 2;
   const halfLength = ramp.length / 2;
@@ -967,10 +967,11 @@ function resolvePlayerVsRamp(position, ramp, radius) {
   
   if (position.y + PLAYER_HEIGHT < ramp.y || position.y >= surfaceY - GROUND_SNAP) return;
   if (
-    local.x >= -halfWidth - radius &&
-    local.x <= halfWidth + radius &&
-    local.z >= -halfLength - radius &&
-    local.z <= halfLength + radius &&
+    verticalVelocity > 0 &&
+    local.x >= -halfWidth &&
+    local.x <= halfWidth &&
+    local.z >= -halfLength &&
+    local.z <= halfLength &&
     position.y >= ramp.y - LAND_TOLERANCE &&
     position.y >= surfaceY - TOP_APPROACH_CLEARANCE
   ) {
