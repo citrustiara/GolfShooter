@@ -6,13 +6,15 @@ import { CUP_SURFACE_Y, HOLES_PER_TOURNAMENT } from "../core/constants.js";
 import { makeRampMesh } from "../core/ramps.js";
 
 export const holes = [];
+const GOLF_BALL_COLORS = [0xffffff, 0xff4a5f, 0x5ab0ff, 0xffd166, 0x7ee2a8, 0xb84dff, 0xff9f43, 0x9ee8ff];
 
 export function resetTournamentState(courseIds = null) {
   applyTournamentHoleIds(courseIds || drawTournamentHoleIds());
+  ensureGolfBalls(game.playerCount);
   game.currentPlayer = 0;
   game.holeIndex = 0;
-  game.holeScores = Array.from({ length: 2 }, () => Array(holes.length || HOLES_PER_TOURNAMENT).fill(null));
-  game.strokesThisHole = [0, 0];
+  game.holeScores = Array.from({ length: game.playerCount }, () => Array(holes.length || HOLES_PER_TOURNAMENT).fill(null));
+  game.strokesThisHole = Array(game.playerCount).fill(0);
   game.aimAngle = -Math.PI / 4;
   game.aimPower = 0;
   game.ballMoving = false;
@@ -49,11 +51,19 @@ export function resetGolfHole() {
   const hole = holes[game.holeIndex];
   if (!hole) return;
   rebuildGolfHoleGeometry(hole);
-  world.ball.position.copy(hole.start);
-  world.ball.position.y = 0.53;
+  ensureGolfBalls(game.playerCount);
+  for (const ball of world.golfBalls) {
+    ball.mesh.position.copy(hole.start);
+    ball.mesh.position.y = 0.53;
+    ball.vel.set(0, 0, 0);
+    ball.lastShot.copy(ball.mesh.position);
+    ball.moving = false;
+    ball.falling = false;
+  }
+  world.ball = world.golfBalls[game.localIndex]?.mesh || world.golfBalls[0]?.mesh || world.ball;
+  world.ballVel = world.golfBalls[game.localIndex]?.vel || world.golfBalls[0]?.vel || world.ballVel;
   game.lastShotPosition.copy(world.ball.position);
   game.golfFalling = false;
-  world.ballVel.set(0, 0, 0);
   world.cup.position.copy(hole.cup);
   world.cup.position.y = CUP_SURFACE_Y;
   game.ballMoving = false;
@@ -250,6 +260,13 @@ export function setupGolfObjects() {
   world.ball.castShadow = true;
   world.ball.receiveShadow = true;
   world.courseRoot.add(world.ball);
+  world.golfBalls = [{
+    mesh: world.ball,
+    vel: world.ballVel,
+    lastShot: game.lastShotPosition,
+    moving: false,
+    falling: false
+  }];
 
   const arrowGroup = new THREE.Group();
   const arrowMat = new THREE.MeshBasicMaterial({ color: 0x7ee2a8, transparent: true, opacity: 0.92 });
@@ -266,4 +283,32 @@ export function setupGolfObjects() {
   world.courseRoot.add(arrowGroup);
 
   world.golfRoot.add(world.courseRoot);
+}
+
+export function ensureGolfBalls(count = game.playerCount) {
+  const targetCount = Math.max(1, Math.floor(count || 1));
+  game.playerCount = targetCount;
+  while (world.golfBalls.length < targetCount) {
+    const index = world.golfBalls.length;
+    const color = GOLF_BALL_COLORS[index % GOLF_BALL_COLORS.length];
+    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.34, metalness: 0.02 });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 18), material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    const ball = {
+      mesh,
+      vel: new THREE.Vector3(),
+      lastShot: new THREE.Vector3(),
+      moving: false,
+      falling: false
+    };
+    world.golfBalls.push(ball);
+    world.courseRoot.add(mesh);
+  }
+  while (world.golfBalls.length > targetCount) {
+    const ball = world.golfBalls.pop();
+    world.courseRoot.remove(ball.mesh);
+  }
+  world.ball = world.golfBalls[game.localIndex]?.mesh || world.golfBalls[0]?.mesh || world.ball;
+  world.ballVel = world.golfBalls[game.localIndex]?.vel || world.golfBalls[0]?.vel || world.ballVel;
 }

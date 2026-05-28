@@ -350,12 +350,47 @@ input:focus {
   top: 50%;
   width: min(520px, calc(100vw - 34px));
   transform: translate(-50%, -50%);
-  padding: 22px;
-  background: rgba(10, 13, 14, 0.8);
+  overflow: hidden;
+  padding: 28px 30px 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 42%),
+    rgba(10, 13, 14, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(20px);
+}
+
+.result::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--mint), var(--gold));
+}
+
+.result::after {
+  content: "";
+  position: absolute;
+  right: -48px;
+  top: -58px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(126, 226, 168, 0.18);
+  pointer-events: none;
+}
+
+.result.lose-result::before {
+  background: linear-gradient(90deg, var(--coral), #9fb5c3);
+}
+
+.result.lose-result::after {
+  background: rgba(255, 111, 97, 0.16);
+}
+
+.result.tie-result::before {
+  background: linear-gradient(90deg, #9fb5c3, var(--gold));
 }
 
 .result.fps-result {
@@ -401,11 +436,32 @@ input:focus {
   letter-spacing: 0;
 }
 
+.result h1 {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+}
+
+.result.win-result h1 {
+  color: #f7fff6;
+}
+
+.result.lose-result h1 {
+  color: #fff2ee;
+}
+
 .menu p,
 .result p {
+  position: relative;
+  z-index: 1;
   margin: 0 0 16px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.result .primary {
+  position: relative;
+  z-index: 1;
 }
 
 .menu p {

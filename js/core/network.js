@@ -4,6 +4,7 @@ import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 
 export let peer = null;
 export let conn = null;
+const connections = new Map();
 
 const networkPanel = document.querySelector("#network");
 const networkText = document.querySelector("#networkText");
@@ -49,6 +50,8 @@ export function showNetwork(text, room) {
 }
 
 export function closePeer() {
+  for (const { connection } of connections.values()) connection.close();
+  connections.clear();
   if (conn) conn.close();
   if (peer) peer.destroy();
   conn = null;
@@ -66,21 +69,28 @@ export async function createMatch() {
   closePeer();
   game.role = "host";
   game.localIndex = 0;
+  game.playerCount = 1;
   game.room = room;
-  showNetwork(`Hosting ${room}. Waiting for guest.`, room);
+  showNetwork(`Hosting ${room}. Waiting for players.`, room);
 
   try {
     peer = new Peer(room, { debug: 1 });
     peer.on("open", () => { if (menuError) menuError.textContent = ""; });
     peer.on("connection", (connection) => {
-      if (conn) {
-        connection.close();
-        return;
-      }
       attachConnection(connection);
       connection.on("open", () => {
         game.connected = true;
-        send({ type: "welcome", state: networkLinks.serializeGolfState() });
+        const playerIndex = assignHostConnectionIndex(connection);
+        game.playerCount = Math.max(game.playerCount, playerIndex + 1);
+        sendToConnection(connection, {
+          type: "welcome",
+          playerIndex,
+          playerCount: game.playerCount,
+          state: networkLinks.serializeGolfState(),
+          fpsState: networkLinks.serializeFpsDuelState?.()
+        });
+        broadcast({ type: "lobbyState", playerCount: game.playerCount }, connection);
+        showNetwork(`Hosting ${room}. ${game.playerCount} players connected.`, room);
         networkLinks.showLobby();
       });
     });
@@ -126,27 +136,87 @@ export function attachConnection(connection) {
     showNetwork("P2P connected", game.room);
     if (game.role === "guest") send({ type: "hello" });
   });
-  conn.on("data", handleMessage);
+  conn.on("data", (message) => handleMessage(message, connection));
   conn.on("close", () => {
-    game.connected = false;
-    showNetwork("Peer disconnected", game.room);
+    connections.delete(connection.peer);
+    game.connected = connections.size > 0 || Boolean(conn?.open);
+    showNetwork(game.connected ? `P2P connected (${Math.max(1, game.playerCount)} players)` : "Peer disconnected", game.room);
   });
   conn.on("error", () => showNetwork("Peer connection error", game.room));
 }
 
+function assignHostConnectionIndex(connection) {
+  const existing = connections.get(connection.peer);
+  if (existing?.playerIndex !== undefined) return existing.playerIndex;
+  const used = new Set([...connections.values()].map((entry) => entry.playerIndex));
+  let playerIndex = 1;
+  while (used.has(playerIndex)) playerIndex++;
+  connections.set(connection.peer, { connection, playerIndex });
+  return playerIndex;
+}
+
+function sendToConnection(connection, message) {
+  if (connection && connection.open) connection.send(message);
+}
+
+function broadcast(message, exceptConnection = null) {
+  for (const { connection } of connections.values()) {
+    if (connection === exceptConnection) continue;
+    sendToConnection(connection, message);
+  }
+}
+
+function shouldRelay(message) {
+  return [
+    "startTournament",
+    "golfHoleScored",
+    "golfShot",
+    "golfResolved",
+    "phaseFps",
+    "fpsWeaponChoice",
+    "fpsState",
+    "fpsShot",
+    "fpsGrenadeThrow",
+    "fpsGrenadeExplode",
+    "fpsGrenadeShot",
+    "fpsGrenadeSupercharge",
+    "matchResult",
+    "restart"
+  ].includes(message.type);
+}
+
 export function send(message) {
+  if (game.role === "host") {
+    broadcast(message);
+    return;
+  }
   if (conn && conn.open) conn.send(message);
 }
 
-export function handleMessage(message) {
+export function handleMessage(message, sourceConnection = null) {
   if (!message || typeof message !== "object") return;
 
+  if (game.role === "host" && sourceConnection && shouldRelay(message)) {
+    broadcast(message, sourceConnection);
+  }
+
   if (message.type === "welcome") {
+    game.localIndex = message.playerIndex ?? game.localIndex;
+    game.playerCount = Math.max(2, message.playerCount || game.playerCount);
+    if (message.fpsState) networkLinks.applyFpsDuelState(message.fpsState);
     networkLinks.applyGolfState(message.state);
+    showNetwork(`P2P connected as P${game.localIndex + 1}`, game.room);
+    networkLinks.showLobby();
+  }
+
+  if (message.type === "lobbyState") {
+    game.playerCount = Math.max(game.playerCount, message.playerCount || game.playerCount);
+    showNetwork(`P2P connected as P${game.localIndex + 1}. ${game.playerCount} players in lobby.`, game.room);
     networkLinks.showLobby();
   }
 
   if (message.type === "startTournament") {
+    if (message.playerCount) game.playerCount = message.playerCount;
     networkLinks.startGolf(message.courseIds);
   }
 
@@ -173,7 +243,8 @@ export function handleMessage(message) {
   }
 
   if (message.type === "fpsWeaponChoice") {
-    const remoteIdx = 1 - game.localIndex;
+    const remoteIdx = Number.isInteger(message.player) ? message.player : 1 - game.localIndex;
+    if (remoteIdx === game.localIndex) return;
     fps.players[remoteIdx].primaryWeapon = message.weapon;
   }
 
@@ -202,15 +273,16 @@ export function handleMessage(message) {
         networkLinks.drawLaser(origin, direction, message.length, message.hit, true, message.weapon);
       }
     }
-    if (message.target === game.localIndex) {
-      const dmg = message.damage !== undefined ? message.damage : 20;
+    const localDamage = Array.isArray(message.damages) ? message.damages.find((entry) => entry.target === game.localIndex) : (message.target === game.localIndex ? message : null);
+    if (localDamage) {
+      const dmg = localDamage.damage !== undefined ? localDamage.damage : 20;
       fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - dmg);
-      const popOffset = message.headshot ? 1.75 : 1.3;
-      networkLinks.showDamageDealt(dmg, fps.players[game.localIndex].pos.clone().add(new THREE.Vector3(0, popOffset, 0)), message.headshot);
+      const popOffset = (localDamage.headshot ?? message.headshot) ? 1.75 : 1.3;
+      networkLinks.showDamageDealt(dmg, fps.players[game.localIndex].pos.clone().add(new THREE.Vector3(0, popOffset, 0)), Boolean(localDamage.headshot ?? message.headshot));
       networkLinks.showDamageTaken(dmg);
       if (fps.players[game.localIndex].health <= 0) {
         networkLinks.showKilledBy(message.isMelee ? "Club" : networkLinks.weaponLabel(message.weapon));
-        networkLinks.startVictoryLap(1 - game.localIndex, "deathmatch", false);
+        networkLinks.startVictoryLap(Number.isInteger(message.player) ? message.player : 1 - game.localIndex, "deathmatch", false);
       }
     }
   }

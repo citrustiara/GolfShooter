@@ -78,7 +78,7 @@ export function setupArena() {
   // Spawn pads
   const spawnPads = getArenaSpawnPoints(theme).map((spawn, index) => ({
     ...spawn,
-    mat: index === 0 ? materials.blue : materials.coral
+    mat: playerMaterial(index)
   }));
   for (const pad of spawnPads) {
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 0.08, 42), pad.mat);
@@ -88,8 +88,8 @@ export function setupArena() {
   }
 
   world.playerMeshes = [];
-  for (let i = 0; i < 2; i++) {
-    const mesh = makePlayerMesh(i === 0 ? materials.blue : materials.coral);
+  for (let i = 0; i < fps.players.length; i++) {
+    const mesh = makePlayerMesh(playerMaterial(i));
     mesh.position.copy(fps.players[i].pos);
     world.playerMeshes.push(mesh);
     world.arenaRoot.add(mesh);
@@ -282,6 +282,11 @@ export function setupArena() {
 function applyFpsArenaTheme(theme) {
   scene.background = new THREE.Color(theme.sky);
   scene.fog = new THREE.Fog(theme.fog, theme.fogNear, theme.fogFar);
+}
+
+function playerMaterial(index) {
+  const palette = [materials.blue, materials.coral, materials.gold, materials.mint || materials.green, materials.wall];
+  return palette[index % palette.length] || materials.blue;
 }
 
 function addDepotBuildings(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding) {
