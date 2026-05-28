@@ -816,7 +816,6 @@ function updateFpsMovement(dt) {
   
   let onPlat = false;
   let platSurface = null;
-  const GROUND_SNAP = 0.28;
   
   // Snap to ramps first
   const rampY = fpsRampSurfaceY(p, previousY, p.vel.y, wasGrounded, wasGroundSurface);
@@ -825,20 +824,12 @@ function updateFpsMovement(dt) {
     p.vel.y = 0;
     onPlat = true;
   } else {
-    // Check platforms
-    for (const plat of world.platforms) {
-      const b = new THREE.Box3().setFromObject(plat);
-      const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42;
-      const insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42;
-      const canSnap = (wasGrounded && wasGroundSurface === plat) ||
-                      (previousY >= b.max.y - 0.05 && p.pos.y <= b.max.y);
-      if (insideX && insideZ && p.vel.y <= 0 && canSnap) {
-        p.pos.y = b.max.y;
-        p.vel.y = 0;
-        onPlat = true;
-        platSurface = plat;
-        break;
-      }
+    const flatSurface = fpsFlatSurfaceY(p.pos, previousY, p.vel.y, wasGrounded, wasGroundSurface);
+    if (flatSurface) {
+      p.pos.y = flatSurface.y;
+      p.vel.y = 0;
+      onPlat = true;
+      platSurface = flatSurface.surface;
     }
     if (onPlat) {
       p.groundSurface = platSurface;
@@ -888,6 +879,7 @@ function updateFpsMovement(dt) {
   }
   clampArenaPosition(p.pos, 0.42);
   for (const obs of world.obstacles) {
+    if (shouldSkipCompositeSurfaceCollision(p, obs)) continue;
     if (obs.userData?.isRamp) {
       resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42);
     } else {
@@ -895,6 +887,35 @@ function updateFpsMovement(dt) {
     }
   }
   clampArenaPosition(p.pos, 0.42);
+}
+
+function shouldSkipCompositeSurfaceCollision(player, obstacle) {
+  const support = player.groundSurface;
+  if (!player.grounded || !support || support === "floor" || support === obstacle || obstacle.userData?.isRamp) return false;
+  const supportBox = new THREE.Box3().setFromObject(support);
+  const obstacleBox = new THREE.Box3().setFromObject(obstacle);
+  const standingOnSupport = Math.abs(player.pos.y - supportBox.max.y) <= 0.12;
+  const obstacleCrossesFeet = obstacleBox.min.y <= player.pos.y + 0.08 && obstacleBox.max.y > player.pos.y + 0.08;
+  const overlapsX = supportBox.min.x < obstacleBox.max.x - 0.02 && supportBox.max.x > obstacleBox.min.x + 0.02;
+  const overlapsZ = supportBox.min.z < obstacleBox.max.z - 0.02 && supportBox.max.z > obstacleBox.min.z + 0.02;
+  return standingOnSupport && obstacleCrossesFeet && overlapsX && overlapsZ;
+}
+
+function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundSurface) {
+  if (velocityY > 0) return null;
+  const surfaces = new Set([...world.platforms, ...world.obstacles.filter((obs) => !obs.userData?.isRamp)]);
+  let best = null;
+  for (const surface of surfaces) {
+    const b = new THREE.Box3().setFromObject(surface);
+    const insideX = position.x > b.min.x - 0.42 && position.x < b.max.x + 0.42;
+    const insideZ = position.z > b.min.z - 0.42 && position.z < b.max.z + 0.42;
+    const canSnap = (wasGrounded && wasGroundSurface === surface) ||
+                    (previousY >= b.max.y - 0.05 && position.y <= b.max.y);
+    if (insideX && insideZ && canSnap && (!best || b.max.y > best.y)) {
+      best = { y: b.max.y, surface };
+    }
+  }
+  return best;
 }
 
 function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface) {
@@ -942,8 +963,19 @@ function resolvePlayerVsRamp(position, ramp, radius) {
   const PLAYER_HEIGHT = 1.78;
   const GROUND_SNAP = 0.28;
   const LAND_TOLERANCE = 0.2;
+  const TOP_APPROACH_CLEARANCE = 1.15;
   
   if (position.y + PLAYER_HEIGHT < ramp.y || position.y >= surfaceY - GROUND_SNAP) return;
+  if (
+    local.x >= -halfWidth - radius &&
+    local.x <= halfWidth + radius &&
+    local.z >= -halfLength - radius &&
+    local.z <= halfLength + radius &&
+    position.y >= ramp.y - LAND_TOLERANCE &&
+    position.y >= surfaceY - TOP_APPROACH_CLEARANCE
+  ) {
+    return;
+  }
   if (local.z < -halfLength && position.y >= ramp.y - LAND_TOLERANCE) return;
 
   const candidates = [

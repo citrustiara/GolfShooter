@@ -92,8 +92,8 @@ export async function loadGameContent() {
     console.warn("Could not load tournament combinations manifest, using default presets.", error);
     const defaultCombinations = [
       { id: "neon_depot_close_quarters", map: "fps/neon-depot.json", weapons: ["shotgun", "melee"], hp: 150, abilities: ["jump", "heal"] },
+      { id: "juggernout", map: "fps/neon-depot.json", weapons: ["minigun"], hp: 999, abilities: [] },
       { id: "sunlit_rooftops_snipers", map: "fps/sunlit-rooftops.json", weapons: ["sniper", "heavySniper"], hp: 100, abilities: ["jump", "radar"] },
-      { id: "ember_foundry_laser_tag", map: "fps/ember-foundry.json", weapons: ["laser"], hp: 80, abilities: ["heal", "radar"] },
       { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade"] },
       { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["rifle", "pistol"], hp: 120, abilities: ["jump", "grenade", "radar"] }
     ];
