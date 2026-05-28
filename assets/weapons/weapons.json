@@ -114,6 +114,35 @@
       "moveScale": 0.88,
       "recoil": 0.0
     },
+    "spermShooter": {
+      "label": "Sperm Shooter",
+      "ammo": 30,
+      "damage": 5,
+      "crit": 2,
+      "reload": 0.8,
+      "fireDelay": 25,
+      "range": 150,
+      "spread": 0.02,
+      "aimSpread": 0.005,
+      "moveScale": 0.9,
+      "recoil": 0.05,
+      "scale": 0.9
+    },
+    "heavySpermShooter": {
+      "label": "Heavy Sperm Shooter",
+      "ammo": 30,
+      "damage": 10,
+      "crit": 2,
+      "reload": 0.8,
+      "fireDelay": 25,
+      "range": 150,
+      "spread": 0.02,
+      "aimSpread": 0.005,
+      "moveScale": 0.9,
+      "recoil": 0.1,
+      "scale": 1.45,
+      "firstPersonOffset": { "x": 0.26, "y": -0.35, "z": -0.38 }
+    },
     "melee": {
       "label": "Club",
       "ammo": 1,
@@ -129,7 +158,9 @@
   "standardWeapons": [
     "pistol",
     "rifle",
-    "sniper"
+    "sniper",
+    "spermShooter",
+    "heavySpermShooter"
   ],
   "randomTournamentWeapons": [
     "heavySniper",
@@ -138,7 +169,9 @@
     "rocket",
     "grenadeLauncher",
     "melee",
-    "laser"
+    "laser",
+    "spermShooter",
+    "heavySpermShooter"
   ],
   "modelRoot": "assets/models/weapons/"
 }

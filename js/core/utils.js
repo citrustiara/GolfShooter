@@ -52,6 +52,14 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.14, now);
     blip(980, 0.045, 0.65, "sawtooth");
     blip(1450, 0.03, 0.22, "triangle");
+  } else if (type === "spermShooter") {
+    master.gain.setValueAtTime(0.16, now);
+    blip(520, 0.05, 0.6, "triangle");
+    blip(980, 0.03, 0.25, "sine");
+  } else if (type === "heavySpermShooter") {
+    master.gain.setValueAtTime(0.20, now);
+    blip(390, 0.07, 0.7, "triangle");
+    blip(780, 0.04, 0.3, "sine");
   } else if (type === "shotgun") {
     master.gain.setValueAtTime(0.34, now);
     blip(96, 0.18, 0.92, "square");

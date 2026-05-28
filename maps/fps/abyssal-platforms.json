@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "id": "abyssal-platforms",
+  "name": "Abyssal Platforms",
+  "sky": 527380,
+  "fog": 527380,
+  "fogNear": 60,
+  "fogFar": 160,
+  "bounds": {
+    "x": 60,
+    "z": 60
+  },
+  "floors": [],
+  "spawnPoints": [
+    { "x": 0, "y": 1.2, "z": 0 },
+    { "x": 25, "y": 1.2, "z": 0 },
+    { "x": 7.73, "y": 1.2, "z": 23.78 },
+    { "x": -20.23, "y": 1.2, "z": 14.69 },
+    { "x": -20.23, "y": 1.2, "z": -14.69 },
+    { "x": 7.73, "y": 1.2, "z": -23.78 }
+  ],
+  "boxes": [
+    {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "sx": 12,
+      "sy": 1.0,
+      "sz": 12,
+      "color": 2765381,
+      "isPlatform": true
+    },
+    {
+      "x": 25,
+      "y": 0,
+      "z": 0,
+      "sx": 5,
+      "sy": 1.0,
+      "sz": 5,
+      "color": 4150400,
+      "isPlatform": true
+    },
+    {
+      "x": 7.73,
+      "y": 0,
+      "z": 23.78,
+      "sx": 5,
+      "sy": 1.0,
+      "sz": 5,
+      "color": 4150400,
+      "isPlatform": true
+    },
+    {
+      "x": -20.23,
+      "y": 0,
+      "z": 14.69,
+      "sx": 5,
+      "sy": 1.0,
+      "sz": 5,
+      "color": 4150400,
+      "isPlatform": true
+    },
+    {
+      "x": -20.23,
+      "y": 0,
+      "z": -14.69,
+      "sx": 5,
+      "sy": 1.0,
+      "sz": 5,
+      "color": 4150400,
+      "isPlatform": true
+    },
+    {
+      "x": 7.73,
+      "y": 0,
+      "z": -23.78,
+      "sx": 5,
+      "sy": 1.0,
+      "sz": 5,
+      "color": 4150400,
+      "isPlatform": true
+    }
+  ],
+  "config": {
+    "hp": 100,
+    "abilities": ["jetpack"],
+    "weapons": ["laser"],
+    "abilityKeys": {
+      "jetpack": "KeyE"
+    }
+  }
+}
