@@ -1386,7 +1386,7 @@ function drawLaser(origin, direction, length, hit, isRemote = false, weaponType 
     start.copy(origin);
   }
   const end = origin.clone().addScaledVector(direction.clone().normalize(), length), mid = start.clone().add(end).multiplyScalar(0.5), isSniper = weaponType === "sniper";
-  const isSperm = weaponType === "spermShooter" || weaponType === "heavySpermShooter";
+  const isSperm = weaponType === "spermShooter" || weaponType === "heavySpermShooter" || weaponType === "heaviestSpermShooter";
   const r = (isSniper || weaponType === "heavySniper") ? (hit ? 0.07 : 0.052) : (hit ? 0.034 : 0.024), ttl = FPS_LASER_TTL, geometry = new THREE.CylinderGeometry(r, r, start.distanceTo(end), 8, 1, true);
   const material = new THREE.MeshBasicMaterial({ color: hit ? 0xff3366 : (isSniper ? 0xfff0a6 : (isSperm ? 0xfff9e6 : 0x4df3ff)), transparent: true, opacity: isSniper ? 0.96 : (hit ? 0.9 : 0.78), blending: THREE.AdditiveBlending, depthWrite: false });
   const beam = new THREE.Mesh(geometry, material); beam.position.copy(mid); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
@@ -1407,7 +1407,7 @@ function updateDamagePops(dt) { for (let i = activeDamagePops.length - 1; i >= 0
 function updatePlayerMeshes() {
   for (let i = 0; i < world.playerMeshes.length; i++) {
     const mesh = world.playerMeshes[i], player = fps.players[i]; mesh.position.copy(player.pos); mesh.rotation.y = -player.yaw; const head = mesh.getObjectByName("headGroup");
-    if (head) { head.rotation.x = player.pitch; const g = head.getObjectByName("gun"), m = head.getObjectByName("melee"); if (g && m) { g.visible = (player.weapon === "gun"); m.visible = (player.weapon === "melee"); if (player.primaryWeapon === "pistol") g.scale.set(1, 1, 1); else if (player.primaryWeapon === "rifle" || player.primaryWeapon === "minigun") g.scale.set(1, 1, player.primaryWeapon === "minigun" ? 2.3 : 1.8); else if (player.primaryWeapon === "sniper" || player.primaryWeapon === "heavySniper") g.scale.set(1, 1, player.primaryWeapon === "heavySniper" ? 3.8 : 3.2); else if (player.primaryWeapon === "heavySpermShooter") g.scale.set(1.7, 1.6, 2.9); else if (player.primaryWeapon === "spermShooter") g.scale.set(1.1, 1.0, 1.9); else g.scale.set(1.2, 1.1, 2.1); } }
+    if (head) { head.rotation.x = player.pitch; const g = head.getObjectByName("gun"), m = head.getObjectByName("melee"); if (g && m) { g.visible = (player.weapon === "gun"); m.visible = (player.weapon === "melee"); if (player.primaryWeapon === "pistol") g.scale.set(1, 1, 1); else if (player.primaryWeapon === "rifle" || player.primaryWeapon === "minigun") g.scale.set(1, 1, player.primaryWeapon === "minigun" ? 2.3 : 1.8); else if (player.primaryWeapon === "sniper" || player.primaryWeapon === "heavySniper") g.scale.set(1, 1, player.primaryWeapon === "heavySniper" ? 3.8 : 3.2); else if (player.primaryWeapon === "heaviestSpermShooter") g.scale.set(2.4, 2.2, 4.0); else if (player.primaryWeapon === "heavySpermShooter") g.scale.set(1.7, 1.6, 2.9); else if (player.primaryWeapon === "spermShooter") g.scale.set(1.1, 1.0, 1.9); else g.scale.set(1.2, 1.1, 2.1); } }
     mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
   }
 }

@@ -60,6 +60,10 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.20, now);
     blip(390, 0.07, 0.7, "triangle");
     blip(780, 0.04, 0.3, "sine");
+  } else if (type === "heaviestSpermShooter") {
+    master.gain.setValueAtTime(0.24, now);
+    blip(280, 0.09, 0.8, "triangle");
+    blip(560, 0.05, 0.4, "sine");
   } else if (type === "shotgun") {
     master.gain.setValueAtTime(0.34, now);
     blip(96, 0.18, 0.92, "square");
