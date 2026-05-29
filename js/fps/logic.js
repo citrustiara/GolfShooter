@@ -51,9 +51,11 @@ export function setupArena() {
   }
 
   // Grid overlay
-  const grid = new THREE.GridHelper(gridSize, gridSize / 2, theme.gridA, theme.gridB);
-  grid.position.y = 0.02;
-  world.arenaRoot.add(grid);
+  if (!theme.floors || theme.floors.length > 0) {
+    const grid = new THREE.GridHelper(gridSize, gridSize / 2, theme.gridA, theme.gridB);
+    grid.position.y = 0.02;
+    world.arenaRoot.add(grid);
+  }
 
   const skyShell = new THREE.Mesh(
     new THREE.SphereGeometry(170, 32, 16),
