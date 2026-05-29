@@ -1,0 +1,7 @@
+{
+  "id": "juggernaut",
+  "map": "fps/neon-depot.json",
+  "weapons": ["minigun"],
+  "hp": 999,
+  "abilities": []
+}

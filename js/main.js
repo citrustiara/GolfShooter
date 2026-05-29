@@ -881,7 +881,7 @@ function updateFpsMovement(dt) {
   for (const obs of world.obstacles) {
     if (shouldSkipCompositeSurfaceCollision(p, obs)) continue;
     if (obs.userData?.isRamp) {
-      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42, p.vel.y);
+      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42, p.vel.y, p.grounded, p.groundSurface);
     } else {
       resolvePlayerVsMeshObb(p.pos, obs, 0.42);
     }
@@ -921,14 +921,30 @@ function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundS
 function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface) {
   let best = null;
   let bestRamp = null;
-  const GROUND_SNAP = 0.28;
   for (const ramp of world.ramps) {
-    const y = rampSurfaceY(ramp, p.pos, 0.42);
-    if (y === null) continue;
-    const canSnap = (wasGrounded && wasGroundSurface === ramp) ||
-                    (previousY >= y - 0.60 && p.pos.y <= y + 0.10);
-    if (velocityY <= 0 && canSnap && (!best || y > best)) {
-      best = y;
+    // For "already walking on this ramp" snap, use tight margin (player radius only)
+    // For landing/approaching, use wider margin but stricter vertical checks
+    const tightY = rampSurfaceY(ramp, p.pos, 0.10);
+    const wideY = rampSurfaceY(ramp, p.pos, 0.42);
+
+    // Case 1: Already grounded on this ramp — use tight footprint to avoid
+    // snapping when the player has walked off the side
+    if (wasGrounded && wasGroundSurface === ramp && tightY !== null) {
+      if (velocityY <= 0 && (!best || tightY > best)) {
+        best = tightY;
+        bestRamp = ramp;
+      }
+      continue;
+    }
+
+    // Case 2: Landing on ramp from air or stepping onto it
+    if (wideY === null) continue;
+    // Must be falling (not jumping upward)
+    if (velocityY > 0) continue;
+    // Must be close to the surface: previous pos within 0.35 below, current pos within 0.10 above
+    const canLand = previousY >= wideY - 0.35 && p.pos.y <= wideY + 0.10;
+    if (canLand && (!best || wideY > best)) {
+      best = wideY;
       bestRamp = ramp;
     }
   }
@@ -938,12 +954,16 @@ function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface)
   return best;
 }
 
+
 function rotatePoint(x, z, angle) {
   const c = Math.cos(angle), s = Math.sin(angle);
   return { x: x * c - z * s, z: x * s + z * c };
 }
 
-function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0) {
+function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0, grounded = false, groundSurface = null) {
+  // If the player is grounded on THIS ramp, skip horizontal collision entirely
+  if (grounded && groundSurface === ramp) return;
+
   const local = rotatePoint(position.x - ramp.x, position.z - ramp.z, ramp.rot);
   const halfWidth = ramp.width / 2;
   const halfLength = ramp.length / 2;
@@ -959,24 +979,27 @@ function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0) {
   const clampedZ = Math.max(-halfLength, Math.min(halfLength, local.z));
   const t = (clampedZ + halfLength) / ramp.length;
   const surfaceY = ramp.y + t * ramp.height;
-  
+
   const PLAYER_HEIGHT = 1.78;
   const GROUND_SNAP = 0.28;
   const LAND_TOLERANCE = 0.2;
-  const TOP_APPROACH_CLEARANCE = 1.15;
-  
+
+  // Player is above the ramp surface or entirely below the ramp — no collision
   if (position.y + PLAYER_HEIGHT < ramp.y || position.y >= surfaceY - GROUND_SNAP) return;
+
+  // Player is jumping upward inside the ramp area — let them pass through
   if (
     verticalVelocity > 0 &&
     local.x >= -halfWidth &&
     local.x <= halfWidth &&
     local.z >= -halfLength &&
     local.z <= halfLength &&
-    position.y >= ramp.y - LAND_TOLERANCE &&
-    position.y >= surfaceY - TOP_APPROACH_CLEARANCE
+    position.y >= ramp.y - LAND_TOLERANCE
   ) {
     return;
   }
+
+  // Player approaching from the low end at ramp level — let them walk on
   if (local.z < -halfLength && position.y >= ramp.y - LAND_TOLERANCE) return;
 
   const candidates = [
@@ -998,6 +1021,7 @@ function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0) {
   position.x = ramp.x + worldPt.x;
   position.z = ramp.z + worldPt.z;
 }
+
 
 function resolvePlayerVsMeshObb(position, mesh, radius) {
   if (!mesh.geometry) return;
