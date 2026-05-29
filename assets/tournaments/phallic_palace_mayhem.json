@@ -1,0 +1,7 @@
+{
+  "id": "phallic_palace_mayhem",
+  "map": "fps/phallic-palace.json",
+  "weapons": ["rocket", "shotgun"],
+  "hp": 200,
+  "abilities": ["jetpack", "heal"]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "phallic_palace_heaviest_sperm",
+  "map": "fps/phallic-palace.json",
+  "weapons": ["heaviestSpermShooter"],
+  "hp": 150,
+  "abilities": ["jetpack", "grenade"]
+}

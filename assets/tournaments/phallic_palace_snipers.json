@@ -1,0 +1,7 @@
+{
+  "id": "phallic_palace_snipers",
+  "map": "fps/phallic-palace.json",
+  "weapons": ["heavySniper", "sniper"],
+  "hp": 100,
+  "abilities": ["jump", "radar"]
+}
