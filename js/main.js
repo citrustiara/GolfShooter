@@ -14,10 +14,17 @@ import { holes, resetTournamentState, resetGolfHole, setupGolfObjects, ensureGol
 import { setupArena, makePlayerMesh, clampArenaPosition, isPointInsideArena, getArenaSpawnPoints } from "./fps/logic.js";
 import { fpsArenaThemes } from "./fps/themes.js";
 import { loadGameContent } from "./content/loader.js";
-import { rampSurfaceY, rampUphillDirection } from "./core/ramps.js";
+import { rampLocalPoint, rampSurfaceInfo, rampSurfaceY, rampUphillDirection, rampWorldPoint } from "./core/ramps.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeLabel = document.querySelector("#holeLabel"), turnLabel = document.querySelector("#turnLabel"), strokeLabel = document.querySelector("#strokeLabel"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), jetpackOverlay = document.querySelector("#jetpackOverlay"), jetpackCDText = document.querySelector("#jetpackCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
 const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), playerCountSelect = document.querySelector("#playerCountSelect"), mapUploadInput = document.querySelector("#mapUploadInput");
+const FPS_PLAYER_RADIUS_WORLD = 0.42;
+const FPS_PLAYER_HEIGHT_WORLD = 1.78;
+const FPS_RAMP_PROBE_MARGIN = 0.08;
+const FPS_RAMP_LAND_EPSILON = 0.10;
+const FPS_RAMP_STEP_UP = 0.46;
+const FPS_RAMP_STEP_DOWN = 0.72;
+const FPS_RAMP_SOLID_TOP_CLEARANCE = 0.06;
 const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null;
 let weaponIds = Object.keys(weaponCatalog);
 let standardWeaponIds = ["pistol", "rifle", "sniper"];
@@ -763,7 +770,9 @@ function updateWeaponModel(dt, p) {
   }
 }
 function updateFpsMovement(dt) {
-  const p = fps.players[game.localIndex], theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw)), right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(), move = new THREE.Vector3(), previousY = p.pos.y;
+  const p = fps.players[game.localIndex], theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw)), right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(), move = new THREE.Vector3();
+  const previousPosition = p.pos.clone();
+  const previousY = previousPosition.y;
   if (input.keys.has("KeyW")) move.add(forward); if (input.keys.has("KeyS")) move.sub(forward); if (input.keys.has("KeyA")) move.sub(right); if (input.keys.has("KeyD")) move.add(right); if (move.lengthSq() > 0) move.normalize();
   const wasGrounded = p.grounded;
   const wasGroundSurface = p.groundSurface || null;
@@ -794,19 +803,18 @@ function updateFpsMovement(dt) {
   
   // Ceiling collision check: stop player from phasing through ceilings when jumping upwards
   if (p.vel.y > 0) {
-    const PLAYER_HEIGHT = 1.78;
-    const previousHead = previousY + PLAYER_HEIGHT;
-    const currentHead = p.pos.y + PLAYER_HEIGHT;
+    const previousHead = previousY + FPS_PLAYER_HEIGHT_WORLD;
+    const currentHead = p.pos.y + FPS_PLAYER_HEIGHT_WORLD;
     const CEILING_TOLERANCE = 0.20;
     const ceilingBlockers = [...world.platforms, ...world.obstacles];
     for (const block of ceilingBlockers) {
       if (block.userData?.isRamp) continue;
       const b = new THREE.Box3().setFromObject(block);
-      const insideX = p.pos.x > b.min.x - 0.42 && p.pos.x < b.max.x + 0.42;
-      const insideZ = p.pos.z > b.min.z - 0.42 && p.pos.z < b.max.z + 0.42;
+      const insideX = p.pos.x > b.min.x - FPS_PLAYER_RADIUS_WORLD && p.pos.x < b.max.x + FPS_PLAYER_RADIUS_WORLD;
+      const insideZ = p.pos.z > b.min.z - FPS_PLAYER_RADIUS_WORLD && p.pos.z < b.max.z + FPS_PLAYER_RADIUS_WORLD;
       if (insideX && insideZ) {
         if (previousHead <= b.min.y + CEILING_TOLERANCE && currentHead >= b.min.y) {
-          p.pos.y = b.min.y - PLAYER_HEIGHT - 0.01;
+          p.pos.y = b.min.y - FPS_PLAYER_HEIGHT_WORLD - 0.01;
           p.vel.y = 0;
           break;
         }
@@ -817,12 +825,14 @@ function updateFpsMovement(dt) {
   let onPlat = false;
   let platSurface = null;
   
-  // Snap to ramps first
-  const rampY = fpsRampSurfaceY(p, previousY, p.vel.y, wasGrounded, wasGroundSurface);
-  if (rampY !== null) {
-    p.pos.y = rampY;
+  for (const ramp of world.ramps) resolvePlayerVsRampSolid(p, previousPosition, ramp, FPS_PLAYER_RADIUS_WORLD);
+
+  const rampSurface = fpsRampSurface(p, previousPosition, p.vel.y, wasGrounded, wasGroundSurface);
+  if (rampSurface) {
+    p.pos.y = rampSurface.y;
     p.vel.y = 0;
     onPlat = true;
+    platSurface = rampSurface.surface;
   } else {
     const flatSurface = fpsFlatSurfaceY(p.pos, previousY, p.vel.y, wasGrounded, wasGroundSurface);
     if (flatSurface) {
@@ -831,9 +841,9 @@ function updateFpsMovement(dt) {
       onPlat = true;
       platSurface = flatSurface.surface;
     }
-    if (onPlat) {
-      p.groundSurface = platSurface;
-    }
+  }
+  if (onPlat) {
+    p.groundSurface = platSurface;
   }
 
   // Check floors
@@ -841,13 +851,13 @@ function updateFpsMovement(dt) {
   let bestFloorY = -Infinity;
   for (const floor of world.arenaFloors) {
     if (floor.type === "circle") {
-      if (Math.hypot(p.pos.x - floor.x, p.pos.z - floor.z) <= floor.r + 0.42) {
+      if (Math.hypot(p.pos.x - floor.x, p.pos.z - floor.z) <= floor.r + FPS_PLAYER_RADIUS_WORLD) {
         const y = Number(floor.y || 0);
         if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
       }
     } else {
-      const halfX = (floor.sx || 1) / 2 + 0.42;
-      const halfZ = (floor.sz || 1) / 2 + 0.42;
+      const halfX = (floor.sx || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
+      const halfZ = (floor.sz || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
       if (Math.abs(p.pos.x - floor.x) <= halfX && Math.abs(p.pos.z - floor.z) <= halfZ) {
         const y = Number(floor.y || 0);
         if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
@@ -877,21 +887,19 @@ function updateFpsMovement(dt) {
     p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
     p.vel.set(0, 0, 0);
   }
-  clampArenaPosition(p.pos, 0.42);
+  clampArenaPosition(p.pos, FPS_PLAYER_RADIUS_WORLD);
   for (const obs of world.obstacles) {
+    if (obs.userData?.isRamp) continue;
     if (shouldSkipCompositeSurfaceCollision(p, obs)) continue;
-    if (obs.userData?.isRamp) {
-      resolvePlayerVsRamp(p.pos, obs.userData.ramp, 0.42, p.vel.y, p.grounded, p.groundSurface);
-    } else {
-      resolvePlayerVsMeshObb(p.pos, obs, 0.42);
-    }
+    resolvePlayerVsMeshObb(p.pos, obs, FPS_PLAYER_RADIUS_WORLD);
   }
-  clampArenaPosition(p.pos, 0.42);
+  clampArenaPosition(p.pos, FPS_PLAYER_RADIUS_WORLD);
 }
 
 function shouldSkipCompositeSurfaceCollision(player, obstacle) {
   const support = player.groundSurface;
   if (!player.grounded || !support || support === "floor" || support === obstacle || obstacle.userData?.isRamp) return false;
+  if (!support.isObject3D) return false;
   const supportBox = new THREE.Box3().setFromObject(support);
   const obstacleBox = new THREE.Box3().setFromObject(obstacle);
   const standingOnSupport = Math.abs(player.pos.y - supportBox.max.y) <= 0.12;
@@ -907,8 +915,8 @@ function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundS
   let best = null;
   for (const surface of surfaces) {
     const b = new THREE.Box3().setFromObject(surface);
-    const insideX = position.x > b.min.x - 0.42 && position.x < b.max.x + 0.42;
-    const insideZ = position.z > b.min.z - 0.42 && position.z < b.max.z + 0.42;
+    const insideX = position.x > b.min.x - FPS_PLAYER_RADIUS_WORLD && position.x < b.max.x + FPS_PLAYER_RADIUS_WORLD;
+    const insideZ = position.z > b.min.z - FPS_PLAYER_RADIUS_WORLD && position.z < b.max.z + FPS_PLAYER_RADIUS_WORLD;
     const canSnap = (wasGrounded && wasGroundSurface === surface) ||
                     (previousY >= b.max.y - 0.05 && position.y <= b.max.y);
     if (insideX && insideZ && canSnap && (!best || b.max.y > best.y)) {
@@ -918,53 +926,34 @@ function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundS
   return best;
 }
 
-function fpsRampSurfaceY(p, previousY, velocityY, wasGrounded, wasGroundSurface) {
+function fpsRampSurface(p, previousPosition, velocityY, wasGrounded, wasGroundSurface) {
   let best = null;
-  let bestRamp = null;
   for (const ramp of world.ramps) {
-    // For "already walking on this ramp" snap, use tight margin (player radius only)
-    // For landing/approaching, use wider margin but stricter vertical checks
-    const tightY = rampSurfaceY(ramp, p.pos, 0.10);
-    const wideY = rampSurfaceY(ramp, p.pos, 0.42);
+    const info = rampSurfaceInfo(ramp, p.pos, FPS_RAMP_PROBE_MARGIN);
+    if (!info) continue;
 
-    // Case 1: Already grounded on this ramp — use tight footprint to avoid
-    // snapping when the player has walked off the side
-    if (wasGrounded && wasGroundSurface === ramp && tightY !== null) {
-      if (velocityY <= 0 && (!best || tightY > best)) {
-        best = tightY;
-        bestRamp = ramp;
-      }
-      continue;
-    }
-
-    // Case 2: Landing on ramp from air or stepping onto it
-    if (wideY === null) continue;
-    // Must be falling (not jumping upward)
+    const alreadyOnRamp = wasGrounded && wasGroundSurface === ramp;
     if (velocityY > 0) continue;
-    // Must be close to the surface: previous pos within 0.35 below, current pos within 0.10 above
-    const canLand = previousY >= wideY - 0.35 && p.pos.y <= wideY + 0.10;
-    if (canLand && (!best || wideY > best)) {
-      best = wideY;
-      bestRamp = ramp;
+
+    const previousInfo = rampSurfaceInfo(ramp, previousPosition, FPS_RAMP_PROBE_MARGIN);
+    const previousSurfaceY = previousInfo?.y ?? info.y;
+    const maxStepUp = alreadyOnRamp ? FPS_RAMP_STEP_UP : Math.min(FPS_RAMP_STEP_UP, Math.max(0.18, Math.abs(velocityY) * 0.04 + 0.18));
+    const nearSurfaceNow = p.pos.y >= info.y - FPS_RAMP_STEP_DOWN && p.pos.y <= info.y + FPS_RAMP_LAND_EPSILON;
+    const crossedSurface = previousPosition.y >= previousSurfaceY - 0.05 && nearSurfaceNow;
+    const canStepUp = wasGrounded && previousPosition.y >= info.y - maxStepUp && nearSurfaceNow;
+    const canContinueOnRamp = alreadyOnRamp && p.pos.y <= info.y + FPS_RAMP_STEP_DOWN;
+    const canLandOrStepOn = velocityY <= 0 && (crossedSurface || canStepUp);
+
+    if ((canContinueOnRamp || canLandOrStepOn) && (!best || info.y > best.y)) {
+      best = { y: info.y, surface: ramp, normal: info.normal };
     }
-  }
-  if (best !== null) {
-    p.groundSurface = bestRamp;
   }
   return best;
 }
 
-
-function rotatePoint(x, z, angle) {
-  const c = Math.cos(angle), s = Math.sin(angle);
-  return { x: x * c - z * s, z: x * s + z * c };
-}
-
-function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0, grounded = false, groundSurface = null) {
-  // If the player is grounded on THIS ramp, skip horizontal collision entirely
-  if (grounded && groundSurface === ramp) return;
-
-  const local = rotatePoint(position.x - ramp.x, position.z - ramp.z, ramp.rot);
+function resolvePlayerVsRampSolid(player, previousPosition, ramp, radius) {
+  const position = player.pos;
+  const local = rampLocalPoint(ramp, position);
   const halfWidth = ramp.width / 2;
   const halfLength = ramp.length / 2;
   if (
@@ -976,52 +965,75 @@ function resolvePlayerVsRamp(position, ramp, radius, verticalVelocity = 0, groun
     return;
   }
 
+  const clampedX = Math.max(-halfWidth, Math.min(halfWidth, local.x));
   const clampedZ = Math.max(-halfLength, Math.min(halfLength, local.z));
-  const t = (clampedZ + halfLength) / ramp.length;
-  const surfaceY = ramp.y + t * ramp.height;
-
-  const PLAYER_HEIGHT = 1.78;
-  const GROUND_SNAP = 0.28;
-  const LAND_TOLERANCE = 0.2;
-
-  // Player is above the ramp surface or entirely below the ramp — no collision
-  if (position.y + PLAYER_HEIGHT < ramp.y || position.y >= surfaceY - GROUND_SNAP) return;
-
-  // Player is jumping upward inside the ramp area — let them pass through
-  if (
-    verticalVelocity > 0 &&
-    local.x >= -halfWidth &&
-    local.x <= halfWidth &&
-    local.z >= -halfLength &&
-    local.z <= halfLength &&
-    position.y >= ramp.y - LAND_TOLERANCE
-  ) {
+  const surfaceT = (clampedZ + halfLength) / ramp.length;
+  const solidTopY = ramp.y + surfaceT * ramp.height;
+  const topInfo = rampSurfaceInfo(ramp, position, FPS_RAMP_PROBE_MARGIN);
+  const previousTopInfo = rampSurfaceInfo(ramp, previousPosition, FPS_RAMP_PROBE_MARGIN);
+  const wasOnRampTop = previousTopInfo &&
+    previousPosition.y >= previousTopInfo.y - 0.08 &&
+    previousPosition.y <= previousTopInfo.y + FPS_RAMP_LAND_EPSILON;
+  if (wasOnRampTop && topInfo && player.vel.y > 0) {
+    position.y = Math.max(position.y, topInfo.y + 0.04);
     return;
   }
 
-  // Player approaching from the low end at ramp level — let them walk on
-  if (local.z < -halfLength && position.y >= ramp.y - LAND_TOLERANCE) return;
+  const canUseTopSurface = topInfo &&
+    player.vel.y <= 0 &&
+    previousPosition.y >= topInfo.y - FPS_RAMP_STEP_UP &&
+    position.y >= topInfo.y - FPS_RAMP_STEP_DOWN &&
+    position.y <= topInfo.y + FPS_RAMP_LAND_EPSILON;
+  if (canUseTopSurface) return;
 
-  const candidates = [
-    { distance: local.x + halfWidth + radius, x: -halfWidth - radius, z: local.z },
-    { distance: halfWidth + radius - local.x, x: halfWidth + radius, z: local.z },
-    { distance: halfLength + radius - local.z, x: local.x, z: halfLength + radius },
-  ];
+  if (position.y >= solidTopY - FPS_RAMP_SOLID_TOP_CLEARANCE) return;
+  if (position.y + FPS_PLAYER_HEIGHT_WORLD <= ramp.y + 0.05) return;
 
-  if (position.y < ramp.y - LAND_TOLERANCE) {
-    candidates.push({ distance: local.z + halfLength + radius, x: local.x, z: -halfLength - radius });
+  const fromLowEnd = local.z < -halfLength && previousPosition.y >= ramp.y - FPS_RAMP_SOLID_TOP_CLEARANCE;
+  if (fromLowEnd) return;
+
+  let targetLocal = null;
+  let normalLocal = null;
+  const dx = local.x - clampedX;
+  const dz = local.z - clampedZ;
+  const distSq = dx * dx + dz * dz;
+
+  if (distSq > 0.0001) {
+    if (distSq >= radius * radius) return;
+    const dist = Math.sqrt(distSq);
+    const push = radius - dist;
+    targetLocal = {
+      x: local.x + (dx / dist) * push,
+      z: local.z + (dz / dist) * push
+    };
+    normalLocal = new THREE.Vector3(dx / dist, 0, dz / dist);
+  } else {
+    const previousLocal = rampLocalPoint(ramp, previousPosition);
+    if (previousLocal.x < -halfWidth) {
+      targetLocal = { x: -halfWidth - radius, z: local.z };
+      normalLocal = new THREE.Vector3(-1, 0, 0);
+    } else if (previousLocal.x > halfWidth) {
+      targetLocal = { x: halfWidth + radius, z: local.z };
+      normalLocal = new THREE.Vector3(1, 0, 0);
+    } else if (previousLocal.z > halfLength) {
+      targetLocal = { x: local.x, z: halfLength + radius };
+      normalLocal = new THREE.Vector3(0, 0, 1);
+    } else if (previousLocal.z < -halfLength && previousPosition.y < ramp.y - FPS_RAMP_SOLID_TOP_CLEARANCE) {
+      targetLocal = { x: local.x, z: -halfLength - radius };
+      normalLocal = new THREE.Vector3(0, 0, -1);
+    } else {
+      return;
+    }
   }
 
-  const pushTarget = candidates
-    .filter((candidate) => candidate.distance >= 0)
-    .sort((a, b) => a.distance - b.distance)[0];
-  if (!pushTarget) return;
+  const worldPoint = rampWorldPoint(ramp, targetLocal);
+  position.x = worldPoint.x;
+  position.z = worldPoint.z;
 
-  const worldPt = rotatePoint(pushTarget.x, pushTarget.z, -ramp.rot);
-  position.x = ramp.x + worldPt.x;
-  position.z = ramp.z + worldPt.z;
+  const normalWorld = normalLocal.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ramp.rot).normalize();
+  const inwardVelocity = player.vel.dot(normalWorld);
+  if (inwardVelocity < 0) player.vel.addScaledVector(normalWorld, -inwardVelocity);
 }
-
 
 function resolvePlayerVsMeshObb(position, mesh, radius) {
   if (!mesh.geometry) return;
@@ -1052,7 +1064,7 @@ function resolvePlayerVsMeshObb(position, mesh, radius) {
   const bottom = Math.min(...corners.map(c => c.y));
   const top = Math.max(...corners.map(c => c.y));
 
-  if (position.y >= top - TOP_CLEARANCE || position.y + 1.78 < bottom) return;
+  if (position.y >= top - TOP_CLEARANCE || position.y + FPS_PLAYER_HEIGHT_WORLD < bottom) return;
 
   const local = new THREE.Vector3(position.x, Math.max(bottom, Math.min(top, position.y)), position.z)
     .sub(center)
@@ -1060,7 +1072,7 @@ function resolvePlayerVsMeshObb(position, mesh, radius) {
 
   const localYAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion);
   const sinPhi = Math.sqrt(Math.max(0, 1 - localYAxis.y * localYAxis.y));
-  const maxProj = 1.78 * Math.abs(localYAxis.y) + radius * sinPhi;
+  const maxProj = FPS_PLAYER_HEIGHT_WORLD * Math.abs(localYAxis.y) + radius * sinPhi;
   if (Math.abs(local.y) > halfSize.y + maxProj) return;
 
   const closestX = Math.max(-halfSize.x, Math.min(halfSize.x, local.x));

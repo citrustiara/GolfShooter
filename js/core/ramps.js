@@ -1,5 +1,7 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 
+const UP = new THREE.Vector3(0, 1, 0);
+
 export function normalizeRamp(def = {}) {
   const width = Number(def.width ?? def.sx ?? 4);
   const length = Number(def.length ?? def.sz ?? 8);
@@ -47,16 +49,46 @@ export function makeRampMesh(def, material, options = {}) {
   return mesh;
 }
 
+export function rampLocalPoint(rampDef, point) {
+  const ramp = normalizeRamp(rampDef);
+  return new THREE.Vector3(point.x - ramp.x, 0, point.z - ramp.z).applyAxisAngle(UP, -ramp.rot);
+}
+
+export function rampWorldPoint(rampDef, local) {
+  const ramp = normalizeRamp(rampDef);
+  return new THREE.Vector3(local.x, 0, local.z).applyAxisAngle(UP, ramp.rot).add(new THREE.Vector3(ramp.x, 0, ramp.z));
+}
+
 export function rampSurfaceY(rampDef, point, margin = 0) {
   const ramp = normalizeRamp(rampDef);
-  const local = new THREE.Vector3(point.x - ramp.x, 0, point.z - ramp.z)
-    .applyAxisAngle(new THREE.Vector3(0, 1, 0), -ramp.rot);
+  const local = rampLocalPoint(ramp, point);
   if (Math.abs(local.x) > ramp.width / 2 + margin || Math.abs(local.z) > ramp.length / 2 + margin) return null;
   const t = Math.max(0, Math.min(1, (local.z + ramp.length / 2) / ramp.length));
   return ramp.y + t * ramp.height;
 }
 
+export function rampSurfaceInfo(rampDef, point, margin = 0) {
+  const ramp = normalizeRamp(rampDef);
+  const local = rampLocalPoint(ramp, point);
+  if (Math.abs(local.x) > ramp.width / 2 + margin || Math.abs(local.z) > ramp.length / 2 + margin) return null;
+  const t = Math.max(0, Math.min(1, (local.z + ramp.length / 2) / ramp.length));
+  return {
+    local,
+    normal: rampSurfaceNormal(ramp),
+    ramp,
+    t,
+    y: ramp.y + t * ramp.height
+  };
+}
+
 export function rampUphillDirection(rampDef) {
   const ramp = normalizeRamp(rampDef);
   return new THREE.Vector3(Math.sin(ramp.rot), 0, Math.cos(ramp.rot)).normalize();
+}
+
+export function rampSurfaceNormal(rampDef) {
+  const ramp = normalizeRamp(rampDef);
+  const slope = ramp.height / Math.max(0.001, ramp.length);
+  const uphill = rampUphillDirection(ramp);
+  return new THREE.Vector3(-uphill.x * slope, 1, -uphill.z * slope).normalize();
 }
