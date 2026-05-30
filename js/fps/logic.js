@@ -743,9 +743,7 @@ export function makePlayerMesh(material) {
   const group = new THREE.Group();
   const armorMat = new THREE.MeshStandardMaterial({ color: 0x161d22, roughness: 0.45, metalness: 0.25 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x8ff7ff });
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0xfff0a6 });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1114, roughness: 0.5, metalness: 0.45 });
-  const barrelMat = new THREE.MeshStandardMaterial({ color: 0x9fb5c3, roughness: 0.32, metalness: 0.65 });
   
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.94, 8, 18), material);
   body.position.y = 0.89;
@@ -771,18 +769,13 @@ export function makePlayerMesh(material) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), material);
   head.castShadow = true;
   
-  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.07), darkMat);
-  brow.position.set(0, 0.11, -0.25);
-  
-  const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.065, 0.035), eyeMat);
-  eyeL.position.set(-0.095, 0.035, -0.285);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), eyeMat);
+  eyeL.position.set(-0.105, 0.04, -0.265);
+  eyeL.scale.set(1.15, 0.82, 0.32);
   const eyeR = eyeL.clone();
-  eyeR.position.x = 0.095;
+  eyeR.position.x = 0.105;
   
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.035, 0.045), lensMat);
-  visor.position.set(0, -0.035, -0.288);
-  
-  headGroup.add(head, brow, eyeL, eyeR, visor);
+  headGroup.add(head, eyeL, eyeR);
   
   const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.48, 12), armorMat);
   legL.position.set(-0.2, 0.3, 0);
@@ -802,40 +795,15 @@ export function makePlayerMesh(material) {
 
   const gunPart = new THREE.Group();
   gunPart.name = "gun";
-  gunPart.position.set(0.3, -0.02, -0.25);
-  const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.42), darkMat);
-  const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.42, 12), barrelMat);
-  gunBarrel.rotation.x = Math.PI / 2;
-  gunBarrel.position.set(0, 0.025, -0.31);
-  const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.22, 0.1), darkMat);
-  gunGrip.position.set(0, -0.15, 0.08);
-  gunGrip.rotation.x = -0.24;
-  const gunMag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.12), materials.gold);
-  gunMag.position.set(0, -0.15, -0.08);
-  gunMag.rotation.x = 0.14;
-  const gunSight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.045, 0.16), lensMat);
-  gunSight.position.set(0, 0.1, -0.06);
-  gunPart.add(gunBody, gunBarrel, gunGrip, gunMag, gunSight);
+  gunPart.position.set(0.32, -0.08, -0.3);
+  gunPart.rotation.set(0.05, -0.1, 0.08);
   headGroup.add(gunPart);
 
   const meleePart = new THREE.Group();
   meleePart.name = "melee";
+  meleePart.position.set(0.05, 0.08, -0.16);
+  meleePart.rotation.set(0.35, -0.25, -0.5);
   meleePart.visible = false;
-  const clubShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.75, 8), materials.wall);
-  clubShaft.position.set(0.3, -0.2, -0.2); 
-  clubShaft.rotation.x = Math.PI / 3;
-  const clubHead = new THREE.Group();
-  clubHead.position.set(0.3, -0.5, -0.4);
-  clubHead.rotation.set(Math.PI / 3, 0.95, -0.15);
-  const clubFace = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.055, 0.095), materials.gold);
-  clubFace.position.set(0.05, 0, 0);
-  const clubToe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.13), darkMat);
-  clubToe.position.set(0.17, 0.005, 0.015);
-  const clubHeel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.12, 10), barrelMat);
-  clubHeel.rotation.z = Math.PI / 2;
-  clubHeel.position.set(-0.08, 0.012, 0);
-  clubHead.add(clubFace, clubToe, clubHeel);
-  meleePart.add(clubShaft, clubHead);
   headGroup.add(meleePart);
 
   return group;

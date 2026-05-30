@@ -1416,10 +1416,49 @@ function updateLasers(dt) { for (let i = world.lasers.length - 1; i >= 0; i--) {
 function showHitMarker(hs = false) { hitMarker.classList.toggle("headshot", hs); hitMarker.classList.remove("active"); void hitMarker.offsetWidth; hitMarker.classList.add("active"); playSound("hit"); clearTimeout(hitMarkerTimeout); hitMarkerTimeout = window.setTimeout(() => hitMarker.classList.remove("active", "headshot"), hs ? 190 : 145); }
 function showDamageDealt(amt, worldPos, hs = false) { const pop = document.createElement("div"); pop.className = "damage-pop" + (hs ? " headshot" : ""); pop.textContent = hs ? `HEADSHOT -${amt}` : `-${amt}`; damageLayer.appendChild(pop); activeDamagePops.push({ element: pop, pos: worldPos.clone(), timer: 0.84, maxTimer: 0.84, headshot: hs }); }
 function updateDamagePops(dt) { for (let i = activeDamagePops.length - 1; i >= 0; i--) { const p = activeDamagePops[i]; p.timer -= dt; if (p.timer <= 0) { p.element.remove(); activeDamagePops.splice(i, 1); } else { const off = p.pos.clone().add(new THREE.Vector3(0, (1.0 - p.timer / p.maxTimer) * 0.8, 0)), screen = toScreen(off); p.element.style.left = `${screen.x}px`; p.element.style.top = `${screen.y}px`; p.element.style.opacity = `${p.timer / p.maxTimer}`; p.element.style.transform = `translate(-50%, -50%) scale(${(p.headshot ? 1.2 : 1.0) + (1.0 - p.timer / p.maxTimer) * 0.35})`; } } }
+function thirdPersonWeaponScale(weaponId) {
+  const cfg = weaponConfig(weaponId);
+  if (weaponId === "melee") return 0.58;
+  return 0.78 * (cfg.scale || 1);
+}
+
+function syncThirdPersonWeaponMesh(group, weaponId) {
+  if (!group || !weaponId) return;
+  if (group.userData.weaponId !== weaponId) {
+    const wasVisible = group.visible;
+    rebuildWeaponMesh(weaponId, group);
+    group.userData.weaponId = weaponId;
+    group.visible = wasVisible;
+  }
+
+  if (weaponId === "melee") {
+    group.position.set(0.05, 0.08, -0.16);
+    group.rotation.set(0.35, -0.25, -0.5);
+  } else {
+    group.position.set(0.32, -0.08, -0.3);
+    group.rotation.set(0.05, -0.1, 0.08);
+  }
+  group.scale.setScalar(thirdPersonWeaponScale(weaponId));
+}
+
 function updatePlayerMeshes() {
   for (let i = 0; i < world.playerMeshes.length; i++) {
-    const mesh = world.playerMeshes[i], player = fps.players[i]; mesh.position.copy(player.pos); mesh.rotation.y = -player.yaw; const head = mesh.getObjectByName("headGroup");
-    if (head) { head.rotation.x = player.pitch; const g = head.getObjectByName("gun"), m = head.getObjectByName("melee"); if (g && m) { g.visible = (player.weapon === "gun"); m.visible = (player.weapon === "melee"); if (player.primaryWeapon === "pistol") g.scale.set(1, 1, 1); else if (player.primaryWeapon === "rifle" || player.primaryWeapon === "minigun") g.scale.set(1, 1, player.primaryWeapon === "minigun" ? 2.3 : 1.8); else if (player.primaryWeapon === "sniper" || player.primaryWeapon === "heavySniper") g.scale.set(1, 1, player.primaryWeapon === "heavySniper" ? 3.8 : 3.2); else if (player.primaryWeapon === "heaviestSpermShooter") g.scale.set(2.4, 2.2, 4.0); else if (player.primaryWeapon === "heavySpermShooter") g.scale.set(1.7, 1.6, 2.9); else if (player.primaryWeapon === "spermShooter") g.scale.set(1.1, 1.0, 1.9); else g.scale.set(1.2, 1.1, 2.1); } }
+    const mesh = world.playerMeshes[i], player = fps.players[i];
+    mesh.position.copy(player.pos);
+    mesh.rotation.y = -player.yaw;
+
+    const head = mesh.getObjectByName("headGroup");
+    if (head) {
+      head.rotation.x = player.pitch;
+      const g = head.getObjectByName("gun"), m = head.getObjectByName("melee");
+      if (g && m) {
+        syncThirdPersonWeaponMesh(g, player.primaryWeapon || "pistol");
+        syncThirdPersonWeaponMesh(m, "melee");
+        g.visible = player.weapon === "gun";
+        m.visible = player.weapon === "melee";
+      }
+    }
+
     mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
   }
 }
