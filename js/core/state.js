@@ -63,7 +63,8 @@ export const game = {
   visualRecoil: 0,
   lastShotPosition: new THREE.Vector3(),
   golfFalling: false,
-  holeTransitionTimer: 0
+  holeTransitionTimer: 0,
+  jetpackHeightLimit: 40.0
 };
 
 export const input = {

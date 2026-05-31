@@ -279,6 +279,23 @@ export function setupArena() {
 
   applyCustomArenaMap(box, platformOnly, decorBox, collidableDecorBox, ramp);
   loadImportedArenaAssets(theme);
+
+  // Calculate dynamic jetpack height limit based on arena geometry
+  let maxGeometryY = 5.0;
+  for (const mesh of [...world.obstacles, ...world.platforms]) {
+    if (mesh.geometry) {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const b = new THREE.Box3().setFromObject(mesh);
+      maxGeometryY = Math.max(maxGeometryY, b.max.y);
+    }
+  }
+  for (const sp of world.arenaSpawnPoints) {
+    maxGeometryY = Math.max(maxGeometryY, sp.y || 0);
+  }
+  for (const rampDef of world.ramps) {
+    maxGeometryY = Math.max(maxGeometryY, (rampDef.y || 0) + (rampDef.height || 0));
+  }
+  game.jetpackHeightLimit = maxGeometryY + 15.0;
 }
 
 function applyFpsArenaTheme(theme) {

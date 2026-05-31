@@ -97,8 +97,7 @@ export async function loadGameContent() {
       { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade"] },
       { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["rifle", "pistol"], hp: 120, abilities: ["jump", "grenade", "radar"] },
       { id: "phallic_palace_heaviest_sperm", map: "fps/phallic-palace.json", weapons: ["heaviestSpermShooter"], hp: 150, abilities: ["jetpack", "grenade"] },
-      { id: "phallic_palace_snipers", map: "fps/phallic-palace.json", weapons: ["heavySniper", "sniper"], hp: 100, abilities: ["jump", "radar"] },
-      { id: "phallic_palace_mayhem", map: "fps/phallic-palace.json", weapons: ["rocket", "shotgun"], hp: 200, abilities: ["jetpack", "heal"] }
+      { id: "phallic_palace_snipers", map: "fps/phallic-palace.json", weapons: ["heavySniper", "sniper"], hp: 100, abilities: ["jump", "radar"] }
     ];
     replaceArray(tournamentCombinations, defaultCombinations);
   }

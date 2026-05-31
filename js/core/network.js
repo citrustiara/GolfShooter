@@ -35,7 +35,8 @@ export const networkLinks = {
   showDamageTaken: null,
   showKilledBy: null,
   weaponLabel: null,
-  showDamageDealt: null
+  showDamageDealt: null,
+  showEliminationNotice: null
 };
 
 export function initNetworkLinks(links) {
@@ -264,7 +265,11 @@ export function handleMessage(message, sourceConnection = null) {
     const remote = fps.players[message.player];
     if (!remote || message.player === game.localIndex) return;
     networkLinks.applyRemoteFpsState(remote, message);
+    const wasAlive = remote.health > 0;
     remote.health = message.health;
+    if (wasAlive && remote.health <= 0) {
+      if (networkLinks.showEliminationNotice) networkLinks.showEliminationNotice(message.player);
+    }
     if (message.sliding !== undefined) remote.sliding = message.sliding;
     if (message.weapon !== undefined) remote.weapon = message.weapon;
   }
