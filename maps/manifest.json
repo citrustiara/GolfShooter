@@ -19,6 +19,10 @@
     "golf/zigzag-freeze.json",
     "golf/easy-straight.json",
     "golf/easy-funnel.json",
-    "golf/shaft-course.json"
+    "golf/shaft-course.json",
+    "golf/easy-tap.json",
+    "golf/easy-slide.json",
+    "golf/bumper-alley.json",
+    "golf/grand-colossus.json"
   ]
 }

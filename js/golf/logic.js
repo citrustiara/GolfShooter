@@ -40,7 +40,13 @@ export function applyTournamentHoleIds(courseIds) {
     .map((id) => {
       if (typeof id === "object") return id;
       if (id === "custom") return game.golfCustomMap;
-      return byId.get(id);
+      const hole = byId.get(id);
+      if (hole) return hole;
+      const idx = Number(id);
+      if (!isNaN(idx) && holeCatalog[idx]) {
+        return holeCatalog[idx];
+      }
+      return null;
     })
     .filter(Boolean);
   const fallback = holeCatalog.slice(0, HOLES_PER_TOURNAMENT);
