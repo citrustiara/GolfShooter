@@ -1,0 +1,7 @@
+{
+  "id": "enclosed_arena_tactical_sniper",
+  "map": "fps/enclosed-arena.json",
+  "weapons": ["tacticalSniper", "melee"],
+  "hp": 100,
+  "abilities": []
+}

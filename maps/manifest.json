@@ -8,7 +8,8 @@
     "fps/abyssal-platforms.json",
     "fps/enclosed-arena.json",
     "fps/shaft-arena.json",
-    "fps/phallic-palace.json"
+    "fps/phallic-palace.json",
+    "fps/overpass-compound.json"
   ],
   "golfMaps": [
     "golf/ice-runway.json",

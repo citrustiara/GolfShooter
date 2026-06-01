@@ -248,6 +248,39 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
   }
 }
 
+function buildRadarDeviceMesh(targetGroup) {
+  if (!targetGroup) return;
+  while (targetGroup.children.length > 0) {
+    targetGroup.remove(targetGroup.children[0]);
+  }
+  const bodyGeom = new THREE.BoxGeometry(0.24, 0.16, 0.04);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.6 });
+  const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
+  targetGroup.add(bodyMesh);
+
+  const screenGeom = new THREE.BoxGeometry(0.2, 0.12, 0.01);
+  const screenMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+  const screenMesh = new THREE.Mesh(screenGeom, screenMat);
+  screenMesh.position.set(0, 0.005, 0.02);
+  targetGroup.add(screenMesh);
+
+  const gripGeom = new THREE.BoxGeometry(0.03, 0.16, 0.05);
+  const gripMat = new THREE.MeshStandardMaterial({ color: 0x5ab0ff, roughness: 0.6 });
+  const leftGrip = new THREE.Mesh(gripGeom, gripMat);
+  leftGrip.position.set(-0.135, 0, 0);
+  targetGroup.add(leftGrip);
+  const rightGrip = leftGrip.clone();
+  rightGrip.position.set(0.135, 0, 0);
+  targetGroup.add(rightGrip);
+
+  const antGeom = new THREE.CylinderGeometry(0.01, 0.01, 0.06, 8);
+  const antMat = new THREE.MeshStandardMaterial({ color: 0xff6f61, metalness: 0.8 });
+  const antenna = new THREE.Mesh(antGeom, antMat);
+  antenna.position.set(0.08, 0.1, 0);
+  antenna.rotation.x = Math.PI / 2;
+  targetGroup.add(antenna);
+}
+
 function setupWeapon() {
   world.weapon = new THREE.Group();
   scene.add(world.weapon);
@@ -256,6 +289,11 @@ function setupWeapon() {
   world.meleeWeapon = new THREE.Group();
   scene.add(world.meleeWeapon);
   world.meleeWeapon.visible = false;
+
+  world.radarDevice = new THREE.Group();
+  scene.add(world.radarDevice);
+  world.radarDevice.visible = false;
+  buildRadarDeviceMesh(world.radarDevice);
 }
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
@@ -638,17 +676,23 @@ function updateFps(dt, now) {
   }
   weaponSelectOverlay.classList.add("hidden");
   const isWinner = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
-  if (isWinner && game.countdown <= 0) { updateFpsCamera(dt); updateFpsMovement(dt); }
+  if (isWinner && game.countdown <= 0) {
+    if (game.radarTimer > 0) input.aiming = false;
+    updateFpsCamera(dt);
+    updateFpsMovement(dt);
+  }
   updateWeaponSwap(dt);
+  const bar = document.getElementById("reloadBar");
+  const progress = document.getElementById("reloadProgress");
   if (game.reloading) {
     game.reloadTimer -= dt;
     const total = weaponConfig().reload || 1;
     const pct = Math.max(0, Math.min(100, ((total - game.reloadTimer) / total) * 100));
-    const bar = document.getElementById("reloadBar");
-    const progress = document.getElementById("reloadProgress");
     if (bar && progress) {
       progress.classList.remove("hidden");
       bar.style.width = `${pct}%`;
+      bar.style.background = "#5ab0ff";
+      bar.style.boxShadow = "0 0 8px rgba(90, 176, 255, 0.9)";
     }
     if (game.reloadTimer <= 0) {
       game.reloading = false;
@@ -656,11 +700,27 @@ function updateFps(dt, now) {
       if (progress) progress.classList.add("hidden");
       updateHud();
     }
+  } else if (game.radarTimer > 0) {
+    const pct = Math.max(0, Math.min(100, (game.radarTimer / RADAR_DURATION) * 100));
+    if (bar && progress) {
+      progress.classList.remove("hidden");
+      bar.style.width = `${pct}%`;
+      bar.style.background = "#00ffcc";
+      bar.style.boxShadow = "0 0 8px rgba(0, 255, 204, 0.9)";
+    }
   } else {
-    const progress = document.getElementById("reloadProgress");
     if (progress) progress.classList.add("hidden");
   }
-  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt; if (game.radarTimer > 0) { game.radarTimer -= dt; updateRadarMarker(); }
+  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt;
+  if (game.radarTimer > 0) {
+    game.radarTimer -= dt;
+    if (game.radarTimer <= 0) {
+      game.radarTimer = 0;
+      game.radarCooldown = abilityCooldown("radar", RADAR_COOLDOWN);
+      updateHud();
+    }
+    updateRadarMarker();
+  }
   updateGrenades(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes();
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
   if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon }); }
@@ -671,19 +731,43 @@ function updateFpsCamera(dt) {
   game.visualRecoil = moveTowards(game.visualRecoil, 0, dt * 9);
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
   const cfg = weaponConfig(game.primaryWeapon);
-  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : FPS_DEFAULT_FOV, dt * 180); camera.updateProjectionMatrix(); updateWeaponModel(dt, p);
+  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : FPS_DEFAULT_FOV, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix(); updateWeaponModel(dt, p);
 }
 function updateWeaponModel(dt, p) {
-  const weapon = game.activeWeapon === "gun" ? world.weapon : world.meleeWeapon; world.weapon.visible = world.meleeWeapon.visible = false; weapon.visible = true;
+  const isRadarActive = game.radarTimer > 0;
+  
+  world.weapon.visible = false;
+  world.meleeWeapon.visible = false;
+  world.radarDevice.visible = false;
+  
+  let weapon;
+  let cfg;
+  if (isRadarActive) {
+    weapon = world.radarDevice;
+    weapon.visible = true;
+    cfg = {
+      scale: 1.0,
+      firstPersonOffset: { x: 0.0, y: -0.22, z: -0.28 }
+    };
+  } else {
+    weapon = game.activeWeapon === "gun" ? world.weapon : world.meleeWeapon;
+    weapon.visible = true;
+    cfg = weaponConfig(game.primaryWeapon);
+  }
+
   const camDir = directionFromAngles(p.yaw, p.pitch), viewDir = directionFromAngles(p.yaw, 0), right = new THREE.Vector3().crossVectors(viewDir, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3(0, 1, 0);
   const speed = p.vel.length(), bob = Math.sin(performance.now() * 0.008) * speed * 0.005, swayX = Math.sin(performance.now() * 0.004) * 0.005;
-  const cfg = weaponConfig(game.primaryWeapon);
-  weapon.scale.setScalar(game.activeWeapon === "gun" ? (cfg.scale || 1.0) * 0.82 : 0.78);
+  
+  if (isRadarActive) {
+    weapon.scale.setScalar(0.8);
+  } else {
+    weapon.scale.setScalar(game.activeWeapon === "gun" ? (cfg.scale || 1.0) * 0.82 : 0.78);
+  }
   const fpOffset = cfg.firstPersonOffset || { x: 0.22, y: -0.3, z: -0.34 };
 
   // Calculate inspect progress (0.0 to 1.0)
   let inspectProgress = 0;
-  if (game.inspectTimer > 0) {
+  if (!isRadarActive && game.inspectTimer > 0) {
     const inspectTotal = 2.0;
     const elapsed = inspectTotal - game.inspectTimer;
     if (elapsed < 0.5) {
@@ -701,17 +785,17 @@ function updateWeaponModel(dt, p) {
   const targetZ = THREE.MathUtils.lerp(fpOffset.z, -0.24, inspectProgress);
 
   let offset = camDir.clone().multiplyScalar(-targetZ).add(right.clone().multiplyScalar(targetX + swayX)).add(up.clone().multiplyScalar(targetY + bob));
-  if (input.aiming && game.activeWeapon === "gun" && inspectProgress === 0) {
-    const longGun = game.primaryWeapon === "sniper" || game.primaryWeapon === "heavySniper";
+  if (!isRadarActive && input.aiming && game.activeWeapon === "gun" && inspectProgress === 0) {
+    const longGun = game.primaryWeapon === "sniper" || game.primaryWeapon === "heavySniper" || game.primaryWeapon === "tacticalSniper";
     offset = camDir.clone().multiplyScalar(-fpOffset.z - (longGun ? 0.06 : 0.1)).add(right.clone().multiplyScalar(fpOffset.x * 0.15 + swayX)).add(up.clone().multiplyScalar(fpOffset.y - (longGun ? 0.24 : 0.16) + bob));
   }
   offset.add(camDir.clone().multiplyScalar(-game.visualRecoil * 0.12)).add(up.clone().multiplyScalar(game.visualRecoil * 0.04));
 
   // Compute animation-related Y offset
   let animY = 0;
-  if (game.weaponSwapTimer > 0) {
+  if (!isRadarActive && game.weaponSwapTimer > 0) {
     animY = -Math.sin((game.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5;
-  } else if (game.reloading) {
+  } else if (!isRadarActive && game.reloading) {
     const total = cfg.reload || 1.4;
     const t = game.reloadTimer / total;
     const reloadFactor = Math.sin(t * Math.PI);
@@ -737,7 +821,7 @@ function updateWeaponModel(dt, p) {
     }
     
     animY = -reloadFactor * dropAmount;
-  } else if (game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
+  } else if (!isRadarActive && game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
     const progress = (0.25 - game.meleeSwingTimer) / 0.25;
     animY = -Math.sin(progress * Math.PI) * 1.5;
   }
@@ -763,7 +847,9 @@ function updateWeaponModel(dt, p) {
 
   // Apply camera orientation and add local rotations for inspection
   weapon.quaternion.copy(camera.quaternion);
-  if (inspectProgress > 0) {
+  if (isRadarActive) {
+    weapon.rotateX(0.5);
+  } else if (inspectProgress > 0) {
     weapon.rotateY(1.3 * inspectProgress);
     weapon.rotateX(0.15 * inspectProgress);
     weapon.rotateZ(-0.25 * inspectProgress);
@@ -1281,7 +1367,7 @@ function createExplosion(pos, radius = GRENADE_SPLASH_RADIUS * 0.5) { const geo 
 function updateExplosions(dt) { for (let i = world.explosions.length - 1; i >= 0; i--) { const ex = world.explosions[i]; ex.timer -= dt; const s = 1.0 + (1.0 - ex.timer / ex.max) * 2.0; ex.mesh.scale.set(s, s, s); ex.mesh.material.opacity = ex.timer / ex.max; if (ex.timer <= 0) { world.arenaRoot.remove(ex.mesh); world.explosions.splice(i, 1); } } }
 function removeRemoteGrenadesNear(pos) { for (let i = world.grenades.length - 1; i >= 0; i--) { if (world.grenades[i].mesh.position.distanceTo(pos) < 1.0) { world.arenaRoot.remove(world.grenades[i].mesh); world.grenades.splice(i, 1); } } }
 function disposeGrenade(g, announce = false) { const pos = g.mesh.position.clone(); world.arenaRoot.remove(g.mesh); const index = world.grenades.indexOf(g); if (index >= 0) world.grenades.splice(index, 1); createExplosion(pos, 1.4); if (announce) send({ type: "fpsGrenadeShot", x: pos.x, y: pos.y, z: pos.z }); }
-function superchargeGrenade(g, announce = false) { g.isSupercharged = true; g.damageMultiplier = 5; g.radiusMultiplier = 2; g.mesh.traverse((child) => { if (child.material?.color) child.material.color.setHex(0xb84dff); if (child.material?.emissive) { child.material.emissive.setHex(0xb84dff); child.material.emissiveIntensity = 1.1; } }); if (announce) { const pos = g.mesh.position; send({ type: "fpsGrenadeSupercharge", x: pos.x, y: pos.y, z: pos.z }); } }
+function superchargeGrenade(g, announce = false) { g.isSupercharged = true; g.damageMultiplier = 2; g.radiusMultiplier = 2; g.mesh.traverse((child) => { if (child.material?.color) child.material.color.setHex(0xb84dff); if (child.material?.emissive) { child.material.emissive.setHex(0xb84dff); child.material.emissiveIntensity = 1.1; } }); if (announce) { const pos = g.mesh.position; send({ type: "fpsGrenadeSupercharge", x: pos.x, y: pos.y, z: pos.z }); } }
 function grenadeRayHit(origin, direction, maxDistance) {
   let best = null;
   for (const grenade of world.grenades) {
@@ -1292,6 +1378,7 @@ function grenadeRayHit(origin, direction, maxDistance) {
 }
 
 function fireHitscan() {
+  if (game.radarTimer > 0) return;
   if (game.phase !== "fps" || game.countdown > 0 || game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
   const cfg = weaponConfig();
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
@@ -1381,6 +1468,7 @@ function fireProjectileWeapon(cfg) {
   updateHud();
 }
 function fireMelee() {
+  if (game.radarTimer > 0) return;
   const now = performance.now(); if (now - game.lastShotAt < 250) return; game.lastShotAt = now; game.meleeSwingTimer = 0.25; playSound("melee");
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
@@ -1450,6 +1538,7 @@ function syncThirdPersonWeaponMesh(group, weaponId) {
 }
 
 function updatePlayerMeshes() {
+  const isRadarActive = game.radarTimer > 0;
   for (let i = 0; i < world.playerMeshes.length; i++) {
     const mesh = world.playerMeshes[i], player = fps.players[i];
     mesh.position.copy(player.pos);
@@ -1458,7 +1547,7 @@ function updatePlayerMeshes() {
     const head = mesh.getObjectByName("headGroup");
     if (head) {
       head.rotation.x = player.pitch;
-      const g = head.getObjectByName("gun"), m = head.getObjectByName("melee");
+      const g = head.getObjectByName("gun"), m = mesh.getObjectByName("melee");
       if (g && m) {
         syncThirdPersonWeaponMesh(g, player.primaryWeapon || "pistol");
         syncThirdPersonWeaponMesh(m, "melee");
@@ -1468,6 +1557,28 @@ function updatePlayerMeshes() {
     }
 
     mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
+
+    // Disable depth testing for wallhack if radar is active!
+    mesh.traverse((child) => {
+      if (child.isMesh) {
+        if (isRadarActive && mesh.visible) {
+          if (child.userData.originalDepthTest === undefined) {
+            child.userData.originalDepthTest = child.material.depthTest ?? true;
+            child.userData.originalDepthWrite = child.material.depthWrite ?? true;
+            child.userData.originalRenderOrder = child.renderOrder ?? 0;
+          }
+          child.material.depthTest = false;
+          child.material.depthWrite = false;
+          child.renderOrder = 9999;
+        } else {
+          if (child.userData.originalDepthTest !== undefined) {
+            child.material.depthTest = child.userData.originalDepthTest;
+            child.material.depthWrite = child.userData.originalDepthWrite;
+            child.renderOrder = child.userData.originalRenderOrder;
+          }
+        }
+      }
+    });
   }
 }
 function showFpsToast(text, detail = "") {
@@ -1486,7 +1597,24 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   showFpsToast((reason === "deathmatch" && !matchOver) ? (mapOver ? (winner === game.localIndex ? "MAP WON" : "MAP LOST") : (winner === game.localIndex ? "ROUND WON" : "ROUND LOST")) : (winner === game.localIndex ? "YOU WIN" : "YOU LOSE"));
   if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() }); updateHud();
 }
-function activateRadar() { if (game.phase !== "fps" || game.countdown > 0 || game.radarCooldown > 0 || !abilityAllowed("radar")) return; game.radarTimer = RADAR_DURATION; game.radarCooldown = abilityCooldown("radar", RADAR_COOLDOWN); updateRadarMarker(); updateHud(); }
+function activateRadar() {
+  if (game.phase !== "fps" || game.countdown > 0) return;
+  if (!abilityAllowed("radar")) return;
+  
+  if (game.radarTimer > 0) {
+    game.radarTimer = 0;
+    game.radarCooldown = abilityCooldown("radar", RADAR_COOLDOWN);
+    updateRadarMarker();
+    updateHud();
+    return;
+  }
+  
+  if (game.radarCooldown > 0) return;
+  
+  game.radarTimer = RADAR_DURATION;
+  updateRadarMarker();
+  updateHud();
+}
 function updateRadarMarker() { if (game.radarTimer <= 0 || (game.phase !== "fps" && game.phase !== "fpsVictoryLap")) { radarMarker.classList.add("hidden"); return; } const enemy = opposingFpsPlayers().sort((a, b) => a.player.pos.distanceTo(fps.players[game.localIndex].pos) - b.player.pos.distanceTo(fps.players[game.localIndex].pos))[0]?.player; if (!enemy) return; const s = toScreen(enemy.pos.clone().add(new THREE.Vector3(0, 1.15, 0))); radarMarker.style.left = `${Math.max(38, Math.min(window.innerWidth - 38, s.x))}px`; radarMarker.style.top = `${Math.max(38, Math.min(window.innerHeight - 38, s.y))}px`; radarMarker.classList.remove("hidden"); }
 function finishMatch(winner, reason) {
   if (game.phase === "result") return;
@@ -1559,21 +1687,35 @@ function updateHud() {
   const progress = document.getElementById("reloadProgress");
   if (progress && !game.reloading) progress.classList.add("hidden");
 }
-function switchWeapon(wt) { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
-function selectPrimaryWeapon(wp, animate = false) { if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
-function cycleWeaponCard(dir) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = activeWeaponIds(), nI = (ws.indexOf(game.primaryWeapon) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
-function pickWeaponCard(wp, animate = false) { if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; weaponCards.forEach(c => c.classList.toggle("active", c.getAttribute("data-weapon") === wp)); selectPrimaryWeapon(wp, animate); }
+function switchWeapon(wt) { if (game.radarTimer > 0) return; if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
+function selectPrimaryWeapon(wp, animate = false) { if (game.radarTimer > 0) return; if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
+function cycleWeaponCard(dir) { if (game.radarTimer > 0) return; if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = activeWeaponIds(), nI = (ws.indexOf(game.primaryWeapon) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
+function pickWeaponCard(wp, animate = false) { if (game.radarTimer > 0) return; if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; weaponCards.forEach(c => c.classList.toggle("active", c.getAttribute("data-weapon") === wp)); selectPrimaryWeapon(wp, animate); }
 function normalWeaponChoices() { return [...activeWeaponIds().map((primary) => ({ active: "gun", primary })), { active: "melee", primary: activeWeaponIds()[0] || "pistol" }]; }
 function applyRandomTournamentCombination(excludeMapIndex = -1) {
-  const choices = tournamentCombinations.filter(c => {
+  if (!game.randomTournamentPlayedMaps) {
+    game.randomTournamentPlayedMaps = [];
+  }
+  let choices = tournamentCombinations.filter(c => {
     const mapId = c.map.split("/").pop().replace(".json", "");
     const mapIndex = fpsArenaThemes.findIndex(t => t.id === mapId);
-    return mapIndex !== excludeMapIndex;
+    if (excludeMapIndex !== -1 && mapIndex === excludeMapIndex) return false;
+    return !game.randomTournamentPlayedMaps.includes(c.map);
   });
-  const validChoices = choices.length ? choices : tournamentCombinations;
-  const combo = validChoices[Math.floor(Math.random() * validChoices.length)];
+  if (choices.length === 0) {
+    game.randomTournamentPlayedMaps = [];
+    choices = tournamentCombinations.filter(c => {
+      const mapId = c.map.split("/").pop().replace(".json", "");
+      const mapIndex = fpsArenaThemes.findIndex(t => t.id === mapId);
+      return excludeMapIndex === -1 || mapIndex !== excludeMapIndex;
+    });
+    if (choices.length === 0) choices = tournamentCombinations;
+  }
+  const combo = choices[Math.floor(Math.random() * choices.length)];
   if (!combo) return;
-
+  if (!game.randomTournamentPlayedMaps.includes(combo.map)) {
+    game.randomTournamentPlayedMaps.push(combo.map);
+  }
   const mapId = combo.map.split("/").pop().replace(".json", "");
   const mapIndex = fpsArenaThemes.findIndex(t => t.id === mapId);
   game.fpsMapIndex = mapIndex !== -1 ? mapIndex : 0;
@@ -1591,6 +1733,7 @@ function applyRandomTournamentCombination(excludeMapIndex = -1) {
   game.maxHealth = game.randomLoadout.hp;
 }
 function cycleActiveWeapon(dir) {
+  if (game.radarTimer > 0) return;
   if (game.randomTournament) {
     if (game.randomLoadout && game.randomLoadout.weapons && game.randomLoadout.weapons.length > 1) {
       const weapons = game.randomLoadout.weapons;
@@ -1671,7 +1814,7 @@ function syncPrimaryWeaponModel() {
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
-function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun") return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; updateHud(); }
+function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; updateHud(); }
 function resetFpsDuelState(randomTournament = false) {
   ensureFpsPlayers(game.playerCount);
   game.fpsMapWins = Array(game.playerCount).fill(0);
@@ -1680,6 +1823,7 @@ function resetFpsDuelState(randomTournament = false) {
   game.randomTournament = randomTournament;
   game.fpsMode = randomTournament ? "randomTournament" : "standard";
   if (randomTournament) {
+    game.randomTournamentPlayedMaps = [];
     applyRandomTournamentCombination();
   } else {
     game.fpsMapIndex = chooseRandomFpsMap();
@@ -1688,8 +1832,8 @@ function resetFpsDuelState(randomTournament = false) {
     game.maxHealth = 100;
   }
 }
-function serializeFpsDuelState() { return { playerCount: game.playerCount, mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl }; }
-function applyFpsDuelState(s) { if (!s) return; game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount); ensureFpsPlayers(game.playerCount); game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins || game.fpsMapWins; game.fpsKillWins = s.killWins || game.fpsKillWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; updateHud(); }
+function serializeFpsDuelState() { return { playerCount: game.playerCount, mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomTournamentPlayedMaps: game.randomTournamentPlayedMaps, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl }; }
+function applyFpsDuelState(s) { if (!s) return; game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount); ensureFpsPlayers(game.playerCount); game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins || game.fpsMapWins; game.fpsKillWins = s.killWins || game.fpsKillWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomTournamentPlayedMaps !== undefined) game.randomTournamentPlayedMaps = s.randomTournamentPlayedMaps; if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; updateHud(); }
 function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]; const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 }; const x = Number.isFinite(s.x) ? s.x : spawn.x; const z = Number.isFinite(s.z) ? s.z : spawn.z; const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme); r.targetPos.set(x, y, z); if (r.targetPos.y < -8) { r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
 function resetNetworkMotion() {}
 function continueFpsDuel() {

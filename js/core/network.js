@@ -339,7 +339,7 @@ export function handleMessage(message, sourceConnection = null) {
     const grenade = world.grenades.find((g) => g.mesh.position.distanceTo(pos) < 1.5);
     if (grenade) {
       grenade.isSupercharged = true;
-      grenade.damageMultiplier = 5;
+      grenade.damageMultiplier = 2;
       grenade.radiusMultiplier = 2;
       if (grenade.mesh.material) {
         grenade.mesh.material.color.setHex(0xb84dff);

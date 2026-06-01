@@ -1,0 +1,7 @@
+{
+  "id": "overpass_compound_tactical",
+  "map": "fps/overpass-compound.json",
+  "weapons": ["ak47", "desertEagle", "melee"],
+  "hp": 100,
+  "abilities": ["grenade"]
+}

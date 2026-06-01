@@ -72,6 +72,22 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.3, now);
     blip(82, 0.24, 0.72, "sawtooth");
     blip(220, 0.12, 0.22, "triangle");
+  } else if (type === "desertEagle") {
+    master.gain.setValueAtTime(0.38, now);
+    blip(140, 0.14, 0.95, "square");
+    blip(580, 0.05, 0.24, "sawtooth");
+  } else if (type === "ak47") {
+    master.gain.setValueAtTime(0.24, now);
+    blip(140, 0.075, 0.8, "square");
+    blip(560, 0.035, 0.2, "sawtooth");
+  } else if (type === "drumShotgun") {
+    master.gain.setValueAtTime(0.34, now);
+    blip(96, 0.18, 0.92, "square");
+    blip(460, 0.08, 0.3, "sawtooth");
+  } else if (type === "tacticalSniper") {
+    master.gain.setValueAtTime(0.12, now);
+    blip(420, 0.05, 0.35, "sine");
+    blip(180, 0.08, 0.15, "triangle");
   } else if (type === "hit") {
     master.gain.setValueAtTime(0.18, now);
     blip(1180, 0.06, 0.62, "triangle");

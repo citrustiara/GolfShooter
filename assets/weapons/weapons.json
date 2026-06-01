@@ -169,6 +169,59 @@
       "range": 4.5,
       "moveScale": 1.18,
       "recoil": 0.0
+    },
+    "desertEagle": {
+      "label": "Desert Eagle",
+      "ammo": 7,
+      "damage": 66,
+      "crit": 2,
+      "reload": 1.3,
+      "fireDelay": 320,
+      "range": 150,
+      "spread": 0.02,
+      "moveScale": 0.94,
+      "recoil": 0.75
+    },
+    "ak47": {
+      "label": "AK-47",
+      "ammo": 30,
+      "damage": 33,
+      "crit": 2,
+      "reload": 1.5,
+      "fireDelay": 120,
+      "range": 150,
+      "spread": 0.045,
+      "aimSpread": 0.008,
+      "moveScale": 0.85,
+      "recoil": 0.65
+    },
+    "drumShotgun": {
+      "label": "Drum Shotgun",
+      "ammo": 32,
+      "damage": 8,
+      "crit": 1.4,
+      "reload": 2.5,
+      "fireDelay": 220,
+      "range": 46,
+      "pellets": 16,
+      "spread": 0.13,
+      "aimSpread": 0.065,
+      "moveScale": 0.76,
+      "recoil": 0.7
+    },
+    "tacticalSniper": {
+      "label": "Tactical Sniper",
+      "ammo": 5,
+      "damage": 50,
+      "crit": 2,
+      "reload": 1.6,
+      "fireDelay": 450,
+      "range": 160,
+      "spread": 0.08,
+      "aimFov": 30,
+      "aimSpeed": 400,
+      "moveScale": 0.84,
+      "recoil": 0.3
     }
   },
   "standardWeapons": [
@@ -177,7 +230,11 @@
     "sniper",
     "spermShooter",
     "heavySpermShooter",
-    "heaviestSpermShooter"
+    "heaviestSpermShooter",
+    "desertEagle",
+    "ak47",
+    "drumShotgun",
+    "tacticalSniper"
   ],
   "randomTournamentWeapons": [
     "heavySniper",
@@ -189,6 +246,10 @@
     "laser",
     "spermShooter",
     "heavySpermShooter",
-    "heaviestSpermShooter"
+    "heaviestSpermShooter",
+    "desertEagle",
+    "ak47",
+    "drumShotgun",
+    "tacticalSniper"
   ]
 }

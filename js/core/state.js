@@ -53,6 +53,7 @@ export const game = {
   weaponSelectTimer: 0,
   fpsMode: "standard",
   randomTournament: false,
+  randomTournamentPlayedMaps: [],
   randomWeapon: "pistol",
   randomLoadout: null,
   maxHealth: 100,

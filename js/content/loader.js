@@ -97,7 +97,10 @@ export async function loadGameContent() {
       { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade"] },
       { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["rifle", "pistol"], hp: 120, abilities: ["jump", "grenade", "radar"] },
       { id: "phallic_palace_heaviest_sperm", map: "fps/phallic-palace.json", weapons: ["heaviestSpermShooter"], hp: 150, abilities: ["jetpack", "grenade"] },
-      { id: "phallic_palace_snipers", map: "fps/phallic-palace.json", weapons: ["heavySniper", "sniper"], hp: 100, abilities: ["jump", "radar"] }
+      { id: "phallic_palace_snipers", map: "fps/phallic-palace.json", weapons: ["heavySniper", "sniper"], hp: 100, abilities: ["jump", "radar"] },
+      { id: "enclosed_arena_tactical_sniper", map: "fps/enclosed-arena.json", weapons: ["tacticalSniper", "melee"], hp: 100, abilities: [] },
+      { id: "overpass_compound_tactical", map: "fps/overpass-compound.json", weapons: ["ak47", "desertEagle", "melee"], hp: 100, abilities: ["grenade"] },
+      { id: "overpass_compound_sniper", map: "fps/overpass-compound.json", weapons: ["tacticalSniper", "pistol", "melee"], hp: 100, abilities: ["grenade"] }
     ];
     replaceArray(tournamentCombinations, defaultCombinations);
   }

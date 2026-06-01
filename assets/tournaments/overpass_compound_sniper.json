@@ -1,0 +1,7 @@
+{
+  "id": "overpass_compound_sniper",
+  "map": "fps/overpass-compound.json",
+  "weapons": ["tacticalSniper", "pistol", "melee"],
+  "hp": 100,
+  "abilities": ["grenade"]
+}

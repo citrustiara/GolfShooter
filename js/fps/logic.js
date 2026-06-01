@@ -12,7 +12,7 @@ export function setupArena() {
   const boundsZ = theme.bounds.z;
   const gridSize = Math.max(boundsX, boundsZ) * 2;
   const floorDefs = getArenaFloorDefs(theme);
-  
+
   applyFpsArenaTheme(theme);
 
   // Clear existing arena objects
@@ -100,7 +100,7 @@ export function setupArena() {
   // Obstacles and Platforms (Shared helpers)
   const obstacleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 });
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x6be5ff, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.34 });
-  
+
   const box = (x, y, z, sx, sy, sz, color = 0x444444, isPlatform = true) => {
     if (!isBoxInsideArena({ x, z, sx, sz }, floorDefs, 0.2)) return null;
     const mat = color === 0x444444 ? obstacleMat : new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
@@ -201,19 +201,21 @@ export function setupArena() {
     decorBox(x + sign * 7.6, 2.15, z + 1.5, 1.0, 0.22, 7.5, 0xffd166, 0, 0);
   };
 
-  if (hasExternalMapContent(theme)) {
+  if (theme?.id === "skyhook-spires") {
+    buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding, ramp, stairRun);
+  } else if (hasExternalMapContent(theme)) {
     applyFpsMapContent(theme, box, platformOnly, decorBox, collidableDecorBox, ramp);
   } else if (mapIndex === 0) {
     box(-15, 0, -10, 2, 4.5, 20);
     box(-20, 0, 15, 18, 4.5, 2);
     box(-32, 0, -5, 2, 4.5, 25);
     box(-28, 0, -18, 12, 4.5, 2);
-    box(-12, 0, 25, 2, 6, 8, 0x444444); 
+    box(-12, 0, 25, 2, 6, 8, 0x444444);
     box(15, 0, 10, 2, 4.5, 20);
     box(20, 0, -15, 18, 4.5, 2);
     box(32, 0, 5, 2, 4.5, 25);
     box(28, 0, 18, 12, 4.5, 2);
-    box(12, 0, -25, 2, 6, 8, 0x444444); 
+    box(12, 0, -25, 2, 6, 8, 0x444444);
     box(0, 0, 32, 20, 4, 2);
     box(0, 0, -32, 20, 4, 2);
     box(-8, 0, 0, 2, 5, 10);
@@ -368,7 +370,7 @@ function buildFoundryArena(box, platformOnly, decorBox, collidableDecorBox, stai
   // Let's place a nice open stone/foundry wall around spawn
   box(-46, 0, -6, 2, 4.5, 12, 0x211111);
   box(-40, 0, 0, 8, 4.5, 2, 0x211111);
-  
+
   box(44, 0, 6, 2, 4.5, 12, 0x1a1418);
   box(38, 0, 0, 8, 4.5, 2, 0x1a1418);
 
@@ -412,7 +414,7 @@ function buildFoundryArena(box, platformOnly, decorBox, collidableDecorBox, stai
   // Central high platform for vertical play
   platformOnly(0, 3.4, -12, 20, 0.42, 3, 0x7a351f);
   platformOnly(0, 3.4, 12, 20, 0.42, 3, 0x7a351f);
-  
+
   platformOnly(0, 6.5, 0, 12, 0.4, 12, 0x8c341f);
   box(-5, 6.5, -5, 1, 1.2, 10, 0x321617); // Low cover wall
   box(5, 6.5, -5, 1, 1.2, 10, 0x321617);  // Low cover wall
@@ -484,7 +486,7 @@ function buildNeedleCorridor(box, platformOnly, decorBox, collidableDecorBox, gl
   }
 }
 
-function buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding) {
+function buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding, ramp, stairRun) {
   const spire = (x, z, color, accent) => {
     box(x, 0, z, 10, 30, 10, color, false);
     box(x, 30, z, 15, 0.8, 15, accent);
@@ -524,6 +526,100 @@ function buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, gla
     box(x, 0, 0, 2.6, 7, 54, 0x40515f);
     platformOnly(x, 7.4, 0, 4.2, 0.45, 56, 0x31424a);
   }
+
+  // --- NEW ADDITIONS FOR OBSTACLE DENSITY ---
+  const groundObstacleColor = 0x223344;
+  const coverColor = 0x556677;
+
+  // High density of pillars on the ground (to block line of sight and enrich geometry)
+  const groundPillars = [
+    [-30, -30], [-30, 30], [30, -30], [30, 30],
+    [-45, 0], [45, 0], [0, -45], [0, 45],
+    [-10, -35], [-35, -10], [10, 35], [35, 10],
+    [-20, 0], [20, 0]
+  ];
+  for (const [px, pz] of groundPillars) {
+    box(px, 0, pz, 3.5, 12, 3.5, groundObstacleColor, false);
+  }
+
+  // High density of cover boxes (crates) on the ground
+  const groundCovers = [
+    [-10, -10], [10, -10], [-10, 10], [10, 10],
+    [-25, -25], [25, 25], [-25, 25], [25, -25],
+    [-5, -20], [5, -20], [-5, 20], [5, 20],
+    [-20, -5], [-20, 5], [20, -5], [20, 5],
+    [-50, -20], [50, 20], [-50, 20], [50, -20]
+  ];
+  for (const [cx, cz] of groundCovers) {
+    box(cx, 0, cz, 2.5, 2.5, 2.5, coverColor);
+  }
+
+  // Cover boxes on platforms at heights (y = 14.5, 30.8, 48.8, 64.8)
+  box(0, 14.95, -20, 3, 2, 2.5, coverColor);
+  box(0, 14.95, 20, 3, 2, 2.5, coverColor);
+  box(-10, 14.95, -24, 3, 2, 2.5, coverColor);
+  box(10, 14.95, 24, 3, 2, 2.5, coverColor);
+
+  box(-15, 31.25, 0, 3, 2, 2.5, coverColor);
+  box(15, 31.25, 0, 3, 2, 2.5, coverColor);
+  box(-35, 31.25, 0, 3, 2, 2.5, coverColor);
+  box(35, 31.25, 0, 3, 2, 2.5, coverColor);
+
+  box(0, 49.25, -15, 2.5, 2, 3, coverColor);
+  box(0, 49.25, 15, 2.5, 2, 3, coverColor);
+  box(0, 49.25, -35, 2.5, 2, 3, coverColor);
+  box(0, 49.25, 35, 2.5, 2, 3, coverColor);
+
+  box(-20, 65.25, 0, 3, 2, 2.5, coverColor);
+  box(-35, 65.25, 0, 3, 2, 2.5, coverColor);
+  box(20, 65.25, 0, 3, 2, 2.5, coverColor);
+  box(35, 65.25, 0, 3, 2, 2.5, coverColor);
+
+  // --- NEW INTERMEDIATE PLATFORMS ---
+  // Level 14.5 to 30.8 intermediate
+  platformOnly(32, 22.6, -15, 8, 0.5, 8, 0x4f2735);
+  platformOnly(-32, 22.6, 15, 8, 0.5, 8, 0x20384f);
+  // Level 30.8 to 48.8 intermediate
+  platformOnly(18, 39.8, 26, 8, 0.5, 8, 0x334822);
+  platformOnly(-18, 39.8, -26, 8, 0.5, 8, 0x5b4920);
+  // Level 48.8 to 64.8 intermediate
+  platformOnly(12, 56.8, 12, 8, 0.5, 8, 0x9fb5c3);
+  platformOnly(-12, 56.8, -12, 8, 0.5, 8, 0x2d3940);
+
+  // --- NEW WALKWAY RAMPS FOR ZERO-JUMP CLIMBING ---
+  // 1. Ground (0) to Perimeter Platform (7.4)
+  ramp(-34, 0, -62, 4.2, 12.0, 7.4, Math.PI / 2, 0x5ab0ff); // rises along +X
+  ramp(34, 0, 62, 4.2, 12.0, 7.4, -Math.PI / 2, 0xff6f61); // rises along -X
+  ramp(-62, 0, -34, 4.2, 12.0, 7.4, 0, 0x7ee2a8);          // rises along +Z
+  ramp(62, 0, 34, 4.2, 12.0, 7.4, Math.PI, 0xffd166);       // rises along -Z
+
+  // 2. Perimeter (7.4) to 8.8 platforms
+  ramp(-18, 7.4, -28.25, 4.2, 7.5, 1.4, 0, 0x5ab0ff);        // rises along +Z
+  ramp(18, 7.4, 28.25, 4.2, 7.5, 1.4, Math.PI, 0xff6f61);    // rises along -Z
+  ramp(-28.25, 7.4, 18, 4.2, 7.5, 1.4, Math.PI / 2, 0xffd166); // rises along +X
+  ramp(28.25, 7.4, -18, 4.2, 7.5, 1.4, -Math.PI / 2, 0x7ee2a8); // rises along -X
+
+  // 3. 8.8 platforms to 14.5 platforms
+  ramp(-13, 8.8, -24, 4.2, 10.0, 5.7, Math.PI / 2, 0x5ab0ff); // rises along +X to y=14.5
+  ramp(13, 8.8, 24, 4.2, 10.0, 5.7, -Math.PI / 2, 0xff6f61);  // rises along -X to y=14.5
+
+  // 4. 14.5 platforms to 30.8 platform
+  ramp(23, 14.5, -24, 4.2, 10.0, 8.1, Math.PI / 2, 0x4f2735); // rises along +X to Intermediate (y=22.6)
+  ramp(32, 22.6, -8.7, 4.2, 12.6, 8.2, 0, 0x9fb5c3);         // rises along +Z to 30.8 platform (y=30.8)
+  ramp(-23, 14.5, 24, 4.2, 10.0, 8.1, -Math.PI / 2, 0x20384f); // rises along -X to Intermediate (y=22.6)
+  ramp(-32, 22.6, 8.7, 4.2, 12.6, 8.2, Math.PI, 0x9fb5c3);    // rises along -Z to 30.8 platform (y=30.8)
+
+  // 5. 30.8 platform to 48.8 platform
+  ramp(13, 30.8, 26, 4.2, 10.0, 9.0, Math.PI / 2, 0x334822);  // rises along +X to Intermediate (y=39.8)
+  ramp(10.2, 39.8, 26, 4.2, 15.6, 9.0, -Math.PI / 2, 0x7ee2a8); // rises along -X to 48.8 platform (y=48.8)
+  ramp(-13, 30.8, -26, 4.2, 10.0, 9.0, -Math.PI / 2, 0x5b4920); // rises along -X to Intermediate (y=39.8)
+  ramp(-10.2, 39.8, -26, 4.2, 15.6, 9.0, Math.PI / 2, 0x7ee2a8); // rises along +X to 48.8 platform (y=48.8)
+
+  // 6. 48.8 platform to 64.8 platforms
+  ramp(12, 48.8, 17, 4.2, 10.0, 8.0, Math.PI, 0x9fb5c3);       // rises along -Z to Intermediate (y=56.8)
+  ramp(12, 56.8, 7.05, 4.2, 9.9, 8.0, Math.PI, 0xff6f61);      // rises along -Z to 64.8 platform (y=64.8)
+  ramp(-12, 48.8, -17, 4.2, 10.0, 8.0, 0, 0x2d3940);           // rises along +Z to Intermediate (y=56.8)
+  ramp(-12, 56.8, -7.05, 4.2, 9.9, 8.0, 0, 0xffd166);          // rises along +Z to 64.8 platform (y=64.8)
 }
 
 export function getArenaFloorDefs(theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]) {
@@ -761,53 +857,53 @@ export function makePlayerMesh(material) {
   const armorMat = new THREE.MeshStandardMaterial({ color: 0x161d22, roughness: 0.45, metalness: 0.25 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x8ff7ff });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1114, roughness: 0.5, metalness: 0.45 });
-  
+
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.94, 8, 18), material);
   body.position.y = 0.89;
   body.castShadow = true;
-  
+
   const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.6, 0.14), armorMat);
   chestPlate.position.set(0, 1.05, -0.3);
   chestPlate.castShadow = true;
-  
+
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, 0.22), darkMat);
   belt.position.set(0, 0.55, -0.05);
-  
+
   const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), armorMat);
   shoulderL.position.set(-0.5, 1.25, -0.04);
   shoulderL.scale.set(1.15, 0.72, 0.9);
   const shoulderR = shoulderL.clone();
   shoulderR.position.x = 0.5;
-  
+
   const headGroup = new THREE.Group();
   headGroup.name = "headGroup";
   headGroup.position.y = 1.58;
-  
+
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), material);
   head.castShadow = true;
-  
+
   const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), eyeMat);
   eyeL.position.set(-0.105, 0.04, -0.265);
   eyeL.scale.set(1.15, 0.82, 0.32);
   const eyeR = eyeL.clone();
   eyeR.position.x = 0.105;
-  
+
   headGroup.add(head, eyeL, eyeR);
-  
+
   const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.48, 12), armorMat);
   legL.position.set(-0.2, 0.3, 0);
   legL.castShadow = true;
-  
+
   const legR = legL.clone();
   legR.position.x = 0.2;
-  
+
   const footL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.24), darkMat);
   footL.position.set(-0.2, 0.04, -0.06);
   footL.castShadow = true;
-  
+
   const footR = footL.clone();
   footR.position.x = 0.2;
-  
+
   group.add(body, chestPlate, belt, shoulderL, shoulderR, headGroup, legL, legR, footL, footR);
 
   const gunPart = new THREE.Group();

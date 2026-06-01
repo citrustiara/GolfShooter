@@ -7,7 +7,10 @@
     "assets/tournaments/skyhook_spires_vertical.json",
     "assets/tournaments/abyssal_platforms_jetpack.json",
     "assets/tournaments/enclosed_arena_shotgun.json",
+    "assets/tournaments/enclosed_arena_tactical_sniper.json",
     "assets/tournaments/phallic_palace_heaviest_sperm.json",
-    "assets/tournaments/phallic_palace_snipers.json"
+    "assets/tournaments/phallic_palace_snipers.json",
+    "assets/tournaments/overpass_compound_tactical.json",
+    "assets/tournaments/overpass_compound_sniper.json"
   ]
 }
