@@ -201,7 +201,7 @@ export function setupArena() {
     decorBox(x + sign * 7.6, 2.15, z + 1.5, 1.0, 0.22, 7.5, 0xffd166, 0, 0);
   };
 
-  if (theme?.id === "skyhook-spires") {
+  if (theme?.id === "skyhook-spires" && !hasExternalMapContent(theme)) {
     buildSkyhookSpires(box, platformOnly, decorBox, collidableDecorBox, glassMat, enterableBuilding, ramp, stairRun);
   } else if (hasExternalMapContent(theme)) {
     applyFpsMapContent(theme, box, platformOnly, decorBox, collidableDecorBox, ramp);
@@ -810,6 +810,11 @@ function applyMapObjectFlags(mesh, item) {
   }
   if (item.name) mesh.name = item.name;
   if (item.visible === false) mesh.visible = false;
+  if (item.collidable === false) {
+    world.obstacles = world.obstacles.filter((obstacle) => obstacle !== mesh);
+    world.platforms = world.platforms.filter((platform) => platform !== mesh);
+    mesh.userData.nonCollidable = true;
+  }
 }
 
 function applyCustomArenaMap(box, platformOnly, decorBox, collidableDecorBox, ramp) {

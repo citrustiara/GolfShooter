@@ -1,0 +1,7 @@
+{
+  "id": "skyhook_spires_rooftop_tactical",
+  "map": "fps/skyhook-spires.json",
+  "weapons": ["rifle", "desertEagle", "melee"],
+  "hp": 110,
+  "abilities": ["jump", "heal", "grenade", "radar"]
+}

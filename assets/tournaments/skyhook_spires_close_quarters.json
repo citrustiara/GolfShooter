@@ -1,0 +1,7 @@
+{
+  "id": "skyhook_spires_close_quarters",
+  "map": "fps/skyhook-spires.json",
+  "weapons": ["drumShotgun", "desertEagle", "melee"],
+  "hp": 135,
+  "abilities": ["jump", "heal", "grenade"]
+}

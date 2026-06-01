@@ -1,0 +1,7 @@
+{
+  "id": "skyhook_spires_jetpack_assault",
+  "map": "fps/skyhook-spires.json",
+  "weapons": ["laser", "pistol", "melee"],
+  "hp": 115,
+  "abilities": ["jump", "jetpack", "grenade"]
+}

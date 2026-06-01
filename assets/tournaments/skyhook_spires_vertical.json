@@ -1,7 +1,7 @@
 {
   "id": "skyhook_spires_vertical",
   "map": "fps/skyhook-spires.json",
-  "weapons": ["rifle", "pistol"],
+  "weapons": ["ak47", "tacticalSniper", "melee"],
   "hp": 120,
   "abilities": ["jump", "grenade", "radar"]
 }

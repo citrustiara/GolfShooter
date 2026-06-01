@@ -87,7 +87,7 @@ function activeLoadout() {
 }
 function abilityAllowed(name) { return activeLoadout().abilities.includes(name); }
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
-function jumpAbilityStrength() { return 21; }
+function jumpAbilityStrength() { return 22.5; }
 function aimingSensitivityMultiplier() { const cfg = weaponConfig(); const aimFov = cfg.aimFov || FPS_AIM_FOV; return FPS_AIM_SENSITIVITY_MULTIPLIER * Math.sqrt(Math.max(0.08, aimFov / FPS_DEFAULT_FOV)); }
 function clearVictoryBanner() { document.getElementById("victoryBanner")?.remove(); }
 function activeGolfPlayerIndex() { return game.role === "solo" ? game.currentPlayer : game.localIndex; }
@@ -164,9 +164,11 @@ function getSpawnY(spawn, theme) {
   }
   const boxes = theme.boxes || [];
   for (const box of boxes) {
-    if (box.isPlatform !== false || box.platformOnly) considerBoxTop(box);
+    if (box.collidable !== false && (box.isPlatform !== false || box.platformOnly)) considerBoxTop(box);
   }
-  for (const platform of theme.platforms || []) considerBoxTop(platform);
+  for (const platform of theme.platforms || []) {
+    if (platform.collidable !== false) considerBoxTop(platform);
+  }
   const ramps = theme.ramps || [];
   for (const ramp of ramps) {
     const y = rampSurfaceY(ramp, { x: spawnX, z: spawnZ }, 0.42);
@@ -884,7 +886,7 @@ function updateFpsMovement(dt) {
     p.vel.z *= s;
   }
   
-  if (input.keys.has("Space") && p.grounded) { p.vel.y = 9.2; p.grounded = false; playSound("jump"); } if (input.keys.has(getAbilityKey("jump")) && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has(getAbilityKey("heal")) && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); } if (input.keys.has(getAbilityKey("jetpack")) && abilityAllowed("jetpack") && p.pos.y < (game.jetpackHeightLimit || 40.0)) { p.vel.y = Math.min(p.vel.y + 60 * dt, 12); p.grounded = false; }
+  if (input.keys.has("Space") && p.grounded) { p.vel.y = 10.4; p.grounded = false; playSound("jump"); } if (input.keys.has(getAbilityKey("jump")) && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has(getAbilityKey("heal")) && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); } if (input.keys.has(getAbilityKey("jetpack")) && abilityAllowed("jetpack") && p.pos.y < (game.jetpackHeightLimit || 40.0)) { p.vel.y = Math.min(p.vel.y + 60 * dt, 12); p.grounded = false; }
   p.vel.y += fps.gravity * dt; p.pos.addScaledVector(p.vel, dt);
   
   // Ceiling collision check: stop player from phasing through ceilings when jumping upwards
