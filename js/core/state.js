@@ -42,6 +42,7 @@ export const game = {
   killNoticeTimer: 0,
   reloading: false,
   reloadTimer: 0,
+  reloadWeapon: null,
   inspectTimer: 0,
   jumpCooldown: 0,
   healCooldown: 0,

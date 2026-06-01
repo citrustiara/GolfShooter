@@ -1,0 +1,18 @@
+{
+  "id": "enclosed_arena_ak47_lockdown",
+  "map": "fps/enclosed-arena.json",
+  "weapons": [
+    "ak47",
+    "desertEagle",
+    "melee"
+  ],
+  "hp": 110,
+  "abilities": [
+    "grenade",
+    "heal"
+  ],
+  "cooldowns": {
+    "grenade": 5.5,
+    "heal": 9
+  }
+}

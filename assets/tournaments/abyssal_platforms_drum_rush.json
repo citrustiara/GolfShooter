@@ -1,0 +1,17 @@
+{
+  "id": "abyssal_platforms_drum_rush",
+  "map": "fps/abyssal-platforms.json",
+  "weapons": [
+    "drumShotgun",
+    "desertEagle",
+    "melee"
+  ],
+  "hp": 135,
+  "abilities": [
+    "jetpack",
+    "heal"
+  ],
+  "cooldowns": {
+    "heal": 9
+  }
+}

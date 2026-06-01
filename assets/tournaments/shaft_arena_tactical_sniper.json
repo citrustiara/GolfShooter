@@ -1,0 +1,18 @@
+{
+  "id": "shaft_arena_tactical_sniper",
+  "map": "fps/shaft-arena.json",
+  "weapons": [
+    "tacticalSniper",
+    "desertEagle",
+    "melee"
+  ],
+  "hp": 100,
+  "abilities": [
+    "jump",
+    "radar"
+  ],
+  "cooldowns": {
+    "jump": 2.5,
+    "radar": 9
+  }
+}

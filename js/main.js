@@ -335,7 +335,7 @@ function enterFps(isSimulation = false, options = {}) {
                          (loadout.weapons && loadout.weapons.length ? loadout.weapons[0] : "pistol");
   const startAsMelee = startingWeapon === "melee";
   fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
-  game.ammo = freshAmmoState(); game.reloading = false; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
+  game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
   if (game.role === "solo") game.localIndex = 0;
   setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState("gun", game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
 }
@@ -688,7 +688,8 @@ function updateFps(dt, now) {
   const progress = document.getElementById("reloadProgress");
   if (game.reloading) {
     game.reloadTimer -= dt;
-    const total = weaponConfig().reload || 1;
+    const reloadingWeapon = game.reloadWeapon || game.primaryWeapon;
+    const total = weaponConfig(reloadingWeapon).reload || 1;
     const pct = Math.max(0, Math.min(100, ((total - game.reloadTimer) / total) * 100));
     if (bar && progress) {
       progress.classList.remove("hidden");
@@ -698,7 +699,9 @@ function updateFps(dt, now) {
     }
     if (game.reloadTimer <= 0) {
       game.reloading = false;
-      game.ammo[game.primaryWeapon] = weaponMaxAmmo(game.primaryWeapon);
+      game.reloadTimer = 0;
+      game.ammo[reloadingWeapon] = weaponMaxAmmo(reloadingWeapon);
+      game.reloadWeapon = null;
       if (progress) progress.classList.add("hidden");
       updateHud();
     }
@@ -754,7 +757,7 @@ function updateWeaponModel(dt, p) {
   } else {
     weapon = game.activeWeapon === "gun" ? world.weapon : world.meleeWeapon;
     weapon.visible = true;
-    cfg = weaponConfig(game.primaryWeapon);
+    cfg = game.activeWeapon === "gun" ? weaponConfig(game.primaryWeapon) : weaponConfig("melee");
   }
 
   const camDir = directionFromAngles(p.yaw, p.pitch), viewDir = directionFromAngles(p.yaw, 0), right = new THREE.Vector3().crossVectors(viewDir, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3(0, 1, 0);
@@ -1560,25 +1563,26 @@ function updatePlayerMeshes() {
 
     mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
 
-    // Disable depth testing for wallhack if radar is active!
+    // Wallhack uses per-mesh cloned materials so shared player materials are never left hidden/mutated.
     mesh.traverse((child) => {
-      if (child.isMesh) {
-        if (isRadarActive && mesh.visible) {
-          if (child.userData.originalDepthTest === undefined) {
-            child.userData.originalDepthTest = child.material.depthTest ?? true;
-            child.userData.originalDepthWrite = child.material.depthWrite ?? true;
-            child.userData.originalRenderOrder = child.renderOrder ?? 0;
-          }
-          child.material.depthTest = false;
-          child.material.depthWrite = false;
-          child.renderOrder = 9999;
-        } else {
-          if (child.userData.originalDepthTest !== undefined) {
-            child.material.depthTest = child.userData.originalDepthTest;
-            child.material.depthWrite = child.userData.originalDepthWrite;
-            child.renderOrder = child.userData.originalRenderOrder;
-          }
+      if (!child.isMesh) return;
+      if (!child.userData.baseMaterial) {
+        child.userData.baseMaterial = child.material;
+        child.userData.baseRenderOrder = child.renderOrder || 0;
+      }
+      if (isRadarActive && mesh.visible) {
+        if (!child.userData.wallhackMaterial) {
+          const cloned = child.userData.baseMaterial.clone();
+          cloned.depthTest = false;
+          cloned.depthWrite = false;
+          cloned.transparent = cloned.transparent || false;
+          child.userData.wallhackMaterial = cloned;
         }
+        child.material = child.userData.wallhackMaterial;
+        child.renderOrder = 9999;
+      } else {
+        child.material = child.userData.baseMaterial;
+        child.renderOrder = child.userData.baseRenderOrder || 0;
       }
     });
   }
@@ -1777,6 +1781,14 @@ function requestWeaponSwap(aw, pw = game.primaryWeapon) {
   updateHud();
 }
 function updateWeaponSwap(dt) { if (game.weaponSwapTimer <= 0) return; game.weaponSwapTimer = Math.max(0, game.weaponSwapTimer - dt); if (!game.weaponSwapCommitted && game.weaponSwapTimer <= WEAPON_SWAP_DURATION * 0.5) { applyWeaponState(game.pendingActiveWeapon, game.pendingPrimaryWeapon); game.weaponSwapCommitted = true; } }
+function cancelReload() {
+  if (!game.reloading) return;
+  game.reloading = false;
+  game.reloadTimer = 0;
+  game.reloadWeapon = null;
+  document.getElementById("reloadProgress")?.classList.add("hidden");
+}
+
 function applyWeaponState(aw, pw = game.primaryWeapon) {
   if (game.randomTournament) {
     if (game.randomLoadout && game.randomLoadout.weapons) {
@@ -1804,7 +1816,8 @@ function applyWeaponState(aw, pw = game.primaryWeapon) {
   fps.players[game.localIndex].weapon = aw;
   fps.players[game.localIndex].primaryWeapon = pw;
   weaponCards.forEach(c => c.classList.toggle("active", aw === "gun" && c.getAttribute("data-weapon") === pw));
-  if (aw === "melee") game.reloading = false;
+  if (changed) cancelReload();
+  if (aw === "melee") cancelReload();
   if (changed) {
     syncPrimaryWeaponModel();
     send({ type: "fpsWeaponChoice", player: game.localIndex, weapon: pw });
@@ -1816,7 +1829,7 @@ function syncPrimaryWeaponModel() {
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
-function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; updateHud(); }
+function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; updateHud(); }
 function resetFpsDuelState(randomTournament = false) {
   ensureFpsPlayers(game.playerCount);
   game.fpsMapWins = Array(game.playerCount).fill(0);

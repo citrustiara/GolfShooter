@@ -1,0 +1,18 @@
+{
+  "id": "skyhook_spires_drum_showdown",
+  "map": "fps/skyhook-spires.json",
+  "weapons": [
+    "drumShotgun",
+    "pistol",
+    "melee"
+  ],
+  "hp": 125,
+  "abilities": [
+    "jump",
+    "heal"
+  ],
+  "cooldowns": {
+    "jump": 2.8,
+    "heal": 8
+  }
+}

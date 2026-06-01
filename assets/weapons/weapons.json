@@ -168,7 +168,8 @@
       "fireDelay": 600,
       "range": 4.5,
       "moveScale": 1.18,
-      "recoil": 0.0
+      "recoil": 0.0,
+      "firstPersonOffset": { "x": 0.14, "y": 0.14, "z": -0.28 }
     },
     "desertEagle": {
       "label": "Desert Eagle",

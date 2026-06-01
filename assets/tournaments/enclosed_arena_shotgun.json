@@ -1,7 +1,13 @@
 {
   "id": "enclosed_arena_shotgun",
   "map": "fps/enclosed-arena.json",
-  "weapons": ["shotgun"],
+  "weapons": [
+    "shotgun",
+    "desertEagle",
+    "melee"
+  ],
   "hp": 100,
-  "abilities": ["grenade"]
+  "abilities": [
+    "grenade"
+  ]
 }
