@@ -4,7 +4,7 @@ export const canvas = document.querySelector("#game");
 export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8fd3f4);
@@ -48,7 +48,8 @@ export function setupLighting() {
   lights.sun = sun;
   sun.position.set(10, 18, 7);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.bias = -0.0005;
   sun.shadow.camera.left = -30;
   sun.shadow.camera.right = 30;
   sun.shadow.camera.top = 30;

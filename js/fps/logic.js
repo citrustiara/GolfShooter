@@ -1,5 +1,6 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
 import { game, world, fps, input } from "../core/state.js";
 import { materials, scene } from "../core/engine.js";
 import { fpsArenaThemes } from "./themes.js";
@@ -31,20 +32,36 @@ export function setupArena() {
   world.arenaFloors = floorDefs.map((floor) => ({ ...floor }));
   world.arenaSpawnPoints = getArenaSpawnPoints(theme);
 
-  const floorMat = new THREE.MeshStandardMaterial({ color: theme.floor, roughness: 0.88 });
+  // Cache materials to avoid redundant objects and group identical visual components
+  const materialCache = new Map();
+  const getMaterial = (color, roughness, metalness = 0.0, transparent = false, opacity = 1.0) => {
+    const key = `${color}_${roughness}_${metalness}_${transparent}_${opacity}`;
+    if (!materialCache.has(key)) {
+      materialCache.set(key, new THREE.MeshStandardMaterial({
+        color,
+        roughness,
+        metalness,
+        transparent,
+        opacity
+      }));
+    }
+    return materialCache.get(key);
+  };
+
+  const floorMat = getMaterial(theme.floor, 0.88);
+  const staticMeshes = [];
+
   const addFloor = (x, z, sx, sz) => {
     const floor = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.5, sz), floorMat);
     floor.position.set(x, -0.25, z);
-    floor.receiveShadow = true;
-    world.arenaRoot.add(floor);
+    staticMeshes.push(floor);
   };
 
   for (const floor of floorDefs) {
     if (floor.type === "circle") {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(floor.r, floor.r, 0.5, 80), floorMat);
       mesh.position.set(floor.x, -0.25, floor.z);
-      mesh.receiveShadow = true;
-      world.arenaRoot.add(mesh);
+      staticMeshes.push(mesh);
     } else {
       addFloor(floor.x, floor.z, floor.sx, floor.sz);
     }
@@ -65,16 +82,14 @@ export function setupArena() {
   world.arenaRoot.add(skyShell);
 
   // Thin perimeter walls
-  const edgeMat = new THREE.MeshStandardMaterial({ color: theme.edge, roughness: 0.75, metalness: 0.22 });
+  const edgeMat = getMaterial(theme.edge, 0.75, 0.22);
   const edgeH = 8.0;
   const wallDefs = makePerimeterWalls(floorDefs, edgeH);
   for (const w of wallDefs) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.sx, w.sy, w.sz), edgeMat);
     mesh.position.set(w.x, w.sy / 2, w.z);
     mesh.rotation.y = w.rot || 0;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    world.arenaRoot.add(mesh);
+    staticMeshes.push(mesh);
   }
 
   // Spawn pads
@@ -98,17 +113,15 @@ export function setupArena() {
   }
 
   // Obstacles and Platforms (Shared helpers)
-  const obstacleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x6be5ff, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.34 });
+  const obstacleMat = getMaterial(0x444444, 0.7);
+  const glassMat = getMaterial(0x6be5ff, 0.18, 0.12, true, 0.34);
 
   const box = (x, y, z, sx, sy, sz, color = 0x444444, isPlatform = true) => {
     if (!isBoxInsideArena({ x, z, sx, sz }, floorDefs, 0.2)) return null;
-    const mat = color === 0x444444 ? obstacleMat : new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
+    const mat = color === 0x444444 ? obstacleMat : getMaterial(color, 0.7);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(x, y + sy / 2, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    world.arenaRoot.add(mesh);
+    staticMeshes.push(mesh);
     world.obstacles.push(mesh);
     if (isPlatform) world.platforms.push(mesh);
     return mesh;
@@ -118,12 +131,10 @@ export function setupArena() {
     if (!isBoxInsideArena({ x, z, sx, sz }, floorDefs, 0.2)) return null;
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(sx, sy, sz),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.68 })
+      getMaterial(color, 0.68)
     );
     mesh.position.set(x, y + sy / 2, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    world.arenaRoot.add(mesh);
+    staticMeshes.push(mesh);
     world.platforms.push(mesh);
     world.obstacles.push(mesh);
     return mesh;
@@ -131,13 +142,11 @@ export function setupArena() {
 
   const decorBox = (x, y, z, sx, sy, sz, color = 0x78e0ff, rotX = 0, rotY = 0, material = null) => {
     if (!isPointInsideArena({ x, z }, floorDefs, 0.2)) return null;
-    const mat = material || new THREE.MeshStandardMaterial({ color, roughness: 0.58, metalness: 0.08 });
+    const mat = material || getMaterial(color, 0.58, 0.08);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(x, y + sy / 2, z);
     mesh.rotation.set(rotX, rotY, 0);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    world.arenaRoot.add(mesh);
+    staticMeshes.push(mesh);
     return mesh;
   };
 
@@ -154,7 +163,7 @@ export function setupArena() {
     if (!isBoxInsideArena({ x, z, sx: Math.max(width, length), sz: Math.max(width, length) }, floorDefs, 0.2)) return null;
     const mesh = makeRampMesh(
       { x, y, z, width, length, height, rot },
-      new THREE.MeshStandardMaterial({ color, roughness: 0.68 }),
+      getMaterial(color, 0.68),
       { surfaceOffset: 0 }
     );
     world.arenaRoot.add(mesh);
@@ -281,6 +290,48 @@ export function setupArena() {
 
   applyCustomArenaMap(box, platformOnly, decorBox, collidableDecorBox, ramp);
   loadImportedArenaAssets(theme);
+
+  // Merge static geometries to optimize draw calls and GPU rendering
+  const mergeGroups = new Map();
+  for (const mesh of staticMeshes) {
+    if (mesh.visible === false) continue;
+    
+    // Ensure world matrix is up-to-date
+    mesh.updateMatrix();
+    mesh.updateMatrixWorld(true);
+    
+    const mat = mesh.material;
+    if (!mergeGroups.has(mat)) {
+      mergeGroups.set(mat, []);
+    }
+    mergeGroups.get(mat).push(mesh);
+  }
+
+  for (const [mat, meshes] of mergeGroups.entries()) {
+    if (meshes.length === 0) continue;
+    
+    const geometries = meshes.map(m => {
+      const geo = m.geometry.clone();
+      geo.applyMatrix4(m.matrix);
+      return geo;
+    });
+    
+    try {
+      const mergedGeo = BufferGeometryUtils.mergeGeometries(geometries, true);
+      const mergedMesh = new THREE.Mesh(mergedGeo, mat);
+      mergedMesh.castShadow = true;
+      mergedMesh.receiveShadow = true;
+      world.arenaRoot.add(mergedMesh);
+    } catch (err) {
+      console.warn("Could not merge geometries for material", mat, err);
+      // Fallback: add individual meshes directly to the scene
+      for (const m of meshes) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        world.arenaRoot.add(m);
+      }
+    }
+  }
 
   // Calculate dynamic jetpack height limit based on arena geometry
   let maxGeometryY = 5.0;
