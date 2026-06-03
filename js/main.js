@@ -3,7 +3,7 @@ import {
   GOLF_AIM_SENSITIVITY, GOLF_MAX_SHOT_SPEED, GOLF_GROUND_FRICTION, GOLF_ICE_FRICTION, CUP_PULL_RADIUS, CUP_PULL_FORCE, CUP_SINK_RADIUS, CUP_SINK_SPEED_MAX, CUP_SURFACE_Y, 
   FPS_LASER_TTL, FPS_BASE_MOUSE_SENSITIVITY, FPS_PLAYER_HIT_RADIUS, FPS_AIM_SENSITIVITY_MULTIPLIER, FPS_DEFAULT_FOV, FPS_AIM_FOV, FPS_SNIPER_AIM_FOV, 
   FPS_HEAD_HIT_RADIUS, FPS_BODY_HIT_RADIUS, FPS_HEAD_HIT_HEIGHT, FPS_BODY_HIT_HEIGHT, FPS_SLIDE_VISUAL_DROP, GRENADE_COOLDOWN, GRENADE_SPEED, GRENADE_GRAVITY, GRENADE_SPLASH_RADIUS, GRENADE_MAX_DAMAGE, HOLES_PER_TOURNAMENT, 
-  FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, FPS_KILLS_TO_WIN_MAP, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons,
+  FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons,
   tournamentCombinations
 } from "./core/constants.js";
 import { canvas, renderer, scene, camera, clock, raycaster, materials, setupLighting, resize, lights } from "./core/engine.js";
@@ -26,7 +26,7 @@ import {
 } from "./fps/mesh-collision.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeLabel = document.querySelector("#holeLabel"), turnLabel = document.querySelector("#turnLabel"), strokeLabel = document.querySelector("#strokeLabel"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), jetpackOverlay = document.querySelector("#jetpackOverlay"), jetpackCDText = document.querySelector("#jetpackCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
-const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), playerCountSelect = document.querySelector("#playerCountSelect"), mapUploadInput = document.querySelector("#mapUploadInput");
+const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), playerCountSelect = document.querySelector("#playerCountSelect"), mapUploadInput = document.querySelector("#mapUploadInput"), practiceMapCountInput = document.querySelector("#practiceMapCountInput"), practiceRoundsInput = document.querySelector("#practiceRoundsInput"), practiceMapList = document.querySelector("#practiceMapList");
 const FPS_PLAYER_RADIUS_WORLD = 0.42;
 const FPS_PLAYER_HEIGHT_WORLD = 1.78;
 const FPS_RAMP_PROBE_MARGIN = 0.08;
@@ -40,6 +40,17 @@ const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout
 let weaponIds = Object.keys(weaponCatalog);
 let standardWeaponIds = ["pistol", "rifle", "sniper"];
 let randomLoadoutPresets = [];
+let practiceMapConfigs = [];
+const FPS_DEFAULT_GRAVITY = -30;
+const FPS_DEFAULT_ROUNDS_PER_MAP = 3;
+const ABILITY_CHOICES = [
+  { id: "jump", label: "Jump Boost", defaultKey: "KeyE" },
+  { id: "heal", label: "Heal", defaultKey: "KeyQ" },
+  { id: "grenade", label: "Grenade", defaultKey: "KeyG" },
+  { id: "radar", label: "Radar", defaultKey: "KeyC" },
+  { id: "jetpack", label: "Jetpack", defaultKey: "Space" }
+];
+const ABILITY_KEY_OPTIONS = ["KeyQ", "KeyE", "KeyF", "KeyG", "KeyC", "KeyV", "KeyX", "KeyZ", "Space", "ShiftLeft", "ControlLeft"];
 
 function weaponConfig(id = game.primaryWeapon) { return weaponCatalog[id] || weaponCatalog.pistol; }
 function weaponMaxAmmo(id = game.primaryWeapon) { return weaponConfig(id).ammo; }
@@ -47,40 +58,46 @@ function weaponLabelText(id = game.primaryWeapon) { return id === "melee" ? "Clu
 function freshAmmoState() { return Object.fromEntries(weaponIds.map((id) => [id, weaponMaxAmmo(id)])); }
 function chooseRandomTournamentWeapon() { return randomTournamentWeapons[Math.floor(Math.random() * randomTournamentWeapons.length)] || "heavySniper"; }
 function isRandomMeleeWeapon(id = game.randomWeapon) { return id === "melee"; }
-function defaultLoadout() { return { id: "standard", hp: 100, speed: 1.0, abilities: ["jump", "heal", "grenade", "radar"], cooldowns: {} }; }
+function defaultWeaponList() { return [...standardWeaponIds, "melee"].filter((id, index, arr) => id && arr.indexOf(id) === index); }
+function defaultAbilityKeys() { return Object.fromEntries(ABILITY_CHOICES.map((ability) => [ability.id, ability.defaultKey])); }
+function defaultLoadout() { return { id: "standard", hp: 100, speed: 1.0, gravity: FPS_DEFAULT_GRAVITY, abilities: ["jump", "heal", "grenade", "radar"], cooldowns: {}, weapons: defaultWeaponList(), abilityKeys: defaultAbilityKeys() }; }
 function chooseRandomLoadout() { const presets = randomLoadoutPresets.length ? randomLoadoutPresets : [defaultLoadout()]; return presets[Math.floor(Math.random() * presets.length)] || presets[0]; }
 function chooseRandomFpsMap(exclude = -1) { const choices = fpsArenaThemes.map((_, index) => index).filter((index) => index !== exclude); return choices[Math.floor(Math.random() * choices.length)] ?? 0; }
+function activeFpsMatchEntry(slot = game.fpsMatchConfig?.currentMapSlot ?? 0) {
+  const maps = game.fpsMatchConfig?.maps;
+  return Array.isArray(maps) && maps.length ? maps[Math.max(0, Math.min(maps.length - 1, Number(slot) || 0))] : null;
+}
+function mergeMapConfig(base = null, override = null) {
+  if (!base && !override) return null;
+  return {
+    ...(base || {}),
+    ...(override || {}),
+    cooldowns: { ...(base?.cooldowns || {}), ...(override?.cooldowns || {}) },
+    abilityKeys: { ...(base?.abilityKeys || {}), ...(override?.abilityKeys || {}) },
+    weapons: override?.weapons || base?.weapons,
+    abilities: override?.abilities || base?.abilities
+  };
+}
 function currentMapConfig() {
+  if (game.randomTournament) return null;
   const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0];
-  return theme ? (theme.config || theme.loadout || null) : null;
+  const themeCfg = theme ? (theme.config || theme.loadout || null) : null;
+  const customCfg = game.fpsCustomMapActive && game.fpsCustomMap ? (game.fpsCustomMap.config || game.fpsCustomMap.loadout || null) : null;
+  const entryCfg = activeFpsMatchEntry()?.config || null;
+  return mergeMapConfig(mergeMapConfig(themeCfg, customCfg), entryCfg);
 }
 function getAbilityKey(abilityName) {
-  const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0];
-  if (theme) {
-    if (theme.config?.abilityKeys?.[abilityName]) return theme.config.abilityKeys[abilityName];
-    if (theme.abilityKeys?.[abilityName]) return theme.abilityKeys[abilityName];
-  }
   const loadout = activeLoadout();
-  if (loadout) {
-    if (loadout.config?.abilityKeys?.[abilityName]) return loadout.config.abilityKeys[abilityName];
-    if (loadout.abilityKeys?.[abilityName]) return loadout.abilityKeys[abilityName];
-  }
-  const defaults = {
-    jump: "KeyE",
-    heal: "KeyQ",
-    grenade: "KeyG",
-    radar: "KeyC",
-    jetpack: "Space"
-  };
-  return defaults[abilityName] || "KeyE";
+  if (loadout?.abilityKeys?.[abilityName]) return loadout.abilityKeys[abilityName];
+  const cfg = currentMapConfig();
+  if (cfg?.abilityKeys?.[abilityName]) return cfg.abilityKeys[abilityName];
+  return ABILITY_CHOICES.find((ability) => ability.id === abilityName)?.defaultKey || "KeyE";
 }
-function activeWeaponIds() {
-  const mapCfg = currentMapConfig();
-  if (mapCfg && mapCfg.weapons && mapCfg.weapons.length > 0) {
-    return mapCfg.weapons;
-  }
-  return standardWeaponIds;
+function loadoutWeaponList(loadout = activeLoadout()) {
+  return (Array.isArray(loadout?.weapons) && loadout.weapons.length ? loadout.weapons : defaultWeaponList()).filter((id, index, arr) => id && arr.indexOf(id) === index);
 }
+function activeWeaponIds() { return loadoutWeaponList().filter((id) => id !== "melee" && weaponCatalog[id]); }
+function meleeAllowed() { return loadoutWeaponList().includes("melee"); }
 function activeLoadout() {
   const mapCfg = currentMapConfig();
   if (mapCfg) {
@@ -88,13 +105,24 @@ function activeLoadout() {
       id: mapCfg.id || "map-custom",
       hp: mapCfg.hp ?? 100,
       speed: mapCfg.speed ?? 1.0,
+      gravity: mapCfg.gravity ?? FPS_DEFAULT_GRAVITY,
       abilities: mapCfg.abilities || ["jump", "heal", "grenade", "radar"],
       cooldowns: mapCfg.cooldowns || {},
-      weapons: mapCfg.weapons || ["pistol"],
-      abilityKeys: mapCfg.abilityKeys || {}
+      weapons: mapCfg.weapons || defaultWeaponList(),
+      abilityKeys: { ...defaultAbilityKeys(), ...(mapCfg.abilityKeys || {}) }
     };
   }
-  return game.randomTournament && game.randomLoadout ? game.randomLoadout : (randomLoadoutPresets[randomLoadoutPresets.length - 1] || defaultLoadout());
+  const loadout = game.randomTournament && game.randomLoadout ? game.randomLoadout : (randomLoadoutPresets[randomLoadoutPresets.length - 1] || defaultLoadout());
+  return { ...defaultLoadout(), ...loadout, cooldowns: { ...(loadout?.cooldowns || {}) }, abilityKeys: { ...defaultAbilityKeys(), ...(loadout?.abilityKeys || {}) }, weapons: loadout?.weapons || defaultWeaponList() };
+}
+function activeFpsRules() {
+  const match = game.fpsMatchConfig || {};
+  const mapCount = Math.max(1, Math.min(9, Math.floor(Number(match.mapCount || match.maps?.length || FPS_MAPS_PER_DUEL) || FPS_MAPS_PER_DUEL)));
+  const roundsPerMap = Math.max(1, Math.min(99, Math.floor(Number(match.roundsPerMap || currentMapConfig()?.roundsPerMap || FPS_DEFAULT_ROUNDS_PER_MAP) || FPS_DEFAULT_ROUNDS_PER_MAP)));
+  const fallbackSlot = game.fpsCompletedMaps || (Array.isArray(game.fpsMapWins) ? game.fpsMapWins.reduce((sum, wins) => sum + wins, 0) : 0);
+  const currentMapSlot = Math.max(0, Math.min(mapCount - 1, Math.floor(Number(match.currentMapSlot ?? fallbackSlot) || 0)));
+  const gravity = Number.isFinite(Number(activeLoadout().gravity)) ? Number(activeLoadout().gravity) : FPS_DEFAULT_GRAVITY;
+  return { mapCount, roundsPerMap, currentMapSlot, gravity };
 }
 function abilityAllowed(name) { return activeLoadout().abilities.includes(name); }
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
@@ -232,6 +260,263 @@ function addCustomMapOptionSelect() {
   fpsMapSelect.value = "custom";
 }
 
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+function keyLabel(code) {
+  if (code === "Space") return "Space";
+  if (code === "ShiftLeft") return "Shift";
+  if (code === "ControlLeft") return "Ctrl";
+  if (code?.startsWith("Key")) return code.slice(3);
+  if (code?.startsWith("Digit")) return code.slice(5);
+  return code || "Key";
+}
+function fpsMapDisplayName(index) {
+  const theme = fpsArenaThemes[index];
+  return theme?.name || theme?.title || theme?.id?.replace(/-/g, " ") || `Map ${index + 1}`;
+}
+function selectableWeaponIds() {
+  return [...(weaponIds.length ? weaponIds : defaultWeaponList()), "melee"].filter((id, index, arr) => id && weaponCatalog[id] && arr.indexOf(id) === index);
+}
+function rawConfigForMapValue(mapValue) {
+  if (mapValue === "custom") return game.fpsCustomMap?.config || game.fpsCustomMap?.loadout || {};
+  const index = Number(mapValue);
+  const theme = fpsArenaThemes[Number.isInteger(index) ? index : 0] || fpsArenaThemes[0];
+  return theme?.config || theme?.loadout || {};
+}
+function normalizePracticeConfig(config = {}) {
+  const base = defaultLoadout();
+  const validWeapons = selectableWeaponIds();
+  let weapons = Array.isArray(config.weapons) && config.weapons.length ? config.weapons : base.weapons;
+  weapons = weapons.filter((id, index, arr) => validWeapons.includes(id) && arr.indexOf(id) === index);
+  if (!weapons.length) weapons = validWeapons.includes("pistol") ? ["pistol"] : [validWeapons[0]].filter(Boolean);
+  let abilities = Array.isArray(config.abilities) ? config.abilities : base.abilities;
+  abilities = abilities.filter((id, index, arr) => ABILITY_CHOICES.some((ability) => ability.id === id) && arr.indexOf(id) === index);
+  const abilityKeys = { ...defaultAbilityKeys(), ...(config.abilityKeys || {}) };
+  return {
+    id: config.id || "practice-custom",
+    hp: Math.round(clampNumber(config.hp, 1, 9999, base.hp)),
+    speed: Number(clampNumber(config.speed, 0.25, 3, base.speed).toFixed(2)),
+    gravity: Number(clampNumber(config.gravity, -120, 30, FPS_DEFAULT_GRAVITY).toFixed(2)),
+    weapons,
+    abilities,
+    abilityKeys,
+    cooldowns: { ...(config.cooldowns || {}) }
+  };
+}
+function defaultPracticeMapEntry(index = 0) {
+  const mapValue = index === 0 && game.fpsCustomMap && fpsMapSelect?.value === "custom" ? "custom" : (fpsArenaThemes.length ? String(index % fpsArenaThemes.length) : "0");
+  return { mapValue, mapIndex: mapValue === "custom" ? 0 : Number(mapValue) || 0, customMapActive: mapValue === "custom", customMap: mapValue === "custom" ? game.fpsCustomMap : null, config: normalizePracticeConfig(rawConfigForMapValue(mapValue)) };
+}
+function ensurePracticeMapConfigCount(count = Number(practiceMapCountInput?.value || 1)) {
+  const target = Math.max(1, Math.min(9, Math.floor(Number(count) || 1)));
+  while (practiceMapConfigs.length < target) practiceMapConfigs.push(defaultPracticeMapEntry(practiceMapConfigs.length));
+  if (practiceMapConfigs.length > target) practiceMapConfigs.length = target;
+  return target;
+}
+function populatePracticeSelect(select, value) {
+  if (!select) return;
+  select.replaceChildren();
+  fpsArenaThemes.forEach((_, index) => {
+    const opt = document.createElement("option");
+    opt.value = String(index);
+    opt.textContent = fpsMapDisplayName(index);
+    select.appendChild(opt);
+  });
+  if (game.fpsCustomMap) {
+    const opt = document.createElement("option");
+    opt.value = "custom";
+    opt.textContent = "Custom: " + (game.fpsCustomMap.name || "Uploaded Map");
+    select.appendChild(opt);
+  }
+  if ([...select.options].some((opt) => opt.value === value)) select.value = value;
+}
+function practiceSummary(entry) {
+  const cfg = normalizePracticeConfig(entry.config || {});
+  const weaponLabels = cfg.weapons.map((id) => weaponLabelText(id));
+  const abilityLabels = cfg.abilities.map((id) => ABILITY_CHOICES.find((ability) => ability.id === id)?.label || id);
+  const weapons = weaponLabels.length > 3 ? `${weaponLabels.slice(0, 3).join(", ")} +${weaponLabels.length - 3}` : (weaponLabels.join(", ") || "No weapons");
+  const abilities = abilityLabels.length ? abilityLabels.join(", ") : "No abilities";
+  return `${weapons} · ${abilities} · ${cfg.speed.toFixed(2)}x speed · gravity ${cfg.gravity}`;
+}
+function syncPracticeMapPlanner() {
+  if (!practiceMapList || !practiceMapCountInput || !practiceRoundsInput) return;
+  const count = ensurePracticeMapConfigCount(practiceMapCountInput.value);
+  practiceMapCountInput.value = String(count);
+  practiceRoundsInput.value = String(Math.max(1, Math.min(21, Math.floor(Number(practiceRoundsInput.value) || FPS_DEFAULT_ROUNDS_PER_MAP))));
+  practiceMapList.replaceChildren();
+  for (let i = 0; i < count; i++) {
+    const entry = practiceMapConfigs[i];
+    entry.config = normalizePracticeConfig(entry.config || rawConfigForMapValue(entry.mapValue));
+    const row = document.createElement("div");
+    row.className = "practice-map-row";
+
+    const main = document.createElement("div");
+    main.className = "practice-map-main";
+    const badge = document.createElement("div");
+    badge.className = "practice-map-index";
+    badge.textContent = String(i + 1);
+    const select = document.createElement("select");
+    populatePracticeSelect(select, entry.mapValue);
+    select.addEventListener("change", () => {
+      entry.mapValue = select.value;
+      entry.mapIndex = select.value === "custom" ? 0 : Number(select.value) || 0;
+      entry.customMapActive = select.value === "custom";
+      entry.config = normalizePracticeConfig(rawConfigForMapValue(select.value));
+      if (i === 0 && fpsMapSelect) fpsMapSelect.value = select.value;
+      syncPracticeMapPlanner();
+    });
+    const configBtn = document.createElement("button");
+    configBtn.type = "button";
+    configBtn.className = "practice-config-btn";
+    configBtn.textContent = "Config";
+    configBtn.addEventListener("click", () => row.classList.toggle("open"));
+    main.append(badge, select, configBtn);
+
+    const summary = document.createElement("div");
+    summary.className = "practice-map-summary";
+    summary.textContent = practiceSummary(entry);
+
+    const detail = document.createElement("div");
+    detail.className = "practice-detail";
+    const refreshSummary = () => { entry.config = normalizePracticeConfig(entry.config); summary.textContent = practiceSummary(entry); };
+
+    const statGrid = document.createElement("div");
+    statGrid.className = "practice-stat-grid";
+    for (const stat of [
+      { key: "hp", label: "Health", min: 1, max: 9999, step: 1 },
+      { key: "speed", label: "Move speed", min: 0.25, max: 3, step: 0.05 },
+      { key: "gravity", label: "Gravity", min: -120, max: 30, step: 1 }
+    ]) {
+      const label = document.createElement("label");
+      label.textContent = stat.label;
+      const inputEl = document.createElement("input");
+      inputEl.type = "number";
+      inputEl.min = String(stat.min);
+      inputEl.max = String(stat.max);
+      inputEl.step = String(stat.step);
+      inputEl.value = String(entry.config[stat.key]);
+      inputEl.addEventListener("input", () => { entry.config[stat.key] = clampNumber(inputEl.value, stat.min, stat.max, entry.config[stat.key]); refreshSummary(); });
+      label.appendChild(inputEl);
+      statGrid.appendChild(label);
+    }
+    detail.appendChild(statGrid);
+
+    const weaponsTitle = document.createElement("div");
+    weaponsTitle.className = "practice-map-summary";
+    weaponsTitle.textContent = "Weapons";
+    const weaponGrid = document.createElement("div");
+    weaponGrid.className = "practice-check-grid";
+    for (const id of selectableWeaponIds()) {
+      const label = document.createElement("label");
+      label.className = "practice-check";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = entry.config.weapons.includes(id);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) entry.config.weapons.push(id);
+        else entry.config.weapons = entry.config.weapons.filter((weapon) => weapon !== id);
+        if (!entry.config.weapons.length) { checkbox.checked = true; entry.config.weapons.push(id); }
+        refreshSummary();
+      });
+      label.append(checkbox, document.createTextNode(weaponLabelText(id)));
+      weaponGrid.appendChild(label);
+    }
+    detail.append(weaponsTitle, weaponGrid);
+
+    const abilitiesTitle = document.createElement("div");
+    abilitiesTitle.className = "practice-map-summary";
+    abilitiesTitle.textContent = "Abilities and keys";
+    const abilityGrid = document.createElement("div");
+    abilityGrid.className = "practice-check-grid";
+    for (const ability of ABILITY_CHOICES) {
+      const abilityRow = document.createElement("div");
+      abilityRow.className = "practice-ability-row";
+      const label = document.createElement("label");
+      label.className = "practice-check";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = entry.config.abilities.includes(ability.id);
+      const keySelect = document.createElement("select");
+      for (const key of ABILITY_KEY_OPTIONS) {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = keyLabel(key);
+        keySelect.appendChild(opt);
+      }
+      keySelect.value = entry.config.abilityKeys[ability.id] || ability.defaultKey;
+      keySelect.disabled = !checkbox.checked;
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) entry.config.abilities.push(ability.id);
+        else entry.config.abilities = entry.config.abilities.filter((id) => id !== ability.id);
+        keySelect.disabled = !checkbox.checked;
+        refreshSummary();
+      });
+      keySelect.addEventListener("change", () => { entry.config.abilityKeys[ability.id] = keySelect.value; refreshSummary(); });
+      label.append(checkbox, document.createTextNode(ability.label));
+      abilityRow.append(label, keySelect);
+      abilityGrid.appendChild(abilityRow);
+    }
+    detail.append(abilitiesTitle, abilityGrid);
+
+    row.append(main, summary, detail);
+    practiceMapList.appendChild(row);
+  }
+}
+function sanitizeFpsMatchConfig(config) {
+  if (!config) return null;
+  const mapCount = Math.max(1, Math.min(9, Math.floor(Number(config.mapCount || config.maps?.length || 1) || 1)));
+  const roundsPerMap = Math.max(1, Math.min(99, Math.floor(Number(config.roundsPerMap || FPS_DEFAULT_ROUNDS_PER_MAP) || FPS_DEFAULT_ROUNDS_PER_MAP)));
+  const maps = Array.from({ length: mapCount }, (_, index) => {
+    const source = config.maps?.[index] || defaultPracticeMapEntry(index);
+    const isCustom = source.mapValue === "custom" || source.customMapActive;
+    const mapIndex = isCustom ? 0 : Math.max(0, Math.min(fpsArenaThemes.length - 1, Math.floor(Number(source.mapIndex ?? source.mapValue ?? index) || 0)));
+    return {
+      mapValue: isCustom ? "custom" : String(mapIndex),
+      mapIndex,
+      customMapActive: isCustom,
+      customMap: isCustom ? (source.customMap || game.fpsCustomMap || null) : null,
+      config: normalizePracticeConfig(source.config || rawConfigForMapValue(isCustom ? "custom" : String(mapIndex)))
+    };
+  });
+  return { mode: "practice", mapCount, roundsPerMap, currentMapSlot: Math.max(0, Math.min(mapCount - 1, Math.floor(Number(config.currentMapSlot || 0) || 0))), maps };
+}
+function buildFpsMatchConfigFromUi() {
+  const mapCount = ensurePracticeMapConfigCount(practiceMapCountInput?.value || 1);
+  const roundsPerMap = Math.max(1, Math.min(99, Math.floor(Number(practiceRoundsInput?.value || FPS_DEFAULT_ROUNDS_PER_MAP) || FPS_DEFAULT_ROUNDS_PER_MAP)));
+  return sanitizeFpsMatchConfig({ mapCount, roundsPerMap, currentMapSlot: 0, maps: practiceMapConfigs });
+}
+function selectCustomMapForPractice(slot = 0) {
+  if (!game.fpsCustomMap) return;
+  ensurePracticeMapConfigCount(practiceMapCountInput?.value || 1);
+  const index = Math.max(0, Math.min(practiceMapConfigs.length - 1, Math.floor(Number(slot) || 0)));
+  practiceMapConfigs[index] = {
+    mapValue: "custom",
+    mapIndex: 0,
+    customMapActive: true,
+    customMap: game.fpsCustomMap,
+    config: normalizePracticeConfig(rawConfigForMapValue("custom"))
+  };
+  syncPracticeMapPlanner();
+}
+function applyFpsMatchMapSlot(slot = game.fpsMatchConfig?.currentMapSlot || 0) {
+  const config = game.fpsMatchConfig;
+  if (!config?.maps?.length) return;
+  const nextSlot = Math.max(0, Math.min(config.maps.length - 1, Math.floor(Number(slot) || 0)));
+  config.currentMapSlot = nextSlot;
+  const entry = config.maps[nextSlot];
+  if (entry.customMapActive || entry.mapValue === "custom") {
+    if (entry.customMap) game.fpsCustomMap = entry.customMap;
+    game.fpsCustomMapActive = Boolean(game.fpsCustomMap);
+    game.fpsMapIndex = Number.isFinite(entry.mapIndex) ? entry.mapIndex : 0;
+  } else {
+    game.fpsCustomMapActive = false;
+    game.fpsMapIndex = Math.max(0, Math.min(fpsArenaThemes.length - 1, Math.floor(Number(entry.mapIndex ?? entry.mapValue ?? 0) || 0)));
+  }
+}
+
 function showMenuScene() {
   world.golfRoot.visible = true; world.arenaRoot.visible = false; camera.position.set(-28, 12, 28); camera.lookAt(0, 0, 0); camera.fov = 62; camera.updateProjectionMatrix();
 }
@@ -348,7 +633,38 @@ function setupWeapon() {
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
 function showMenu() { clearVictoryBanner(); game.phase = "menu"; menu.classList.remove("hidden"); lobby.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); document.querySelector("#network").classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); document.exitPointerLock?.(); showMenuScene(); }
-function showLobby() { clearVictoryBanner(); game.phase = "lobby"; lobby.classList.remove("hidden"); menu.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); showMenuScene(); if (game.role === "guest") { startGolfBtn.classList.add("hidden"); startFpsBtn.classList.add("hidden"); startRandomFpsBtn?.classList.add("hidden"); lobbyStatus.textContent = "Waiting for host to start..."; practiceMapOptions?.classList.add("hidden"); } else { startGolfBtn.classList.remove("hidden"); startFpsBtn.classList.remove("hidden"); startRandomFpsBtn?.classList.remove("hidden"); lobbyStatus.textContent = game.role === "solo" ? "Solo practice. Choose a mode." : `Peer connected! You are the host. Players: ${game.playerCount}`; if (game.role === "solo" && practiceMapOptions) { practiceMapOptions.classList.remove("hidden"); startGolfBtn.textContent = "Play Selected Golf Map"; startFpsBtn.textContent = "Play Selected FPS Map"; startRandomFpsBtn.textContent = "Random Loadout Duel"; populateMapSelects(); } else { practiceMapOptions?.classList.add("hidden"); startGolfBtn.textContent = "Start Tournament"; startFpsBtn.textContent = "Start FPS Match"; startRandomFpsBtn.textContent = "Random FPS Duel"; } } }
+function showLobby() {
+  clearVictoryBanner();
+  game.phase = "lobby";
+  lobby.classList.remove("hidden");
+  menu.classList.add("hidden");
+  resultPanel.classList.add("hidden");
+  hud.classList.add("hidden");
+  weaponSelectOverlay.classList.add("hidden");
+  overlay.classList.remove("fps");
+  showMenuScene();
+  if (game.role === "guest") {
+    startGolfBtn.classList.add("hidden");
+    startFpsBtn.classList.add("hidden");
+    startRandomFpsBtn?.classList.add("hidden");
+    lobbyStatus.textContent = "Waiting for host to start practice...";
+    practiceMapOptions?.classList.add("hidden");
+    return;
+  }
+  startGolfBtn.classList.remove("hidden");
+  startFpsBtn.classList.remove("hidden");
+  startRandomFpsBtn?.classList.remove("hidden");
+  lobbyStatus.textContent = game.role === "solo" ? "Solo practice. Choose a mode." : `Host practice lobby. Players: ${game.playerCount}`;
+  if (practiceMapOptions) practiceMapOptions.classList.remove("hidden");
+  if (playerCountSelect) {
+    playerCountSelect.disabled = game.role !== "solo";
+    playerCountSelect.value = String(Math.max(2, Math.min(6, game.playerCount || 2)));
+  }
+  startGolfBtn.textContent = game.role === "solo" ? "Play Selected Golf Map" : "Start Practice Tournament";
+  startFpsBtn.textContent = "Start Practice FPS";
+  startRandomFpsBtn.textContent = game.role === "solo" ? "Random Loadout Duel" : "Random FPS Duel";
+  populateMapSelects().then(() => syncPracticeMapPlanner());
+}
 function startGolf(courseIds = null) { clearVictoryBanner(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
 function applyGolfAtmosphere(hole) {
   if (!hole) return;
@@ -370,8 +686,10 @@ function enterFps(isSimulation = false, options = {}) {
   game.fpsMode = game.randomTournament ? "randomTournament" : "standard";
   if (options.randomWeapon) game.randomWeapon = options.randomWeapon;
   if (options.randomLoadout) game.randomLoadout = options.randomLoadout;
+  if (game.fpsMatchConfig?.maps?.length) applyFpsMatchMapSlot(game.fpsMatchConfig.currentMapSlot || 0);
   const loadout = activeLoadout();
   game.maxHealth = loadout.hp;
+  fps.gravity = activeFpsRules().gravity;
   if (!options.preserveFpsMatch) {
     game.fpsKillWins = Array(game.playerCount).fill(0);
     game.fpsMatchOver = false;
@@ -379,13 +697,14 @@ function enterFps(isSimulation = false, options = {}) {
   game.fpsRoundWinner = null; game.countdown = options.staticMock ? 0 : FPS_COUNTDOWN_DURATION; game.weaponSelectTimer = 0;
   const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], spawns = getArenaSpawnPoints(theme);
   const randomMelee = game.randomTournament && isRandomMeleeWeapon();
+  const allowedWeapons = loadoutWeaponList(loadout);
   const startingWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : 
-                         (loadout.weapons && loadout.weapons.length ? loadout.weapons[0] : "pistol");
-  const startAsMelee = startingWeapon === "melee";
+                         (allowedWeapons.find((id) => id !== "melee") || allowedWeapons[0] || "pistol");
+  const startAsMelee = randomMelee || startingWeapon === "melee";
   fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
   game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
   if (game.role === "solo") game.localIndex = 0;
-  setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState("gun", game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
+  setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState(game.activeWeapon, game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
 }
 
 function updateGolf(dt) {
@@ -1686,13 +2005,69 @@ function showFpsToast(text, detail = "") {
   banner.textContent = detail ? `${text} · ${detail}` : text;
   overlay.appendChild(banner);
 }
+function scoreLeader(values) {
+  const best = Math.max(...values);
+  const leaders = values.map((score, index) => score === best ? index : -1).filter((index) => index !== -1);
+  return leaders.length === 1 ? leaders[0] : -1;
+}
 function startVictoryLap(winner, reason, announce = true, alreadyRecorded = false) {
   if (game.phase === "result" || game.phase === "fpsVictoryLap") return;
-  let mapOver = false, matchOver = reason === "strokes"; if (reason === "deathmatch" && !alreadyRecorded) { game.fpsKillWins[winner]++; mapOver = game.fpsKillWins[winner] >= FPS_KILLS_TO_WIN_MAP || game.fpsKillWins.reduce((sum, wins) => sum + wins, 0) >= Math.max(3, game.playerCount); if (mapOver) { game.fpsMapWins[winner]++; matchOver = game.fpsMapWins[winner] >= 2; game.fpsMatchOver = matchOver; } } else if (reason === "deathmatch") { mapOver = game.fpsKillWins[winner] >= FPS_KILLS_TO_WIN_MAP || game.fpsKillWins.reduce((sum, wins) => sum + wins, 0) >= Math.max(3, game.playerCount); matchOver = game.fpsMatchOver; }
-  game.phase = "fpsVictoryLap"; game.result = { winner, reason, mapOver, matchOver }; game.fpsRoundWinner = winner; game.victoryLapStart = performance.now(); radarMarker.classList.add("hidden"); if (winner !== game.localIndex) { damageVignette.classList.remove("active"); activeDamagePops.forEach(p => p.element.remove()); activeDamagePops.length = 0; }
-  if (game.randomTournament && mapOver && !matchOver && announce) { applyRandomTournamentCombination(game.fpsMapIndex); }
-  showFpsToast((reason === "deathmatch" && !matchOver) ? (mapOver ? (winner === game.localIndex ? "MAP WON" : "MAP LOST") : (winner === game.localIndex ? "ROUND WON" : "ROUND LOST")) : (winner === game.localIndex ? "YOU WIN" : "YOU LOSE"));
-  if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() }); updateHud();
+  if (reason === "deathmatch" && !Number.isInteger(winner)) return;
+  const rules = activeFpsRules();
+  let mapOver = false;
+  let mapTied = false;
+  let matchOver = reason === "strokes";
+  let matchWinner = winner;
+
+  if (reason === "deathmatch" && !alreadyRecorded) {
+    game.fpsKillWins[winner]++;
+    const playedRounds = game.fpsKillWins.reduce((sum, wins) => sum + wins, 0);
+    mapOver = playedRounds >= rules.roundsPerMap;
+    if (mapOver) {
+      const mapWinner = scoreLeader(game.fpsKillWins);
+      mapTied = mapWinner === -1;
+      game.fpsCompletedMaps = (game.fpsCompletedMaps || 0) + 1;
+      if (!mapTied) game.fpsMapWins[mapWinner]++;
+      if (game.fpsMatchConfig?.maps?.length) {
+        matchOver = rules.currentMapSlot >= rules.mapCount - 1;
+      } else {
+        const bestMapWins = Math.max(...game.fpsMapWins);
+        matchOver = bestMapWins >= Math.ceil(rules.mapCount / 2) || (game.fpsCompletedMaps || 0) >= rules.mapCount;
+      }
+      if (matchOver) matchWinner = scoreLeader(game.fpsMapWins);
+      game.fpsMatchOver = matchOver;
+      game.fpsMatchWinner = matchOver ? matchWinner : null;
+    }
+  } else if (reason === "deathmatch") {
+    mapOver = game.fpsLastMapOver || game.fpsKillWins.reduce((sum, wins) => sum + wins, 0) >= rules.roundsPerMap;
+    mapTied = Boolean(game.fpsLastMapTied);
+    matchOver = game.fpsMatchOver;
+    matchWinner = game.fpsMatchWinner ?? winner;
+  }
+
+  game.fpsLastMapOver = mapOver;
+  game.fpsLastMapTied = mapTied;
+  game.phase = "fpsVictoryLap";
+  game.result = { winner, reason, mapOver, mapTied, matchOver, matchWinner };
+  game.fpsRoundWinner = winner;
+  game.victoryLapStart = performance.now();
+  radarMarker.classList.add("hidden");
+  if (winner !== game.localIndex) {
+    damageVignette.classList.remove("active");
+    activeDamagePops.forEach(p => p.element.remove());
+    activeDamagePops.length = 0;
+  }
+  if (game.randomTournament && mapOver && !matchOver && announce) applyRandomTournamentCombination(game.fpsMapIndex);
+  const localWonRound = winner === game.localIndex;
+  const localWonMatch = matchWinner === game.localIndex;
+  const mapWinner = mapOver ? scoreLeader(game.fpsKillWins) : null;
+  const localWonMap = mapWinner === game.localIndex;
+  const toast = reason === "deathmatch" && !matchOver
+    ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (localWonRound ? "ROUND WON" : "ROUND LOST"))
+    : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
+  showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
+  if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() });
+  updateHud();
 }
 function activateRadar() {
   if (game.phase !== "fps" || game.countdown > 0) return;
@@ -1743,7 +2118,7 @@ function finishMatch(winner, reason) {
   if (reason === "deathmatch") {
     overlay.classList.add("fps");
     resultPanel.classList.remove("hidden");
-    showFpsToast(winner === game.localIndex ? "YOU WIN" : "YOU LOSE", `Maps ${formatScores(game.fpsMapWins)}`);
+    showFpsToast(winner === -1 ? "MATCH TIED" : (winner === game.localIndex ? "YOU WIN" : "YOU LOSE"), `Maps ${formatScores(game.fpsMapWins)}`);
   } else {
     overlay.classList.remove("fps");
     document.getElementById("victoryBanner")?.remove();
@@ -1754,10 +2129,11 @@ function finishMatch(winner, reason) {
 function restartTournament(announce = true) { if (announce && game.role === "guest") return; resultPanel.classList.add("hidden"); if (announce) { send({ type: "restart" }); showLobby(); } else showLobby(); }
 function updateHud() {
   const totals = totalStrokes(), isFps = game.phase === "fps" || game.phase === "fpsVictoryLap";
-  holeLabel.textContent = isFps ? "Arena" : "Hole";
+  const rules = isFps ? activeFpsRules() : null;
+  holeLabel.textContent = isFps ? "Map" : "Hole";
   turnLabel.textContent = isFps ? "Rounds" : "Turn";
   strokeLabel.textContent = isFps ? "Maps" : "Strokes";
-  holeText.textContent = isFps ? `D${game.fpsMapIndex + 1}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? formatScores(game.fpsKillWins) : (game.role === "solo" ? "Solo" : `P${game.localIndex + 1}`); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
+  holeText.textContent = isFps ? `${rules.currentMapSlot + 1}/${rules.mapCount}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? `${formatScores(game.fpsKillWins)} / ${rules.roundsPerMap}` : (game.role === "solo" ? "Solo" : `P${game.localIndex + 1}`); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
   healthChip.classList.toggle("hidden", !isFps); healthText.textContent = `${Math.ceil(fps.players[game.localIndex].health)}`; abilityContainer.classList.toggle("hidden", !isFps);
   if (isFps) {
     for (const [name, id] of [["jump", "#jumpAbility"], ["heal", "#healAbility"], ["radar", "#radarAbility"], ["grenade", "#grenadeAbility"], ["jetpack", "#jetpackAbility"]]) {
@@ -1768,7 +2144,7 @@ function updateHud() {
         const hint = el.querySelector(".key-hint");
         if (hint) {
           const rawKey = getAbilityKey(name);
-          hint.textContent = rawKey.startsWith("Key") ? rawKey.substring(3) : rawKey;
+          hint.textContent = keyLabel(rawKey);
         }
       }
     }
@@ -1786,9 +2162,9 @@ function updateHud() {
 }
 function switchWeapon(wt) { if (game.radarTimer > 0) return; if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
 function selectPrimaryWeapon(wp, animate = false) { if (game.radarTimer > 0) return; if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
-function cycleWeaponCard(dir) { if (game.radarTimer > 0) return; if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = activeWeaponIds(), nI = (ws.indexOf(game.primaryWeapon) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
+function cycleWeaponCard(dir) { if (game.radarTimer > 0) return; if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; if (game.randomTournament) return; const ws = activeWeaponIds(); if (!ws.length) return; const nI = (Math.max(0, ws.indexOf(game.primaryWeapon)) + dir + ws.length) % ws.length; pickWeaponCard(ws[nI], game.countdown <= 0); }
 function pickWeaponCard(wp, animate = false) { if (game.radarTimer > 0) return; if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return; weaponCards.forEach(c => c.classList.toggle("active", c.getAttribute("data-weapon") === wp)); selectPrimaryWeapon(wp, animate); }
-function normalWeaponChoices() { return [...activeWeaponIds().map((primary) => ({ active: "gun", primary })), { active: "melee", primary: activeWeaponIds()[0] || "pistol" }]; }
+function normalWeaponChoices() { const guns = activeWeaponIds().map((primary) => ({ active: "gun", primary })); return meleeAllowed() ? [...guns, { active: "melee", primary: guns[0]?.primary || "pistol" }] : guns; }
 function applyRandomTournamentCombination(excludeMapIndex = -1) {
   if (!game.randomTournamentPlayedMaps) {
     game.randomTournamentPlayedMaps = [];
@@ -1849,6 +2225,7 @@ function cycleActiveWeapon(dir) {
     return;
   }
   const choices = normalWeaponChoices();
+  if (!choices.length) return;
   const cI = game.activeWeapon === "melee" ? choices.length - 1 : Math.max(0, choices.findIndex(i => i.active === "gun" && i.primary === game.primaryWeapon));
   const n = choices[(cI + dir + choices.length) % choices.length];
   if (n.active === "melee") switchWeapon("melee");
@@ -1861,7 +2238,9 @@ function requestWeaponSwap(aw, pw = game.primaryWeapon) {
     const targetWeapon = aw === "melee" ? "melee" : pw;
     if (!game.randomLoadout.weapons.includes(targetWeapon)) return;
   } else {
-    if (aw !== "melee" && !standardWeaponIds.includes(pw)) return;
+    if (aw === "melee") {
+      if (!meleeAllowed()) return;
+    } else if (!activeWeaponIds().includes(pw)) return;
   }
   game.pendingActiveWeapon = aw;
   game.pendingPrimaryWeapon = pw;
@@ -1899,7 +2278,15 @@ function applyWeaponState(aw, pw = game.primaryWeapon) {
       else { aw = "gun"; pw = game.randomWeapon; }
     }
   } else {
-    if (aw !== "melee" && !standardWeaponIds.includes(pw)) pw = "pistol";
+    const allowedGuns = activeWeaponIds();
+    if (aw === "melee") {
+      if (!meleeAllowed()) {
+        aw = "gun";
+        pw = allowedGuns[0] || "pistol";
+      }
+    } else if (!allowedGuns.includes(pw)) {
+      pw = allowedGuns[0] || "pistol";
+    }
   }
   const changed = game.primaryWeapon !== pw || game.activeWeapon !== aw;
   game.activeWeapon = aw;
@@ -1925,9 +2312,15 @@ function resetFpsDuelState(randomTournament = false) {
   ensureFpsPlayers(game.playerCount);
   game.fpsMapWins = Array(game.playerCount).fill(0);
   game.fpsKillWins = Array(game.playerCount).fill(0);
+  game.fpsRoundWinner = null;
+  game.fpsLastMapOver = false;
+  game.fpsLastMapTied = false;
+  game.fpsCompletedMaps = 0;
+  game.fpsMatchWinner = null;
   game.fpsMatchOver = false;
   game.randomTournament = randomTournament;
   game.fpsMode = randomTournament ? "randomTournament" : "standard";
+  game.fpsMatchConfig = null;
   if (randomTournament) {
     game.randomTournamentPlayedMaps = [];
     applyRandomTournamentCombination();
@@ -1936,24 +2329,72 @@ function resetFpsDuelState(randomTournament = false) {
     game.randomWeapon = "pistol";
     game.randomLoadout = null;
     game.maxHealth = 100;
+    fps.gravity = FPS_DEFAULT_GRAVITY;
   }
 }
-function serializeFpsDuelState() { return { playerCount: game.playerCount, mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomTournamentPlayedMaps: game.randomTournamentPlayedMaps, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl, customMapActive: game.fpsCustomMapActive }; }
-function applyFpsDuelState(s) { if (!s) return; game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount); ensureFpsPlayers(game.playerCount); game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins || game.fpsMapWins; game.fpsKillWins = s.killWins || game.fpsKillWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomTournamentPlayedMaps !== undefined) game.randomTournamentPlayedMaps = s.randomTournamentPlayedMaps; if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; if (s.customMapActive !== undefined) game.fpsCustomMapActive = s.customMapActive; updateHud(); }
+function serializeFpsDuelState() {
+  return {
+    playerCount: game.playerCount,
+    mapIndex: game.fpsMapIndex,
+    fpsMatchConfig: game.fpsMatchConfig,
+    mapWins: game.fpsMapWins,
+    killWins: game.fpsKillWins,
+    roundWinner: game.fpsRoundWinner,
+    lastMapOver: game.fpsLastMapOver,
+    lastMapTied: game.fpsLastMapTied,
+    completedMaps: game.fpsCompletedMaps,
+    matchWinner: game.fpsMatchWinner,
+    matchOver: game.fpsMatchOver,
+    randomTournament: game.randomTournament,
+    randomTournamentPlayedMaps: game.randomTournamentPlayedMaps,
+    randomWeapon: game.randomWeapon,
+    randomLoadout: game.randomLoadout,
+    customMap: game.fpsCustomMap,
+    importedAssetUrl: game.fpsImportedAssetUrl,
+    customMapActive: game.fpsCustomMapActive
+  };
+}
+function applyFpsDuelState(s) {
+  if (!s) return;
+  game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount);
+  ensureFpsPlayers(game.playerCount);
+  game.fpsMapIndex = s.mapIndex ?? game.fpsMapIndex;
+  game.fpsMatchConfig = sanitizeFpsMatchConfig(s.fpsMatchConfig);
+  game.fpsMapWins = s.mapWins || game.fpsMapWins;
+  game.fpsKillWins = s.killWins || game.fpsKillWins;
+  game.fpsRoundWinner = s.roundWinner ?? game.fpsRoundWinner;
+  game.fpsLastMapOver = Boolean(s.lastMapOver);
+  game.fpsLastMapTied = Boolean(s.lastMapTied);
+  game.fpsCompletedMaps = Math.max(0, Math.floor(Number(s.completedMaps || 0) || 0));
+  game.fpsMatchWinner = s.matchWinner ?? null;
+  game.fpsMatchOver = Boolean(s.matchOver);
+  game.randomTournament = Boolean(s.randomTournament);
+  if (s.randomTournamentPlayedMaps !== undefined) game.randomTournamentPlayedMaps = s.randomTournamentPlayedMaps;
+  if (s.randomWeapon) game.randomWeapon = s.randomWeapon;
+  game.randomLoadout = s.randomLoadout || null;
+  game.maxHealth = game.randomLoadout?.hp || activeLoadout().hp || 100;
+  if (s.customMap !== undefined) game.fpsCustomMap = s.customMap;
+  if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl;
+  if (s.customMapActive !== undefined) game.fpsCustomMapActive = s.customMapActive;
+  if (game.fpsMatchConfig?.maps?.length) applyFpsMatchMapSlot(game.fpsMatchConfig.currentMapSlot || 0);
+  updateHud();
+}
 function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]; const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 }; const x = Number.isFinite(s.x) ? s.x : spawn.x; const z = Number.isFinite(s.z) ? s.z : spawn.z; const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme); r.targetPos.set(x, y, z); if (r.targetPos.y < -8) { r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
 function resetNetworkMotion() {}
 function continueFpsDuel() {
   document.getElementById("victoryBanner")?.remove();
   if (game.role !== "guest") {
     if (game.result?.mapOver) {
-      if (!game.randomTournament) {
+      if (game.fpsMatchConfig?.maps?.length && !game.randomTournament) {
+        applyFpsMatchMapSlot((game.fpsMatchConfig.currentMapSlot || 0) + 1);
+      } else if (!game.randomTournament) {
         game.fpsMapIndex = chooseRandomFpsMap(game.fpsMapIndex);
       }
       game.fpsKillWins = Array(game.playerCount).fill(0);
+      game.fpsLastMapOver = false;
+      game.fpsLastMapTied = false;
     }
-    if (game.role === "host") {
-      send({ type: "phaseFps", fpsState: serializeFpsDuelState() });
-    }
+    if (game.role === "host") send({ type: "phaseFps", fpsState: serializeFpsDuelState() });
     enterFps(false, {
       preserveFpsMatch: true,
       staticMock: game.fpsMockStatic,
@@ -2042,7 +2483,7 @@ function animate(now = performance.now()) {
   const dt = Math.min(0.033, (now - lastFrame) / 1000 || clock.getDelta()); lastFrame = now;
   if (game.phase === "golf") updateGolf(dt); if (game.phase === "fps") { if (input.shootHeld && game.activeWeapon === "gun") fireHitscan(); updateFps(dt, now); }
   if (game.phase === "fpsVictoryLap") {
-    updateFps(dt, now); const elapsed = (now - game.victoryLapStart) / 1000, target = fps.players[game.result.winner], isW = game.localIndex === game.result.winner;
+    updateFps(dt, now); const elapsed = (now - game.victoryLapStart) / 1000, target = fps.players[game.result.winner] || fps.players[game.localIndex], isW = game.localIndex === game.result.winner;
     if (!isW) {
       const dir = directionFromAngles(target.yaw, target.pitch);
       camera.position.set(
@@ -2054,7 +2495,7 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    if (elapsed >= 3.2) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.winner, game.result.reason); }
+    if (elapsed >= 3.2) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
   }
   renderer.render(scene, camera); requestAnimationFrame(animate);
 }
@@ -2088,7 +2529,7 @@ window.addEventListener("keydown", (e) => {
           } else {
             const aw = activeWeaponIds();
             if (digit <= aw.length) pickWeaponCard(aw[digit - 1] || "pistol", true);
-            else if (digit === aw.length + 1) switchWeapon("melee");
+            else if (meleeAllowed() && digit === aw.length + 1) switchWeapon("melee");
           }
         }
         else if (c === "KeyB") toggleBuildMode();
@@ -2112,9 +2553,7 @@ startGolfBtn.addEventListener("click", () => {
   if (game.role !== "guest") { 
     if (game.role === "solo") syncPlayerCountFromUi();
     let ids = drawTournamentHoleIds();
-    if (game.role === "solo" && golfMapSelect?.value !== "") {
-      ids = [golfMapSelect.value];
-    }
+    if (golfMapSelect?.value !== "") ids = [golfMapSelect.value];
     send({ type: "startTournament", courseIds: ids, playerCount: game.playerCount }); 
     startGolf(ids); 
   } 
@@ -2122,20 +2561,9 @@ startGolfBtn.addEventListener("click", () => {
 startFpsBtn.addEventListener("click", () => { 
   if (game.role !== "guest") { 
     if (game.role === "solo") syncPlayerCountFromUi();
-    resetFpsDuelState(false); 
-    if (game.role === "solo" && fpsMapSelect?.value !== "") {
-       if (fpsMapSelect.value === "custom" && game.fpsCustomMap) {
-         game.fpsMapIndex = 0;
-         game.fpsCustomMapActive = true;
-       } else {
-         game.fpsMapIndex = Number(fpsMapSelect.value);
-         game.fpsCustomMap = null;
-         game.fpsCustomMapActive = false;
-       }
-    } else {
-       game.fpsCustomMap = null;
-       game.fpsCustomMapActive = false;
-    }
+    resetFpsDuelState(false);
+    game.fpsMatchConfig = buildFpsMatchConfigFromUi();
+    applyFpsMatchMapSlot(0);
     send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); 
     enterFps(false, { preserveFpsMatch: true }); 
   } 
@@ -2143,10 +2571,12 @@ startFpsBtn.addEventListener("click", () => {
 startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { if (game.role === "solo") syncPlayerCountFromUi(); resetFpsDuelState(true); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
 leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
 settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidden")); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); menuSensitivityInput?.addEventListener("input", () => syncSensitivity(menuSensitivityInput.value));
+practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
+practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());
 fovInput?.addEventListener("input", () => syncFov(fovInput.value));
 ingameLeaveBtn?.addEventListener("click", () => { document.exitPointerLock?.(); closePeer(); showMenu(); });
 function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
-loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.fpsCustomMap) addCustomMapOptionSelect(); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
+loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.fpsCustomMap) { addCustomMapOptionSelect(); selectCustomMapForPractice(); } else syncPracticeMapPlanner(); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
 saveMapBtn?.addEventListener("click", () => { game.fpsCustomMap ||= { version: 1, boxes: [] }; const text = JSON.stringify(game.fpsCustomMap, null, 2); if (mapJsonInput) mapJsonInput.value = text; localStorage.setItem("golfDuelCustomArena", text); });
 loadAssetBtn?.addEventListener("click", () => { game.fpsImportedAssetUrl = assetUrlInput?.value.trim() || ""; localStorage.setItem("golfDuelArenaAsset", game.fpsImportedAssetUrl); if (game.phase === "fps") setupArena(); });
 
@@ -2162,6 +2592,7 @@ mapUploadInput?.addEventListener("change", (e) => {
         localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
         if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
         addCustomMapOptionSelect();
+        selectCustomMapForPractice();
         console.log("Successfully loaded custom JSON map", game.fpsCustomMap);
       } catch (err) {
         alert("Failed to parse JSON map");
@@ -2188,6 +2619,7 @@ mapUploadInput?.addEventListener("change", (e) => {
       localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
       if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
       addCustomMapOptionSelect();
+      selectCustomMapForPractice();
       console.log("Successfully loaded custom GLB map", game.fpsCustomMap);
     };
     reader.readAsDataURL(file);
@@ -2203,7 +2635,7 @@ if (gdRoom && gdRole) {
   else if (gdRole === "host") createMatch();
   else if (gdRole === "guest") joinMatch();
 }
-try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; if (assetUrlInput) assetUrlInput.value = game.fpsImportedAssetUrl; } catch {}
+try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2); addCustomMapOptionSelect(); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; if (assetUrlInput) assetUrlInput.value = game.fpsImportedAssetUrl; } catch {}
 function showDamageTaken(amount) {
   damageVignette.classList.remove("active");
   void damageVignette.offsetWidth;
@@ -2238,6 +2670,7 @@ function applyLoadedContent(content) {
   weaponIds = Object.keys(weaponCatalog);
   game.ammo = freshAmmoState();
   syncWeaponCardText();
+  syncPracticeMapPlanner();
 }
 
 function syncWeaponCardText() {

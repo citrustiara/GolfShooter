@@ -428,6 +428,13 @@ input:focus {
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
 }
 
+#lobby {
+  width: min(860px, calc(100vw - 34px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .menu h1,
 .result h1 {
   margin: 0 0 10px;
@@ -524,6 +531,151 @@ input:focus {
   filter: grayscale(0.75);
 }
 
+.practice-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.practice-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.practice-header strong {
+  font-size: 0.95rem;
+}
+
+.practice-header span,
+.practice-map-summary {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.practice-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.practice-controls label,
+.practice-detail label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.practice-map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: min(44vh, 520px);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.practice-map-row {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.75rem;
+}
+
+.practice-map-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.practice-map-index {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(126, 226, 168, 0.16);
+  border: 1px solid rgba(126, 226, 168, 0.32);
+  font-weight: 900;
+}
+
+.practice-config-btn {
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.practice-detail {
+  display: none;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.practice-map-row.open .practice-detail {
+  display: block;
+}
+
+.practice-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.practice-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.45rem;
+  margin: 0.45rem 0 0.75rem;
+}
+
+.practice-check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem !important;
+  padding: 0.45rem 0.5rem;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.22);
+  font-weight: 700 !important;
+}
+
+.practice-check input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--mint);
+  box-shadow: none;
+}
+
+.practice-ability-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.practice-ability-row .practice-check {
+  margin: 0;
+}
+
+.practice-ability-row select {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
 
 .tool-row {
   display: flex;
@@ -832,7 +984,10 @@ input:focus {
     grid-template-columns: 1fr;
   }
 
-  .tool-row {
+  .tool-row,
+  .practice-controls,
+  .practice-stat-grid,
+  .practice-map-main {
     grid-template-columns: 1fr;
   }
 }

@@ -133,13 +133,25 @@
           </label>
         </div>
         
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem;">
-          <label style="display: flex; flex-direction: column; gap: 0.5rem; font-weight: bold; font-size: 0.9rem;">
-            FPS Map:
-            <select id="fpsMapSelect">
-              <option value="">Standard Match (Random Maps)</option>
-            </select>
-          </label>
+        <div class="practice-card">
+          <select id="fpsMapSelect" class="hidden">
+            <option value="">Standard Match (Random Maps)</option>
+          </select>
+          <div class="practice-header">
+            <strong>FPS Practice Maps</strong>
+            <span>Each map can have separate weapons, abilities, speed, and gravity.</span>
+          </div>
+          <div class="practice-controls">
+            <label>
+              Maps
+              <input id="practiceMapCountInput" type="number" min="1" max="9" step="1" value="1" />
+            </label>
+            <label>
+              Rounds per map
+              <input id="practiceRoundsInput" type="number" min="1" max="21" step="1" value="3" />
+            </label>
+          </div>
+          <div id="practiceMapList" class="practice-map-list"></div>
         </div>
 
         <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem;">

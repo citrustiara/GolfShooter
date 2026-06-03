@@ -179,6 +179,15 @@ function broadcast(message, exceptConnection = null) {
   }
 }
 
+function survivingFpsPlayerIndexes() {
+  return fps.players.map((player, index) => player.health > 0 ? index : -1).filter((index) => index !== -1);
+}
+
+function startRoundIfOnlyOneSurvivor() {
+  const alive = survivingFpsPlayerIndexes();
+  if (alive.length === 1) networkLinks.startVictoryLap(alive[0], "deathmatch", false);
+}
+
 function shouldRelay(message) {
   return [
     "startTournament",
@@ -299,7 +308,7 @@ export function handleMessage(message, sourceConnection = null) {
       networkLinks.showDamageTaken(dmg);
       if (fps.players[game.localIndex].health <= 0) {
         networkLinks.showKilledBy(message.isMelee ? "Club" : networkLinks.weaponLabel(message.weapon));
-        networkLinks.startVictoryLap(Number.isInteger(message.player) ? message.player : 1 - game.localIndex, "deathmatch", false);
+        startRoundIfOnlyOneSurvivor();
       }
     }
   }
@@ -325,7 +334,7 @@ export function handleMessage(message, sourceConnection = null) {
       networkLinks.showDamageTaken(localDamage.damage);
       if (fps.players[game.localIndex].health <= 0) {
         networkLinks.showKilledBy("Grenade");
-        networkLinks.startVictoryLap(message.owner, "deathmatch", false);
+        startRoundIfOnlyOneSurvivor();
       }
     }
   }
