@@ -2632,8 +2632,11 @@ const gdRole = sessionStorage.getItem("gd_role");
 if (gdRoom && gdRole) {
   phraseInput.value = gdRoom;
   if (gdRole === "solo") beginLocalMatch(gdRoom);
-  else if (gdRole === "host") createMatch();
   else if (gdRole === "guest") joinMatch();
+  else {
+    sessionStorage.removeItem("gd_room");
+    sessionStorage.removeItem("gd_role");
+  }
 }
 try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2); addCustomMapOptionSelect(); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; if (assetUrlInput) assetUrlInput.value = game.fpsImportedAssetUrl; } catch {}
 function showDamageTaken(amount) {

@@ -58,6 +58,8 @@ export function closePeer() {
   conn = null;
   peer = null;
   game.connected = false;
+  sessionStorage.removeItem("gd_room");
+  sessionStorage.removeItem("gd_role");
 }
 
 export async function createMatch() {
@@ -124,7 +126,11 @@ export async function joinMatch() {
       sessionStorage.setItem("gd_role", "guest");
       attachConnection(peer.connect(room, { reliable: true }));
     });
-    peer.on("error", (error) => { if (menuError) menuError.textContent = `Connection broker: ${error.type}`; });
+    peer.on("error", (error) => {
+      if (menuError) menuError.textContent = error.type === "network"
+        ? "Connection broker: websocket failed. Try Incognito, disable VPN/adblock, or use another network."
+        : `Connection broker: ${error.type}`;
+    });
   } catch (error) {
     if (menuError) menuError.textContent = "PeerJS could not start in this browser.";
   }

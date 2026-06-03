@@ -67,26 +67,28 @@ async function loadWeaponContent() {
       // Non-fatal if JSON model doesn't exist
     }
 
-    // 2. Try to load GLB file
-    const glbUrl = weapons[id].glb || `assets/weapons/models/${id}.glb`;
-    try {
-      const gltf = await new Promise((resolve, reject) => {
-        gltfLoader.load(glbUrl, resolve, undefined, reject);
-      });
-      if (gltf && gltf.scene) {
-        weapons[id].glbModel = gltf.scene;
-        gltf.scene.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
+    // 2. Try to load a GLB file only when the weapon explicitly declares one.
+    // Most weapons use JSON part models; probing id.glb for all of them creates noisy 404s.
+    if (weapons[id].glb) {
+      try {
+        const gltf = await new Promise((resolve, reject) => {
+          gltfLoader.load(weapons[id].glb, resolve, undefined, reject);
         });
-        console.log(`Loaded GLB model for weapon: ${id}`);
-      }
-    } catch (err) {
-      // Fallback: If GLB loading fails and we have no parts from JSON, log warning
-      if (!weapons[id].parts) {
-        console.warn(`Could not load GLB or JSON model for weapon ${id}:`, err);
+        if (gltf && gltf.scene) {
+          weapons[id].glbModel = gltf.scene;
+          gltf.scene.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          console.log(`Loaded GLB model for weapon: ${id}`);
+        }
+      } catch (err) {
+        // Fallback: If GLB loading fails and we have no parts from JSON, log warning
+        if (!weapons[id].parts) {
+          console.warn(`Could not load GLB or JSON model for weapon ${id}:`, err);
+        }
       }
     }
   }));
