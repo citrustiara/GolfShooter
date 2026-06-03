@@ -2,7 +2,7 @@ import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 import { 
   GOLF_AIM_SENSITIVITY, GOLF_MAX_SHOT_SPEED, GOLF_GROUND_FRICTION, GOLF_ICE_FRICTION, CUP_PULL_RADIUS, CUP_PULL_FORCE, CUP_SINK_RADIUS, CUP_SINK_SPEED_MAX, CUP_SURFACE_Y, 
   FPS_LASER_TTL, FPS_BASE_MOUSE_SENSITIVITY, FPS_PLAYER_HIT_RADIUS, FPS_AIM_SENSITIVITY_MULTIPLIER, FPS_DEFAULT_FOV, FPS_AIM_FOV, FPS_SNIPER_AIM_FOV, 
-  FPS_HEAD_HIT_RADIUS, FPS_BODY_HIT_RADIUS, GRENADE_COOLDOWN, GRENADE_SPEED, GRENADE_GRAVITY, GRENADE_SPLASH_RADIUS, GRENADE_MAX_DAMAGE, HOLES_PER_TOURNAMENT, 
+  FPS_HEAD_HIT_RADIUS, FPS_BODY_HIT_RADIUS, FPS_HEAD_HIT_HEIGHT, FPS_BODY_HIT_HEIGHT, FPS_SLIDE_VISUAL_DROP, GRENADE_COOLDOWN, GRENADE_SPEED, GRENADE_GRAVITY, GRENADE_SPLASH_RADIUS, GRENADE_MAX_DAMAGE, HOLES_PER_TOURNAMENT, 
   FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, FPS_KILLS_TO_WIN_MAP, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons,
   tournamentCombinations
 } from "./core/constants.js";
@@ -15,6 +15,15 @@ import { setupArena, makePlayerMesh, clampArenaPosition, isPointInsideArena, get
 import { fpsArenaThemes } from "./fps/themes.js";
 import { loadGameContent } from "./content/loader.js";
 import { rampLocalPoint, rampSurfaceInfo, rampSurfaceY, rampUphillDirection, rampWorldPoint } from "./core/ramps.js";
+import {
+  collideSphereWithTriangleMeshColliders,
+  meshGroundSurface,
+  meshSurfaceYAtPoint,
+  raycastTriangleMeshColliders,
+  resolvePlayerCeilingVsTriangleMeshColliders,
+  resolvePlayerVsTriangleMeshColliders,
+  sphereIntersectsTriangleMeshColliders
+} from "./fps/mesh-collision.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeLabel = document.querySelector("#holeLabel"), turnLabel = document.querySelector("#turnLabel"), strokeLabel = document.querySelector("#strokeLabel"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), jetpackOverlay = document.querySelector("#jetpackOverlay"), jetpackCDText = document.querySelector("#jetpackCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
 const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), playerCountSelect = document.querySelector("#playerCountSelect"), mapUploadInput = document.querySelector("#mapUploadInput");
@@ -25,6 +34,8 @@ const FPS_RAMP_LAND_EPSILON = 0.10;
 const FPS_RAMP_STEP_UP = 0.46;
 const FPS_RAMP_STEP_DOWN = 0.72;
 const FPS_RAMP_SOLID_TOP_CLEARANCE = 0.06;
+const FPS_WALK_MAX_SPEED = 13.6;
+const FPS_SLIDE_MAX_SPEED = 21.0;
 const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null;
 let weaponIds = Object.keys(weaponCatalog);
 let standardWeaponIds = ["pistol", "rifle", "sniper"];
@@ -111,7 +122,7 @@ function ensureFpsPlayers(count = game.playerCount) {
   const targetCount = Math.max(2, Math.floor(count || 2));
   game.playerCount = targetCount;
   while (fps.players.length < targetCount) {
-    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, primaryWeapon: "pistol" });
+    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol" });
   }
   if (fps.players.length > targetCount) fps.players.length = targetCount;
   for (const prop of ["fpsMapWins", "fpsKillWins"]) {
@@ -194,9 +205,31 @@ async function populateMapSelects() {
       opt.value = i; opt.textContent = path.split("/").pop().replace(".json", "");
       fpsMapSelect.appendChild(opt);
     });
+    if (game.fpsCustomMap) {
+      addCustomMapOptionSelect();
+    }
   } catch (e) {
     console.error("Failed to load map manifest", e);
   }
+}
+
+function addCustomMapOptionSelect() {
+  if (!fpsMapSelect || !game.fpsCustomMap) return;
+  let exists = false;
+  for (let i = 0; i < fpsMapSelect.options.length; i++) {
+    if (fpsMapSelect.options[i].value === "custom") {
+      exists = true;
+      fpsMapSelect.options[i].textContent = "Custom: " + (game.fpsCustomMap.name || "Uploaded Map");
+      break;
+    }
+  }
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = "custom";
+    opt.textContent = "Custom: " + (game.fpsCustomMap.name || "Uploaded Map");
+    fpsMapSelect.appendChild(opt);
+  }
+  fpsMapSelect.value = "custom";
 }
 
 function showMenuScene() {
@@ -210,6 +243,21 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
   }
   const cfg = weaponCatalog[weaponId];
   if (!cfg) return;
+
+  if (cfg.glbModel) {
+    const clone = cfg.glbModel.clone();
+    targetGroup.add(clone);
+    
+    const tip = new THREE.Group();
+    const muzzle = cfg.muzzle || { x: 0, y: 0.08, z: -1.0 };
+    tip.position.set(muzzle.x, muzzle.y, muzzle.z);
+    targetGroup.add(tip);
+    
+    if (targetGroup === world.weapon) {
+      world.weaponTip = tip;
+    }
+    return;
+  }
 
   const parts = cfg.parts || [];
   parts.forEach(part => {
@@ -334,7 +382,7 @@ function enterFps(isSimulation = false, options = {}) {
   const startingWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : 
                          (loadout.weapons && loadout.weapons.length ? loadout.weapons[0] : "pistol");
   const startAsMelee = startingWeapon === "melee";
-  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
+  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
   game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
   if (game.role === "solo") game.localIndex = 0;
   setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState("gun", game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
@@ -726,7 +774,7 @@ function updateFps(dt, now) {
     }
     updateRadarMarker();
   }
-  updateGrenades(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes();
+  updateGrenades(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt);
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
   if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon }); }
   updateHud();
@@ -807,7 +855,7 @@ function updateWeaponModel(dt, p) {
     
     // Dynamic drop amount to prevent clipping through floor
     let dropAmount = 0.75;
-    let groundY = world.arenaFloors.length > 0 ? 0.0 : -60;
+    let groundY = (world.arenaFloorCollision !== false && world.arenaFloors.length > 0) ? 0.0 : -60;
     for (const plat of world.platforms) {
       const b = new THREE.Box3().setFromObject(plat);
       if (camera.position.x > b.min.x && camera.position.x < b.max.x && camera.position.z > b.min.z && camera.position.z < b.max.z) {
@@ -818,6 +866,8 @@ function updateWeaponModel(dt, p) {
       const y = rampSurfaceY(ramp, camera.position, 0);
       if (y !== null) groundY = Math.max(groundY, y);
     }
+    const meshY = meshSurfaceYAtPoint(world.meshColliders, camera.position, 0.12);
+    if (meshY !== null) groundY = Math.max(groundY, meshY);
     const minWeaponY = groundY + 0.18;
     const weaponYWithoutAnim = camera.position.y + offset.y;
     const maxAllowableDrop = weaponYWithoutAnim - minWeaponY;
@@ -834,7 +884,7 @@ function updateWeaponModel(dt, p) {
   weapon.position.copy(camera.position).add(offset).add(up.clone().multiplyScalar(animY));
 
   // Apply ground safety clamp for normal movement
-  let groundY = world.arenaFloors.length > 0 ? 0.0 : -60;
+  let groundY = (world.arenaFloorCollision !== false && world.arenaFloors.length > 0) ? 0.0 : -60;
   for (const plat of world.platforms) {
     const b = new THREE.Box3().setFromObject(plat);
     if (weapon.position.x > b.min.x && weapon.position.x < b.max.x && weapon.position.z > b.min.z && weapon.position.z < b.max.z) {
@@ -845,6 +895,8 @@ function updateWeaponModel(dt, p) {
     const y = rampSurfaceY(ramp, weapon.position, 0);
     if (y !== null) groundY = Math.max(groundY, y);
   }
+  const meshY = meshSurfaceYAtPoint(world.meshColliders, weapon.position, 0.12);
+  if (meshY !== null) groundY = Math.max(groundY, meshY);
   const minWeaponY = groundY + 0.18;
   if (weapon.position.y < minWeaponY) {
     weapon.position.y = minWeaponY;
@@ -876,7 +928,7 @@ function updateFpsMovement(dt) {
   input.slideKeyWasDown = slideKey;
   
   // Snappy movement: accel 220, friction 0.80 when moving, 0.65 when stopping
-  const accel = p.sliding ? 32 : (p.grounded ? 220 : 25), maxSpeed = (p.sliding ? 22 : 14.5) * weaponMoveScale;
+  const accel = p.sliding ? 31 : (p.grounded ? 210 : 24), maxSpeed = (p.sliding ? FPS_SLIDE_MAX_SPEED : FPS_WALK_MAX_SPEED) * weaponMoveScale;
   p.vel.addScaledVector(move, accel * weaponMoveScale * dt);
   const baseFriction = p.sliding ? 0.976 : (p.grounded ? (move.lengthSq() > 0 ? 0.80 : 0.65) : 0.985);
   const friction = Math.pow(baseFriction, dt * 60);
@@ -911,6 +963,7 @@ function updateFpsMovement(dt) {
         }
       }
     }
+    resolvePlayerCeilingVsTriangleMeshColliders(world.meshColliders, p, previousY, FPS_PLAYER_HEIGHT_WORLD, FPS_PLAYER_RADIUS_WORLD);
   }
   
   let onPlat = false;
@@ -925,12 +978,20 @@ function updateFpsMovement(dt) {
     onPlat = true;
     platSurface = rampSurface.surface;
   } else {
-    const flatSurface = fpsFlatSurfaceY(p.pos, previousY, p.vel.y, wasGrounded, wasGroundSurface);
-    if (flatSurface) {
-      p.pos.y = flatSurface.y;
+    const meshSurface = meshGroundSurface(world.meshColliders, p.pos, previousPosition, p.vel.y, wasGrounded, wasGroundSurface, FPS_PLAYER_RADIUS_WORLD);
+    if (meshSurface) {
+      p.pos.y = meshSurface.y;
       p.vel.y = 0;
       onPlat = true;
-      platSurface = flatSurface.surface;
+      platSurface = meshSurface.surface;
+    } else {
+      const flatSurface = fpsFlatSurfaceY(p.pos, previousY, p.vel.y, wasGrounded, wasGroundSurface);
+      if (flatSurface) {
+        p.pos.y = flatSurface.y;
+        p.vel.y = 0;
+        onPlat = true;
+        platSurface = flatSurface.surface;
+      }
     }
   }
   if (onPlat) {
@@ -940,18 +1001,20 @@ function updateFpsMovement(dt) {
   // Check floors
   let onFloor = false;
   let bestFloorY = -Infinity;
-  for (const floor of world.arenaFloors) {
-    if (floor.type === "circle") {
-      if (Math.hypot(p.pos.x - floor.x, p.pos.z - floor.z) <= floor.r + FPS_PLAYER_RADIUS_WORLD) {
-        const y = Number(floor.y || 0);
-        if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
-      }
-    } else {
-      const halfX = (floor.sx || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
-      const halfZ = (floor.sz || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
-      if (Math.abs(p.pos.x - floor.x) <= halfX && Math.abs(p.pos.z - floor.z) <= halfZ) {
-        const y = Number(floor.y || 0);
-        if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
+  if (world.arenaFloorCollision !== false) {
+    for (const floor of world.arenaFloors) {
+      if (floor.type === "circle") {
+        if (Math.hypot(p.pos.x - floor.x, p.pos.z - floor.z) <= floor.r + FPS_PLAYER_RADIUS_WORLD) {
+          const y = Number(floor.y || 0);
+          if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
+        }
+      } else {
+        const halfX = (floor.sx || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
+        const halfZ = (floor.sz || 1) / 2 + FPS_PLAYER_RADIUS_WORLD;
+        if (Math.abs(p.pos.x - floor.x) <= halfX && Math.abs(p.pos.z - floor.z) <= halfZ) {
+          const y = Number(floor.y || 0);
+          if (y > bestFloorY) { bestFloorY = y; onFloor = true; }
+        }
       }
     }
   }
@@ -979,11 +1042,13 @@ function updateFpsMovement(dt) {
     p.vel.set(0, 0, 0);
   }
   clampArenaPosition(p.pos, FPS_PLAYER_RADIUS_WORLD);
+  resolvePlayerVsTriangleMeshColliders(world.meshColliders, p, previousPosition, FPS_PLAYER_RADIUS_WORLD, FPS_PLAYER_HEIGHT_WORLD);
   for (const obs of world.obstacles) {
     if (obs.userData?.isRamp) continue;
     if (shouldSkipCompositeSurfaceCollision(p, obs)) continue;
     resolvePlayerVsMeshObb(p.pos, obs, FPS_PLAYER_RADIUS_WORLD);
   }
+  resolvePlayerVsTriangleMeshColliders(world.meshColliders, p, previousPosition, FPS_PLAYER_RADIUS_WORLD, FPS_PLAYER_HEIGHT_WORLD);
   clampArenaPosition(p.pos, FPS_PLAYER_RADIUS_WORLD);
 }
 
@@ -1128,20 +1193,27 @@ function resolvePlayerVsRampSolid(player, previousPosition, ramp, radius) {
 
 function resolvePlayerVsMeshObb(position, mesh, radius) {
   if (!mesh.geometry) return;
-  const MICRO_STEP_HEIGHT = 0.36;
+  const MICRO_STEP_HEIGHT = 0.48;
   const TOP_CLEARANCE = 0.08;
   if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+
+  mesh.updateMatrixWorld(true);
+  const positionWorld = new THREE.Vector3();
+  const quaternionWorld = new THREE.Quaternion();
+  const scaleWorld = new THREE.Vector3();
+  mesh.matrixWorld.decompose(positionWorld, quaternionWorld, scaleWorld);
+
   const size = new THREE.Vector3();
   mesh.geometry.boundingBox.getSize(size);
-  size.multiply(mesh.scale);
+  size.multiply(scaleWorld);
   const halfSize = size.clone().multiplyScalar(0.5);
 
   const localCenter = new THREE.Vector3();
   mesh.geometry.boundingBox.getCenter(localCenter);
-  localCenter.multiply(mesh.scale);
+  localCenter.multiply(scaleWorld);
 
-  const center = localCenter.clone().applyQuaternion(mesh.quaternion).add(mesh.position);
-  const quaternion = mesh.quaternion.clone();
+  const center = localCenter.clone().applyQuaternion(quaternionWorld).add(positionWorld);
+  const quaternion = quaternionWorld.clone();
   const inverseQuaternion = quaternion.clone().invert();
 
   const corners = [];
@@ -1279,6 +1351,7 @@ function updateGrenades(dt) {
       for (const obs of world.obstacles) {
         collideGrenadeWithObstacle(g, obs, 0.22);
       }
+      collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, 0.22, 0.4, 0.8);
     }
     
     const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
@@ -1286,18 +1359,20 @@ function updateGrenades(dt) {
     
     let hitGround = false;
     let bestFloorY = -Infinity;
-    for (const floor of world.arenaFloors) {
-      if (floor.type === "circle") {
-        if (Math.hypot(g.mesh.position.x - floor.x, g.mesh.position.z - floor.z) <= floor.r) {
-          const y = Number(floor.y || 0);
-          if (y > bestFloorY) bestFloorY = y;
-        }
-      } else {
-        const halfX = (floor.sx || 1) / 2;
-        const halfZ = (floor.sz || 1) / 2;
-        if (Math.abs(g.mesh.position.x - floor.x) <= halfX && Math.abs(g.mesh.position.z - floor.z) <= halfZ) {
-          const y = Number(floor.y || 0);
-          if (y > bestFloorY) bestFloorY = y;
+    if (world.arenaFloorCollision !== false) {
+      for (const floor of world.arenaFloors) {
+        if (floor.type === "circle") {
+          if (Math.hypot(g.mesh.position.x - floor.x, g.mesh.position.z - floor.z) <= floor.r) {
+            const y = Number(floor.y || 0);
+            if (y > bestFloorY) bestFloorY = y;
+          }
+        } else {
+          const halfX = (floor.sx || 1) / 2;
+          const halfZ = (floor.sz || 1) / 2;
+          if (Math.abs(g.mesh.position.x - floor.x) <= halfX && Math.abs(g.mesh.position.z - floor.z) <= halfZ) {
+            const y = Number(floor.y || 0);
+            if (y > bestFloorY) bestFloorY = y;
+          }
         }
       }
     }
@@ -1365,7 +1440,7 @@ function activateJumpAbility() { if (game.phase !== "fps" || game.countdown > 0 
 function activateHealAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
-function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return false; }
+function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
 function projectileHitPlayer(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.86 : 0.95; return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius); }
 function explodeGrenade(g) { const pos = g.mesh.position.clone(); world.arenaRoot.remove(g.mesh); createExplosion(pos, grenadeRadius(g) * 0.5); playSound("explosion"); const damages = []; for (let i = 0; i < fps.players.length; i++) { const target = fps.players[i], dist = pos.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.72, 0))), radius = grenadeRadius(g); if (dist < radius && target.health > 0) { const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g)); if (dmg > 0) { damages.push({ target: i, damage: dmg }); const wasAlive = target.health > 0; target.health = Math.max(0, target.health - dmg); showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false); if (i === game.localIndex) showDamageTaken(dmg); if (wasAlive && target.health === 0 && i !== game.localIndex && g.owner === game.localIndex) { showEliminationNotice(i); } } } } send({ type: "fpsGrenadeExplode", x: pos.x, y: pos.y, z: pos.z, damage: damages[0]?.damage || 0, target: damages[0]?.target ?? null, damages, owner: g.owner, radius: grenadeRadius(g) }); const alive = aliveFpsPlayerIndexes(); if (alive.length === 1) startVictoryLap(alive[0], "deathmatch"); }
 function createExplosion(pos, radius = GRENADE_SPLASH_RADIUS * 0.5) { const geo = new THREE.SphereGeometry(radius, 32, 24), mat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.8 }); const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos); world.arenaRoot.add(mesh); world.explosions.push({ mesh, timer: 0.4, max: 0.4 }); }
@@ -1395,7 +1470,11 @@ function fireHitscan() {
     const spread = input.aiming ? (cfg.aimSpread ?? 0) : (cfg.spread ?? 0);
     const direction = spread > 0 ? directionFromAngles(input.yaw + (Math.random() - 0.5) * spread * 2, input.pitch + (Math.random() - 0.5) * spread).normalize() : directionFromAngles(input.yaw, input.pitch).normalize();
     firstDirection ||= direction;
-    const ray = new THREE.Raycaster(origin, direction, 0, cfg.range || 150), intersects = ray.intersectObjects(world.obstacles); let wallHit = intersects.length > 0 ? intersects[0] : null;
+    const maxRayDistance = cfg.range || 150;
+    const ray = new THREE.Raycaster(origin, direction, 0, maxRayDistance), intersects = ray.intersectObjects(world.obstacles);
+    const meshWallHit = raycastTriangleMeshColliders(world.meshColliders, origin, direction, maxRayDistance);
+    let wallHit = intersects.length > 0 ? intersects[0] : null;
+    if (meshWallHit && (!wallHit || meshWallHit.distance < wallHit.distance)) wallHit = meshWallHit;
     const grenadeHit = grenadeRayHit(origin, direction, wallHit ? wallHit.distance : (cfg.range || 150));
     if (grenadeHit) {
       if (grenadeHit.grenade.owner === game.localIndex) superchargeGrenade(grenadeHit.grenade, true);
@@ -1420,7 +1499,8 @@ function fireHitscan() {
     const target = fps.players[entry.target];
     const wasAlive = target.health > 0;
     target.health = Math.max(0, target.health - entry.damage);
-    showDamageDealt(entry.damage, target.pos.clone().add(new THREE.Vector3(0, entry.headshot ? 1.85 : 1.3, 0)), entry.headshot);
+    const popPos = entry.headshot ? playerHeadHitCenter(target).add(new THREE.Vector3(0, 0.18, 0)) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
+    showDamageDealt(entry.damage, popPos, entry.headshot);
     if (wasAlive && target.health === 0 && entry.target !== game.localIndex) {
       showEliminationNotice(entry.target);
     }
@@ -1435,7 +1515,7 @@ function isPointInsideProjectileBlocker(point, radius = 0.18) {
     box.setFromObject(obstacle);
     if (box.distanceToPoint(point) < radius) return true;
   }
-  return false;
+  return sphereIntersectsTriangleMeshColliders(world.meshColliders, point, radius);
 }
 function firstPersonProjectileOrigin(direction) {
   const camPos = camera.position.clone();
@@ -1472,6 +1552,15 @@ function fireProjectileWeapon(cfg) {
   }
   updateHud();
 }
+function playerSlideHitboxDrop(player) {
+  return (player.visualSlide ?? (player.sliding ? 1 : 0)) * FPS_SLIDE_VISUAL_DROP;
+}
+function playerHeadHitCenter(player) {
+  return player.pos.clone().add(new THREE.Vector3(0, FPS_HEAD_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
+}
+function playerBodyHitCenter(player) {
+  return player.pos.clone().add(new THREE.Vector3(0, FPS_BODY_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
+}
 function fireMelee() {
   if (game.radarTimer > 0) return;
   const now = performance.now(); if (now - game.lastShotAt < 250) return; game.lastShotAt = now; game.meleeSwingTimer = 0.25; playSound("melee");
@@ -1479,15 +1568,15 @@ function fireMelee() {
   drawMeleeSwipe(origin, dir);
   let hit = false, hs = false, targetIndex = null, targetDist = Infinity;
   for (const { player: opp, index } of opposingFpsPlayers()) {
-    const hC = opp.pos.clone().add(new THREE.Vector3(0, 1.58, 0)), bC = opp.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
+    const hC = playerHeadHitCenter(opp), bC = playerBodyHitCenter(opp), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
     if (dH < targetDist && dH < 2.6 && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
     else if (dB < targetDist && dB < 2.6 && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, opp.pos.clone().add(new THREE.Vector3(0, hs ? 1.58 : 0.65, 0)), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex); } }
+  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex); } }
   send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, headshot: hs }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
-function rayHitsPlayer(origin, direction, player) { const hC = player.pos.clone().add(new THREE.Vector3(0, 1.58, 0)), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = player.pos.clone().add(new THREE.Vector3(0, 0.65, 0)), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
+function rayHitsPlayer(origin, direction, player) { const hC = playerHeadHitCenter(player), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = playerBodyHitCenter(player), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
 function drawLaser(origin, direction, length, hit, isRemote = false, weaponType = "pistol") {
   const start = new THREE.Vector3();
   if (!isRemote && world.weaponTip) {
@@ -1542,11 +1631,13 @@ function syncThirdPersonWeaponMesh(group, weaponId) {
   group.scale.setScalar(thirdPersonWeaponScale(weaponId));
 }
 
-function updatePlayerMeshes() {
+function updatePlayerMeshes(dt = 1 / 60) {
   const isRadarActive = game.radarTimer > 0;
   for (let i = 0; i < world.playerMeshes.length; i++) {
     const mesh = world.playerMeshes[i], player = fps.players[i];
+    player.visualSlide = moveTowards(player.visualSlide || 0, player.sliding ? 1 : 0, dt * 8.0);
     mesh.position.copy(player.pos);
+    mesh.position.y -= player.visualSlide * FPS_SLIDE_VISUAL_DROP;
     mesh.rotation.y = -player.yaw;
 
     const head = mesh.getObjectByName("headGroup");
@@ -1847,8 +1938,8 @@ function resetFpsDuelState(randomTournament = false) {
     game.maxHealth = 100;
   }
 }
-function serializeFpsDuelState() { return { playerCount: game.playerCount, mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomTournamentPlayedMaps: game.randomTournamentPlayedMaps, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl }; }
-function applyFpsDuelState(s) { if (!s) return; game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount); ensureFpsPlayers(game.playerCount); game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins || game.fpsMapWins; game.fpsKillWins = s.killWins || game.fpsKillWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomTournamentPlayedMaps !== undefined) game.randomTournamentPlayedMaps = s.randomTournamentPlayedMaps; if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; updateHud(); }
+function serializeFpsDuelState() { return { playerCount: game.playerCount, mapIndex: game.fpsMapIndex, mapWins: game.fpsMapWins, killWins: game.fpsKillWins, matchOver: game.fpsMatchOver, randomTournament: game.randomTournament, randomTournamentPlayedMaps: game.randomTournamentPlayedMaps, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout, customMap: game.fpsCustomMap, importedAssetUrl: game.fpsImportedAssetUrl, customMapActive: game.fpsCustomMapActive }; }
+function applyFpsDuelState(s) { if (!s) return; game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount); ensureFpsPlayers(game.playerCount); game.fpsMapIndex = s.mapIndex; game.fpsMapWins = s.mapWins || game.fpsMapWins; game.fpsKillWins = s.killWins || game.fpsKillWins; game.fpsMatchOver = s.matchOver; game.randomTournament = Boolean(s.randomTournament); if (s.randomTournamentPlayedMaps !== undefined) game.randomTournamentPlayedMaps = s.randomTournamentPlayedMaps; if (s.randomWeapon) game.randomWeapon = s.randomWeapon; game.randomLoadout = s.randomLoadout || null; game.maxHealth = game.randomLoadout?.hp || 100; if (s.customMap !== undefined) game.fpsCustomMap = s.customMap; if (s.importedAssetUrl !== undefined) game.fpsImportedAssetUrl = s.importedAssetUrl; if (s.customMapActive !== undefined) game.fpsCustomMapActive = s.customMapActive; updateHud(); }
 function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]; const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 }; const x = Number.isFinite(s.x) ? s.x : spawn.x; const z = Number.isFinite(s.z) ? s.z : spawn.z; const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme); r.targetPos.set(x, y, z); if (r.targetPos.y < -8) { r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
 function resetNetworkMotion() {}
 function continueFpsDuel() {
@@ -2035,12 +2126,15 @@ startFpsBtn.addEventListener("click", () => {
     if (game.role === "solo" && fpsMapSelect?.value !== "") {
        if (fpsMapSelect.value === "custom" && game.fpsCustomMap) {
          game.fpsMapIndex = 0;
+         game.fpsCustomMapActive = true;
        } else {
          game.fpsMapIndex = Number(fpsMapSelect.value);
          game.fpsCustomMap = null;
+         game.fpsCustomMapActive = false;
        }
     } else {
        game.fpsCustomMap = null;
+       game.fpsCustomMapActive = false;
     }
     send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); 
     enterFps(false, { preserveFpsMatch: true }); 
@@ -2052,9 +2146,53 @@ settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidd
 fovInput?.addEventListener("input", () => syncFov(fovInput.value));
 ingameLeaveBtn?.addEventListener("click", () => { document.exitPointerLock?.(); closePeer(); showMenu(); });
 function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
-loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
+loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.fpsCustomMap) addCustomMapOptionSelect(); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
 saveMapBtn?.addEventListener("click", () => { game.fpsCustomMap ||= { version: 1, boxes: [] }; const text = JSON.stringify(game.fpsCustomMap, null, 2); if (mapJsonInput) mapJsonInput.value = text; localStorage.setItem("golfDuelCustomArena", text); });
 loadAssetBtn?.addEventListener("click", () => { game.fpsImportedAssetUrl = assetUrlInput?.value.trim() || ""; localStorage.setItem("golfDuelArenaAsset", game.fpsImportedAssetUrl); if (game.phase === "fps") setupArena(); });
+
+mapUploadInput?.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  if (file.name.endsWith(".json")) {
+    reader.onload = (event) => {
+      try {
+        game.fpsCustomMap = JSON.parse(event.target.result);
+        localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
+        if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
+        addCustomMapOptionSelect();
+        console.log("Successfully loaded custom JSON map", game.fpsCustomMap);
+      } catch (err) {
+        alert("Failed to parse JSON map");
+      }
+    };
+    reader.readAsText(file);
+  } else if (file.name.endsWith(".glb") || file.name.endsWith(".gltf")) {
+    reader.onload = (event) => {
+      game.fpsCustomMap = {
+        version: 1,
+        id: "custom-uploaded-glb",
+        name: file.name.replace(/\.(glb|gltf)$/i, ""),
+        glb: event.target.result,
+        glbCollidable: true,
+        glbCollision: "mesh",
+        floorCollision: false,
+        generatedArena: false,
+        bounds: { x: 50, z: 50 },
+        spawnPoints: [
+          { x: -20, y: 1.2, z: -20 },
+          { x: 20, y: 1.2, z: 20 }
+        ]
+      };
+      localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
+      if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
+      addCustomMapOptionSelect();
+      console.log("Successfully loaded custom GLB map", game.fpsCustomMap);
+    };
+    reader.readAsDataURL(file);
+  }
+});
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
 phraseInput.value = generatePhrase(); syncSensitivity(1.0);
 const gdRoom = sessionStorage.getItem("gd_room");

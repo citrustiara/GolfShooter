@@ -9,7 +9,9 @@
     "fps/enclosed-arena.json",
     "fps/shaft-arena.json",
     "fps/phallic-palace.json",
-    "fps/overpass-compound.json"
+    "fps/overpass-compound.json",
+    "fps/resoforge-lowpoly-tdm.json",
+    "fps/low-poly-industrial-zone.json"
   ],
   "golfMaps": [
     "golf/ice-runway.json",

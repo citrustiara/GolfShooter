@@ -59,6 +59,7 @@ export const game = {
   randomLoadout: null,
   maxHealth: 100,
   fpsCustomMap: null,
+  fpsCustomMapActive: false,
   fpsImportedAssetUrl: "",
   buildMode: false,
   buildCursor: null,
@@ -92,7 +93,9 @@ export const world = {
   ramps: [],
   obstacles: [],
   platforms: [],
+  meshColliders: [],
   arenaFloors: [],
+  arenaFloorCollision: true,
   arenaSpawnPoints: [],
   ball: null,
   golfBalls: [],
@@ -113,8 +116,8 @@ export const world = {
 
 export const fps = {
   players: [
-    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, primaryWeapon: "pistol" },
-    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, primaryWeapon: "pistol" }
+    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol" },
+    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol" }
   ],
   arenaHalf: 56,
   gravity: -30,

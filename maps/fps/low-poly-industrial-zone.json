@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "id": "low-poly-industrial-zone",
+  "name": "Low Poly Industrial Zone",
+  "sky": 725536,
+  "fog": 1054752,
+  "fogNear": 80,
+  "fogFar": 240,
+  "bounds": {
+    "x": 86,
+    "z": 75
+  },
+  "spawnPoints": [
+    {
+      "x": -42,
+      "z": -38,
+      "y": 0.92
+    },
+    {
+      "x": 42,
+      "z": 38,
+      "y": 1.0
+    },
+    {
+      "x": 44,
+      "z": -36,
+      "y": 0.92
+    },
+    {
+      "x": -43.5,
+      "z": 38,
+      "y": 0.92
+    },
+    {
+      "x": -8,
+      "z": 2,
+      "y": 1.2
+    },
+    {
+      "x": 8,
+      "z": -48,
+      "y": 1.33
+    },
+    {
+      "x": -8,
+      "z": 48,
+      "y": 1.03
+    },
+    {
+      "x": 52,
+      "z": 4,
+      "y": 0.92
+    }
+  ],
+  "floors": [
+    {
+      "name": "industrial-zone-playable-bounds",
+      "x": 0,
+      "z": 0,
+      "sx": 172,
+      "sz": 150
+    }
+  ],
+  "generatedArena": false,
+  "floorCollision": false,
+  "floor": 2304815,
+  "gridA": 5399407,
+  "gridB": 3160386,
+  "edge": 1382690,
+  "glb": "maps/fps/glb/low-poly-industrial-zone/low_poly_industrial_zone.glb",
+  "glbScale": 1,
+  "glbPosition": {
+    "x": -8.36,
+    "y": 0,
+    "z": 4.35
+  },
+  "glbCollidable": true,
+  "glbCollision": "mesh",
+  "meshWalkableNormalY": 0.42,
+  "meshCollisionCellSize": 6,
+  "colliderSource": {
+    "type": "runtime-triangle-mesh",
+    "script": "js/fps/mesh-collision.js",
+    "note": "Uses the GLB triangles directly for player, projectile, and hitscan collision; spawns were sampled on clear walkable mesh surfaces."
+  },
+  "attribution": {
+    "title": "Low Poly Industrial Zone",
+    "author": "novikto (https://sketchfab.com/novikto)",
+    "source": "https://sketchfab.com/3d-models/low-poly-industrial-zone-17816ea520cc40db9b094ec7779d2757",
+    "license": "CC-BY-4.0"
+  }
+}

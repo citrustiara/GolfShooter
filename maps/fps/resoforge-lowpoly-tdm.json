@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "id": "resoforge-lowpoly-tdm",
+  "name": "ResoForge Lowpoly TDM",
+  "sky": 1054754,
+  "fog": 1054754,
+  "fogNear": 70,
+  "fogFar": 210,
+  "bounds": {
+    "x": 50,
+    "z": 90
+  },
+  "spawnPoints": [
+    {
+      "x": -28,
+      "z": -52,
+      "y": 0.05
+    },
+    {
+      "x": 28,
+      "z": 52,
+      "y": 0.05
+    },
+    {
+      "x": 28,
+      "z": -50,
+      "y": 0.05
+    },
+    {
+      "x": -44,
+      "z": 48,
+      "y": 0.05
+    },
+    {
+      "x": -10,
+      "z": -58,
+      "y": 0.05
+    },
+    {
+      "x": 10,
+      "z": 58,
+      "y": 0.05
+    },
+    {
+      "x": 10,
+      "z": -44,
+      "y": 0.05
+    },
+    {
+      "x": -10,
+      "z": 44,
+      "y": 0.05
+    }
+  ],
+  "floors": [
+    {
+      "name": "main-playable-floor",
+      "x": 0,
+      "z": 0,
+      "sx": 100,
+      "sz": 180
+    }
+  ],
+  "generatedArena": false,
+  "floorCollision": false,
+  "floor": 2963776,
+  "gridA": 7921919,
+  "gridB": 3358800,
+  "edge": 1718858,
+  "glb": "maps/fps/glb/resoforge-lowpoly-tdm/lowpoly__fps__tdm__game__map_by_resoforge.glb",
+  "glbScale": 10,
+  "glbCollidable": true,
+  "glbCollision": "mesh",
+  "meshWalkableNormalY": 0.42,
+  "colliderSource": {
+    "type": "runtime-triangle-mesh",
+    "script": "js/fps/mesh-collision.js",
+    "note": "Uses GLB triangles directly for player, projectile, and hitscan collision; no generated box colliders."
+  },
+  "attribution": {
+    "title": "LOWPOLY | FPS | TDM | GAME | MAP by ResoForge",
+    "author": "Space_One (https://sketchfab.com/aslbekburonbey)",
+    "source": "https://sketchfab.com/3d-models/lowpoly-fps-tdm-game-map-by-resoforge-d41a19f699ea421a9aa32b407cb7537b",
+    "license": "CC-BY-4.0"
+  }
+}

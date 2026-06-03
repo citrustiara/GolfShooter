@@ -1,4 +1,5 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { weaponCatalog, randomTournamentWeapons, tournamentCombinations } from "../core/constants.js";
 import { fpsArenaThemes } from "../fps/themes.js";
 import { holeCatalog } from "../golf/catalog.js";
@@ -52,7 +53,10 @@ async function loadWeaponContent() {
   
   const weapons = weaponConfig.weapons || {};
   const weaponIds = Object.keys(weapons);
+  const gltfLoader = new GLTFLoader();
+  
   await Promise.all(weaponIds.map(async (id) => {
+    // 1. Try to load JSON model config first for metadata (like muzzle position)
     try {
       const modelData = await loadJson(`assets/weapons/models/${id}.json`);
       if (modelData) {
@@ -60,7 +64,30 @@ async function loadWeaponContent() {
         if (modelData.muzzle) weapons[id].muzzle = modelData.muzzle;
       }
     } catch (err) {
-      console.warn(`Could not load model for weapon ${id}:`, err);
+      // Non-fatal if JSON model doesn't exist
+    }
+
+    // 2. Try to load GLB file
+    const glbUrl = weapons[id].glb || `assets/weapons/models/${id}.glb`;
+    try {
+      const gltf = await new Promise((resolve, reject) => {
+        gltfLoader.load(glbUrl, resolve, undefined, reject);
+      });
+      if (gltf && gltf.scene) {
+        weapons[id].glbModel = gltf.scene;
+        gltf.scene.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        console.log(`Loaded GLB model for weapon: ${id}`);
+      }
+    } catch (err) {
+      // Fallback: If GLB loading fails and we have no parts from JSON, log warning
+      if (!weapons[id].parts) {
+        console.warn(`Could not load GLB or JSON model for weapon ${id}:`, err);
+      }
     }
   }));
 
