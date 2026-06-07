@@ -202,19 +202,129 @@ input:focus {
 
 .kill-notice {
   position: absolute;
-  right: 18px;
-  top: 76px;
-  min-width: 210px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 111, 97, 0.48);
-  background: rgba(20, 8, 10, 0.72);
+  left: 50%;
+  bottom: 112px;
+  min-width: min(520px, calc(100vw - 34px));
+  padding: 18px 24px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 226, 168, 0.58);
+  background:
+    linear-gradient(135deg, rgba(8, 14, 18, 0.30), rgba(10, 22, 18, 0.72)),
+    radial-gradient(circle at 18% 0%, rgba(126, 226, 168, 0.32), transparent 46%),
+    rgba(3, 8, 10, 0.66);
   color: #fff;
-  text-align: right;
-  font-weight: 800;
-  letter-spacing: 0.03em;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   pointer-events: none;
+  transform: translateX(-50%);
+  overflow: hidden;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.46),
+    0 0 34px rgba(126, 226, 168, 0.24),
+    inset 0 0 22px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  z-index: 18;
+  animation: kill-card-in 5s cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.kill-notice::before,
+.kill-notice::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.kill-notice::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.26), transparent);
+  transform: translateX(-125%) skewX(-18deg);
+  animation: kill-sheen 0.74s ease-out 0.08s both;
+}
+
+.kill-notice::after {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: inherit;
+  box-shadow: inset 0 -3px 0 rgba(126, 226, 168, 0.34);
+}
+
+.kill-notice.headshot {
+  border-color: rgba(255, 74, 95, 0.72);
+  background:
+    linear-gradient(135deg, rgba(18, 8, 12, 0.34), rgba(34, 10, 16, 0.72)),
+    radial-gradient(circle at 18% 0%, rgba(255, 74, 95, 0.36), transparent 46%),
+    rgba(12, 4, 8, 0.72);
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.48),
+    0 0 38px rgba(255, 74, 95, 0.30),
+    inset 0 0 22px rgba(255, 255, 255, 0.05);
+}
+
+.kill-notice.death {
+  border-color: rgba(255, 111, 97, 0.62);
+  background:
+    linear-gradient(135deg, rgba(18, 8, 8, 0.34), rgba(32, 10, 10, 0.76)),
+    radial-gradient(circle at 18% 0%, rgba(255, 111, 97, 0.28), transparent 46%),
+    rgba(12, 4, 4, 0.72);
+}
+
+.kill-badge {
+  color: var(--mint);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 12px rgba(126, 226, 168, 0.6);
+}
+
+.kill-notice.headshot .kill-badge,
+.kill-notice.death .kill-badge {
+  color: #ffb0ba;
+  text-shadow: 0 0 14px rgba(255, 74, 95, 0.62);
+}
+
+.kill-main {
+  margin-top: 3px;
+  font-size: clamp(32px, 4.6vw, 54px);
+  line-height: 0.95;
+  color: #fff;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.86), 0 0 22px rgba(255, 255, 255, 0.16);
+}
+
+.kill-meta {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.kill-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.kill-meta .kill-hot {
+  color: #ffe1e6;
+  border-color: rgba(255, 74, 95, 0.35);
+  background: rgba(255, 74, 95, 0.16);
+}
+
+@keyframes kill-card-in {
+  0% { opacity: 0; transform: translate(-50%, 22px) scale(0.86); filter: blur(4px); }
+  10% { opacity: 1; transform: translate(-50%, -4px) scale(1.04); filter: blur(0); }
+  18% { transform: translate(-50%, 0) scale(1); }
+  82% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 18px) scale(0.96); }
+}
+
+@keyframes kill-sheen {
+  from { transform: translateX(-125%) skewX(-18deg); }
+  to { transform: translateX(125%) skewX(-18deg); }
 }
 
 .radar-marker {
@@ -348,49 +458,68 @@ input:focus {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(520px, calc(100vw - 34px));
+  width: min(760px, calc(100vw - 34px));
   transform: translate(-50%, -50%);
-  overflow: hidden;
-  padding: 28px 30px 24px;
+  isolation: isolate;
+  overflow: visible;
+  padding: 38px 44px 34px;
+  color: #fffdf0;
+  text-align: center;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 42%),
-    rgba(10, 13, 14, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(20px);
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 12px),
+    linear-gradient(180deg, #14120e 0%, #07080b 100%);
+  border: 3px solid #fff2bd;
+  border-radius: 0;
+  box-shadow:
+    14px 14px 0 #000,
+    -8px -8px 0 rgba(255, 209, 102, 0.86),
+    0 0 72px rgba(255, 209, 102, 0.42);
+  clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 20px);
+  animation: result-slam 520ms cubic-bezier(0.15, 1.1, 0.2, 1) both;
 }
 
 .result::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
-  height: 5px;
-  background: linear-gradient(90deg, var(--mint), var(--gold));
+  inset: 0;
+  z-index: 0;
+  opacity: 0.34;
+  background:
+    conic-gradient(from 0deg at 50% 50%, rgba(255, 209, 102, 0), rgba(255, 209, 102, 0.86), rgba(126, 226, 168, 0), rgba(255, 111, 97, 0.68), rgba(255, 209, 102, 0));
+  mix-blend-mode: screen;
+  animation: result-burst 2.2s linear infinite;
 }
 
 .result::after {
   content: "";
   position: absolute;
-  right: -48px;
-  top: -58px;
-  width: 170px;
-  height: 170px;
-  border-radius: 50%;
-  background: rgba(126, 226, 168, 0.18);
+  inset: 10px;
+  z-index: 0;
+  border: 1px solid rgba(255, 242, 189, 0.45);
+  background:
+    linear-gradient(90deg, transparent 0 12%, rgba(255, 255, 255, 0.09) 12% 13%, transparent 13% 87%, rgba(255, 255, 255, 0.09) 87% 88%, transparent 88%),
+    linear-gradient(0deg, transparent 0 16%, rgba(255, 255, 255, 0.08) 16% 17%, transparent 17% 83%, rgba(255, 255, 255, 0.08) 83% 84%, transparent 84%);
   pointer-events: none;
 }
 
-.result.lose-result::before {
-  background: linear-gradient(90deg, var(--coral), #9fb5c3);
+.result.win-result {
+  border-color: #fff2bd;
 }
 
-.result.lose-result::after {
-  background: rgba(255, 111, 97, 0.16);
+.result.lose-result {
+  border-color: #ffc0b8;
+  box-shadow:
+    14px 14px 0 #000,
+    -8px -8px 0 rgba(255, 111, 97, 0.82),
+    0 0 72px rgba(255, 111, 97, 0.34);
+}
+
+.result.lose-result::before {
+  background: conic-gradient(from 0deg at 50% 50%, rgba(255, 111, 97, 0), rgba(255, 111, 97, 0.75), rgba(255, 242, 189, 0), rgba(120, 180, 255, 0.45), rgba(255, 111, 97, 0));
 }
 
 .result.tie-result::before {
-  background: linear-gradient(90deg, #9fb5c3, var(--gold));
+  background: conic-gradient(from 0deg at 50% 50%, rgba(159, 181, 195, 0), rgba(159, 181, 195, 0.65), rgba(255, 209, 102, 0), rgba(255, 209, 102, 0.58), rgba(159, 181, 195, 0));
 }
 
 .result.fps-result {
@@ -400,9 +529,8 @@ input:focus {
   width: min(320px, calc(100vw - 34px));
   transform: none;
   padding: 12px 14px;
-  background: rgba(10, 13, 14, 0.42);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(8px);
+  background: #08090b;
+  box-shadow: 8px 8px 0 #000;
 }
 
 .result.fps-result h1 {
@@ -446,29 +574,87 @@ input:focus {
 .result h1 {
   position: relative;
   z-index: 1;
-  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  margin-bottom: 14px;
+  font-size: clamp(48px, 10vw, 112px);
+  line-height: 0.78;
+  letter-spacing: -0.08em;
+  text-transform: uppercase;
+  color: #fff7cb;
+  text-shadow:
+    5px 5px 0 #000,
+    9px 9px 0 rgba(255, 209, 102, 0.62),
+    0 0 36px rgba(255, 209, 102, 0.55);
 }
 
 .result.win-result h1 {
-  color: #f7fff6;
+  color: #fff7cb;
 }
 
 .result.lose-result h1 {
-  color: #fff2ee;
+  color: #ffe4df;
+  text-shadow:
+    5px 5px 0 #000,
+    9px 9px 0 rgba(255, 111, 97, 0.62),
+    0 0 36px rgba(255, 111, 97, 0.48);
 }
 
 .menu p,
 .result p {
   position: relative;
   z-index: 1;
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.result p {
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+  color: #fff0b0;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .result .primary {
   position: relative;
   z-index: 1;
+  min-height: 54px;
+  padding: 0 30px;
+  border: 3px solid #050608;
+  border-radius: 0;
+  background: #ffd166;
+  color: #050608;
+  box-shadow: 7px 7px 0 #fff2bd, 12px 12px 0 #000;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.result .primary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 9px 9px 0 #fff2bd, 15px 15px 0 #000;
+}
+
+.result-wait {
+  position: relative;
+  z-index: 1;
+  margin-top: 10px;
+  color: #d8e8ff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@keyframes result-slam {
+  0% { opacity: 0; transform: translate(-50%, -46%) scale(1.24) rotate(-1.8deg); filter: contrast(1.8); }
+  58% { opacity: 1; transform: translate(-50%, -50%) scale(0.96) rotate(0.8deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); filter: contrast(1); }
+}
+
+@keyframes result-burst {
+  to { transform: rotate(360deg); }
 }
 
 .menu p {
@@ -968,6 +1154,14 @@ input:focus {
   display: flex;
 }
 
+.result:not(.hidden) ~ .crosshair {
+  display: none !important;
+}
+
+.result:not(.hidden) ~ .hit-marker {
+  opacity: 0 !important;
+}
+
 @media (max-width: 720px) {
   .topbar {
     flex-direction: column;
@@ -1075,4 +1269,484 @@ input:focus {
   font-size: 14px;
   color: var(--muted);
   margin: 6px 0;
+}
+
+/* Angular comic UI pass: carry the match-result language across overlays,
+   but keep it static (no spinning backdrop/glass/rounded cards). */
+button,
+input,
+.menu select {
+  border-radius: 0;
+}
+
+button {
+  border: 2px solid #050608;
+  background: #15120f;
+  box-shadow: 4px 4px 0 #000;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+button:hover {
+  background: #211b14;
+  border-color: #fff2bd;
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0 #000;
+}
+
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+
+button.primary {
+  border-color: #050608;
+  background: #ffd166;
+  color: #050608;
+  box-shadow: 5px 5px 0 #fff2bd, 9px 9px 0 #000;
+}
+
+button.ghost {
+  background: #0b0d10;
+  color: #fff2bd;
+}
+
+input,
+.menu select {
+  border: 2px solid #fff2bd !important;
+  background: #090a0d !important;
+  color: #fff7cb !important;
+  box-shadow: 5px 5px 0 #000 !important;
+}
+
+input:focus,
+.menu select:focus {
+  border-color: #ffd166 !important;
+  outline: 2px solid #050608;
+}
+
+.result::before {
+  opacity: 0.22;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.85) 0 3px, transparent 3px 18px),
+    linear-gradient(90deg, rgba(255, 242, 189, 0.14), transparent 55%, rgba(255, 111, 97, 0.12));
+  mix-blend-mode: screen;
+  animation: none;
+}
+
+@keyframes result-burst {
+  to { transform: none; }
+}
+
+.menu,
+.settings-panel,
+.hud,
+.network,
+.kill-notice,
+.victory-banner,
+.weapon-card,
+.practice-card,
+.practice-map-row,
+#practiceMapOptions > div {
+  border-radius: 0 !important;
+  border: 3px solid #fff2bd !important;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 12px),
+    linear-gradient(180deg, #14120e 0%, #07080b 100%) !important;
+  box-shadow: 9px 9px 0 #000, -4px -4px 0 rgba(255, 209, 102, 0.72) !important;
+  backdrop-filter: none !important;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 14px);
+}
+
+.menu {
+  padding: 34px 38px 30px;
+  isolation: isolate;
+  overflow: visible;
+}
+
+#lobby {
+  overflow: auto;
+  padding: 30px 34px;
+}
+
+.menu::after,
+.settings-panel::after,
+.hud::after,
+.network::after,
+.kill-notice::after,
+.victory-banner::after,
+.weapon-card::after,
+.practice-card::after,
+.practice-map-row::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(255, 242, 189, 0.42);
+  pointer-events: none;
+}
+
+.menu,
+.settings-panel,
+.hud,
+.network,
+.kill-notice,
+.victory-banner,
+.weapon-card,
+.practice-card,
+.practice-map-row {
+  position: relative;
+}
+
+.menu > *,
+.settings-panel > *,
+.hud > *,
+.network > *,
+.kill-notice > *,
+.victory-banner > *,
+.weapon-card > *,
+.practice-card > *,
+.practice-map-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.menu h1,
+.weapon-select-overlay h2 {
+  color: #fff7cb;
+  text-transform: uppercase;
+  letter-spacing: -0.06em;
+  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.58);
+}
+
+.hud,
+.network {
+  padding: 12px 14px;
+}
+
+.chip,
+.fps-hud .chip,
+.ability-slot,
+.phrase,
+.kill-meta span,
+.practice-check {
+  border-radius: 0 !important;
+  border: 2px solid rgba(255, 242, 189, 0.62) !important;
+  background: #090a0d !important;
+  box-shadow: 4px 4px 0 #000;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 7px);
+}
+
+.fps-hud .chip,
+.ability-slot {
+  border-color: #fff2bd !important;
+}
+
+.ability-slot .cooldown-overlay {
+  background: repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.64) 0 5px, rgba(255, 111, 97, 0.55) 5px 10px);
+}
+
+.settings {
+  border-radius: 0;
+  border: 3px solid #fff2bd;
+  background: #090a0d;
+  box-shadow: 6px 6px 0 #000;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+.kill-notice {
+  border-color: #fff2bd !important;
+  color: #fff7cb;
+  text-shadow: 3px 3px 0 #000;
+}
+
+.kill-notice::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 242, 189, 0.42), transparent);
+}
+
+.kill-notice.death {
+  border-color: #ffc0b8 !important;
+  box-shadow: 9px 9px 0 #000, -4px -4px 0 rgba(255, 111, 97, 0.72) !important;
+}
+
+.kill-main {
+  color: #fff7cb;
+  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.5);
+}
+
+.kill-notice.death .kill-main {
+  color: #ffe4df;
+  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 111, 97, 0.5);
+}
+
+.radar-marker {
+  border-radius: 0;
+  border: 3px solid #ffd166;
+  background: #090a0d;
+  box-shadow: 6px 6px 0 #000, 0 0 24px rgba(255, 209, 102, 0.55);
+  clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}
+
+.power,
+.reload-progress {
+  border-radius: 0;
+  border: 2px solid #fff2bd;
+  background: #090a0d;
+  box-shadow: 5px 5px 0 #000;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+.power span,
+.reload-bar {
+  box-shadow: none;
+}
+
+.victory-banner {
+  padding: 12px 18px;
+  color: #fff7cb;
+  text-shadow: 3px 3px 0 #000, 5px 5px 0 rgba(255, 209, 102, 0.55);
+}
+
+.countdown {
+  color: #fff7cb;
+  text-shadow: 8px 8px 0 #000, 14px 14px 0 rgba(255, 209, 102, 0.56);
+}
+
+.weapon-select-overlay {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 16px),
+    linear-gradient(180deg, rgba(20, 18, 14, 0.96), rgba(7, 8, 11, 0.98));
+  backdrop-filter: none;
+}
+
+.weapon-card {
+  max-width: 235px;
+  border-color: #fff2bd !important;
+  padding: 24px 22px;
+}
+
+.weapon-card:hover {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 12px),
+    linear-gradient(180deg, #211b14 0%, #090a0d 100%) !important;
+  border-color: #ffd166 !important;
+  transform: translate(-3px, -3px);
+  box-shadow: 12px 12px 0 #000, -5px -5px 0 rgba(255, 209, 102, 0.88) !important;
+}
+
+.weapon-card.active {
+  border-color: #7ee2a8 !important;
+  box-shadow: 10px 10px 0 #000, -5px -5px 0 rgba(126, 226, 168, 0.72) !important;
+}
+
+/* Comfort pass: same angular language, less eye-searing contrast. */
+.menu,
+#lobby {
+  border-width: 2px !important;
+  border-color: rgba(255, 242, 189, 0.58) !important;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.032) 0 2px, transparent 2px 16px),
+    linear-gradient(180deg, #191713 0%, #0d0e10 100%) !important;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.64), -2px -2px 0 rgba(255, 209, 102, 0.28) !important;
+}
+
+.menu h1,
+.weapon-select-overlay h2 {
+  text-shadow: 2px 2px 0 #000, 4px 4px 0 rgba(255, 209, 102, 0.34);
+}
+
+.menu button {
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.72) !important;
+}
+
+.menu button.primary {
+  box-shadow: 3px 3px 0 rgba(255, 242, 189, 0.72), 6px 6px 0 rgba(0, 0, 0, 0.72) !important;
+}
+
+.menu input,
+.menu select {
+  border-color: rgba(255, 242, 189, 0.54) !important;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.62) !important;
+}
+
+/* Round/kill result toast: lower-middle and readable, not a tiny top ticker. */
+.victory-banner {
+  top: auto;
+  bottom: 228px;
+  width: min(760px, calc(100vw - 36px));
+  max-width: min(760px, calc(100vw - 36px));
+  padding: 20px 28px 22px;
+  font-size: clamp(34px, 6.8vw, 72px);
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+  color: #fff7cb;
+  border-color: rgba(255, 242, 189, 0.74) !important;
+  box-shadow: 7px 7px 0 rgba(0, 0, 0, 0.74), -3px -3px 0 rgba(255, 209, 102, 0.46) !important;
+  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.34);
+}
+
+/* Damage numbers: readable comic hit callouts with yellow body / red headshot. */
+.damage-pop {
+  isolation: isolate;
+  padding: 7px 12px 8px;
+  color: #ffe36e;
+  font-size: 34px;
+  letter-spacing: -0.04em;
+  -webkit-text-stroke: 1.4px #050608;
+  text-shadow: 3px 3px 0 #000, 0 0 12px rgba(255, 227, 110, 0.45);
+}
+
+.damage-pop::before {
+  content: "";
+  position: absolute;
+  inset: -6px -12px -5px;
+  z-index: -1;
+  background: #11100d;
+  border: 2px solid rgba(255, 242, 189, 0.82);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.68);
+  clip-path: polygon(9% 0, 100% 0, 94% 24%, 100% 52%, 91% 100%, 0 100%, 7% 72%, 0 43%, 8% 22%);
+}
+
+.damage-pop.headshot {
+  color: #ff4545;
+  font-size: 42px;
+  -webkit-text-stroke: 1.8px #050608;
+  text-shadow: 3px 3px 0 #000, 0 0 14px rgba(255, 69, 69, 0.56);
+}
+
+.damage-pop.headshot::before {
+  background: #18090a;
+  border-color: rgba(255, 142, 126, 0.9);
+}
+
+/* Restore positioning for overlays that use the angular shell. */
+.menu {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.settings-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 72px;
+}
+
+.kill-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 124px;
+  transform: translateX(-50%);
+  min-width: min(420px, calc(100vw - 36px));
+  max-width: min(460px, calc(100vw - 36px));
+  padding: 10px 16px 12px;
+  z-index: 17;
+}
+
+.kill-notice .kill-badge {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.kill-notice .kill-main {
+  margin-top: 2px;
+  font-size: clamp(22px, 3.3vw, 34px);
+  line-height: 0.92;
+}
+
+.kill-notice .kill-meta {
+  gap: 6px;
+  margin-top: 7px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.kill-notice .kill-meta span {
+  padding: 3px 6px;
+  border-width: 1px !important;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.victory-banner {
+  position: absolute;
+  left: 50%;
+  top: auto;
+  bottom: 228px;
+  transform: translateX(-50%);
+}
+
+/* Pause/settings are intentionally visible only while FPS pointer lock is off. */
+.settings,
+.settings-panel {
+  border-width: 2px !important;
+  border-color: rgba(255, 242, 189, 0.72) !important;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.72), -2px -2px 0 rgba(255, 209, 102, 0.34) !important;
+}
+
+.settings-panel {
+  width: min(320px, calc(100vw - 36px));
+  padding: 18px;
+}
+
+.settings-panel .danger {
+  margin-top: 1rem !important;
+  width: 100% !important;
+  background: #24100f;
+  color: #ffe4df;
+  border-color: rgba(255, 142, 126, 0.88);
+}
+
+/* Damage numbers are standalone cartoon digits: no UI-style boxes/windows. */
+.damage-pop {
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  clip-path: none !important;
+  color: #ffd83d;
+  font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  -webkit-text-stroke: 1.6px #1b1200;
+  text-shadow: 2px 2px 0 #1b1200, 4px 4px 0 rgba(0, 0, 0, 0.34), 0 0 10px rgba(255, 216, 61, 0.46);
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
+}
+
+.damage-pop::before,
+.damage-pop::after {
+  content: none !important;
+  display: none !important;
+}
+
+.damage-pop.headshot {
+  color: #ff4a3d;
+  font-size: 48px;
+  -webkit-text-stroke: 1.9px #220405;
+  text-shadow: 2px 2px 0 #220405, 5px 5px 0 rgba(0, 0, 0, 0.38), 0 0 12px rgba(255, 74, 61, 0.5);
+}
+
+/* Keep the under-crosshair reload/radar meter simple; the global angular clip broke this tiny bar. */
+.reload-progress {
+  left: 50%;
+  top: calc(50% + 28px);
+  width: 58px;
+  height: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.48) !important;
+  border-radius: 0 !important;
+  background: rgba(0, 0, 0, 0.58) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.56) !important;
+  clip-path: none !important;
+  overflow: hidden;
+}
+
+.reload-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 30ms linear;
 }

@@ -2,7 +2,7 @@ import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
 import { game, world, fps, input } from "../core/state.js";
-import { materials, scene } from "../core/engine.js";
+import { materials, scene, lights } from "../core/engine.js";
 import { fpsArenaThemes } from "./themes.js";
 import { FPS_HEAD_VISUAL_HEIGHT } from "../core/constants.js";
 import { makeRampMesh } from "../core/ramps.js";
@@ -84,7 +84,7 @@ export function setupArena() {
 
   const skyShell = new THREE.Mesh(
     new THREE.SphereGeometry(170, 32, 16),
-    new THREE.MeshBasicMaterial({ color: theme.sky, side: THREE.BackSide })
+    new THREE.MeshBasicMaterial({ color: brightenArenaColor(theme.sky, 0.58, 0.34), side: THREE.BackSide })
   );
   skyShell.position.y = 28;
   world.arenaRoot.add(skyShell);
@@ -367,9 +367,30 @@ export function setupArena() {
   game.jetpackHeightLimit = maxGeometryY + 15.0;
 }
 
+function brightenArenaColor(hex, minLightness = 0.54, minSaturation = 0.24) {
+  const color = new THREE.Color(hex ?? 0x8fd3f4);
+  const hsl = {};
+  color.getHSL(hsl);
+  hsl.s = Math.max(hsl.s, minSaturation);
+  hsl.l = Math.max(hsl.l, minLightness);
+  return color.setHSL(hsl.h, hsl.s, hsl.l);
+}
+
 function applyFpsArenaTheme(theme) {
-  scene.background = new THREE.Color(theme.sky);
-  scene.fog = new THREE.Fog(theme.fog, theme.fogNear, theme.fogFar);
+  const sky = brightenArenaColor(theme.sky, 0.58, 0.34);
+  const fog = brightenArenaColor(theme.fog ?? theme.sky, 0.48, 0.24);
+  scene.background = sky;
+  scene.fog = new THREE.Fog(fog, theme.fogNear, theme.fogFar);
+  if (lights.hemi) {
+    lights.hemi.color.setHex(0xf4fbff);
+    lights.hemi.groundColor.setHex(0x8ea06d);
+    lights.hemi.intensity = 2.65;
+  }
+  if (lights.sun) {
+    lights.sun.color.setHex(0xffffff);
+    lights.sun.intensity = 3.15;
+    lights.sun.position.set(14, 26, 10);
+  }
 }
 
 function playerMaterial(index) {

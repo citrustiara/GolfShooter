@@ -7,48 +7,48 @@
   "fogNear": 70,
   "fogFar": 210,
   "bounds": {
-    "x": 50,
-    "z": 90
+    "x": 42.5,
+    "z": 76.1
   },
   "spawnPoints": [
     {
-      "x": -28,
-      "z": -52,
+      "x": -23.9,
+      "z": -44.1,
       "y": 0.05
     },
     {
-      "x": 28,
-      "z": 52,
+      "x": 23.9,
+      "z": 44.1,
       "y": 0.05
     },
     {
-      "x": 28,
-      "z": -50,
+      "x": 23.9,
+      "z": -42.5,
       "y": 0.05
     },
     {
-      "x": -44,
-      "z": 48,
+      "x": -37.4,
+      "z": 40.9,
       "y": 0.05
     },
     {
-      "x": -10,
-      "z": -58,
+      "x": -8.5,
+      "z": -49.4,
       "y": 0.05
     },
     {
-      "x": 10,
-      "z": 58,
+      "x": 8.5,
+      "z": 49.4,
       "y": 0.05
     },
     {
-      "x": 10,
-      "z": -44,
+      "x": 8.5,
+      "z": -37.4,
       "y": 0.05
     },
     {
-      "x": -10,
-      "z": 44,
+      "x": -8.5,
+      "z": 37.4,
       "y": 0.05
     }
   ],
@@ -57,8 +57,8 @@
       "name": "main-playable-floor",
       "x": 0,
       "z": 0,
-      "sx": 100,
-      "sz": 180
+      "sx": 85,
+      "sz": 152.3
     }
   ],
   "generatedArena": false,
@@ -68,7 +68,7 @@
   "gridB": 3358800,
   "edge": 1718858,
   "glb": "maps/fps/glb/resoforge-lowpoly-tdm/lowpoly__fps__tdm__game__map_by_resoforge.glb",
-  "glbScale": 10,
+  "glbScale": 8.5,
   "glbCollidable": true,
   "glbCollision": "mesh",
   "meshWalkableNormalY": 0.42,

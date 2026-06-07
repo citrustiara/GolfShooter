@@ -6,6 +6,66 @@ export let peer = null;
 export let conn = null;
 const connections = new Map();
 
+const DEFAULT_ICE_SERVERS = [
+  // Free public STUN keeps the game deployable as static files on hosts like
+  // Cloudflare Pages; STUN discovers addresses, it does not proxy game traffic.
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.services.mozilla.com" }
+];
+
+function normalizeStringList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.flatMap((item) => normalizeStringList(item));
+  if (typeof value !== "string") return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed !== trimmed) return normalizeStringList(parsed);
+  } catch {}
+  return trimmed.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
+}
+
+function additionalStunServers() {
+  const urls = [];
+  try {
+    urls.push(...normalizeStringList(globalThis.GOLF_DUEL_STUN_URLS));
+    urls.push(...normalizeStringList(localStorage.getItem("golfDuelStunUrls")));
+  } catch {}
+  return [...new Set(urls)].map((url) => ({ urls: url.startsWith("stun:") || url.startsWith("turn:") ? url : `stun:${url}` }));
+}
+
+function normalizeIceServers(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try { return normalizeIceServers(JSON.parse(value)); }
+    catch { return null; }
+  }
+  if (!Array.isArray(value)) return null;
+  const servers = value.filter((server) => server && (typeof server.urls === "string" || Array.isArray(server.urls)));
+  return servers.length ? servers : null;
+}
+
+function peerOptions() {
+  let configuredServers = null;
+  try {
+    configuredServers = normalizeIceServers(globalThis.GOLF_DUEL_ICE_SERVERS)
+      || normalizeIceServers(localStorage.getItem("golfDuelIceServers"));
+  } catch {}
+  return {
+    debug: 1,
+    config: {
+      iceServers: configuredServers || [...additionalStunServers(), ...DEFAULT_ICE_SERVERS],
+      iceCandidatePoolSize: 10,
+      sdpSemantics: "unified-plan"
+    }
+  };
+}
+
 const networkPanel = document.querySelector("#network");
 const networkText = document.querySelector("#networkText");
 const phraseText = document.querySelector("#phraseText");
@@ -77,7 +137,7 @@ export async function createMatch() {
   showNetwork(`Hosting ${room}. Waiting for players.`, room);
 
   try {
-    peer = new Peer(room, { debug: 1 });
+    peer = new Peer(room, peerOptions());
     peer.on("open", () => { if (menuError) menuError.textContent = ""; });
     peer.on("connection", (connection) => {
       attachConnection(connection);
@@ -120,7 +180,7 @@ export async function joinMatch() {
   showNetwork(`Joining ${room}.`, room);
 
   try {
-    peer = new Peer(undefined, { debug: 1 });
+    peer = new Peer(undefined, peerOptions());
     peer.on("open", () => {
       sessionStorage.setItem("gd_room", room);
       sessionStorage.setItem("gd_role", "guest");
@@ -161,7 +221,10 @@ export function attachConnection(connection) {
     }
     showNetwork(game.connected ? `P2P connected (${Math.max(1, game.playerCount)} players)` : "Peer disconnected", game.room);
   });
-  conn.on("error", () => showNetwork("Peer connection error", game.room));
+  conn.on("error", (error) => {
+    console.error("Peer data connection error", error);
+    showNetwork("Peer connection error. Different networks may require a TURN relay.", game.room);
+  });
 }
 
 function assignHostConnectionIndex(connection) {
@@ -309,11 +372,13 @@ export function handleMessage(message, sourceConnection = null) {
     if (localDamage) {
       const dmg = localDamage.damage !== undefined ? localDamage.damage : 20;
       fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - dmg);
-      const popOffset = (localDamage.headshot ?? message.headshot) ? 1.75 : 1.3;
-      networkLinks.showDamageDealt(dmg, fps.players[game.localIndex].pos.clone().add(new THREE.Vector3(0, popOffset, 0)), Boolean(localDamage.headshot ?? message.headshot));
       networkLinks.showDamageTaken(dmg);
       if (fps.players[game.localIndex].health <= 0) {
-        networkLinks.showKilledBy(message.isMelee ? "Club" : networkLinks.weaponLabel(message.weapon));
+        networkLinks.showKilledBy(message.isMelee ? "Club" : networkLinks.weaponLabel(message.weapon), {
+          headshot: Boolean(localDamage.headshot ?? message.headshot),
+          distance: localDamage.distance ?? message.distance,
+          killerIndex: message.player
+        });
         startRoundIfOnlyOneSurvivor();
       }
     }
@@ -336,10 +401,10 @@ export function handleMessage(message, sourceConnection = null) {
     const localDamage = Array.isArray(message.damages) ? message.damages.find((entry) => entry.target === game.localIndex) : (message.target === game.localIndex ? message : null);
     if (localDamage && localDamage.damage > 0) {
       fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - localDamage.damage);
-      networkLinks.showDamageDealt(localDamage.damage, fps.players[game.localIndex].pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
       networkLinks.showDamageTaken(localDamage.damage);
       if (fps.players[game.localIndex].health <= 0) {
-        networkLinks.showKilledBy("Grenade");
+        const weaponName = localDamage.weaponName || message.weaponName || (message.weapon ? networkLinks.weaponLabel(message.weapon) : "Grenade");
+        networkLinks.showKilledBy(weaponName, { distance: localDamage.distance, headshot: false, killerIndex: message.owner });
         startRoundIfOnlyOneSurvivor();
       }
     }

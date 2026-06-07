@@ -13,6 +13,10 @@ python -m http.server 4173
 
 Then visit `http://localhost:4173`.
 
+For free static hosting, deploy the folder as-is to Cloudflare Pages or any CDN/static file host. No Node server is required.
+
+Multiplayer uses free public STUN servers only by default (`stun.l.google.com:19302`, `stun1`-`stun4`, plus Mozilla as a cross-provider fallback). STUN only helps peers discover routable addresses; it does not relay traffic. Some strict NATs may still require TURN, which you can add with `window.GOLF_DUEL_ICE_SERVERS` / `localStorage.golfDuelIceServers`, or prepend extra STUN URLs with `window.GOLF_DUEL_STUN_URLS` / `localStorage.golfDuelStunUrls`.
+
 ## Content
 
 Maps and tuning data live outside the runtime code:

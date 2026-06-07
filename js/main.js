@@ -6,7 +6,7 @@ import {
   FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons,
   tournamentCombinations
 } from "./core/constants.js";
-import { canvas, renderer, scene, camera, clock, raycaster, materials, setupLighting, resize, lights } from "./core/engine.js";
+import { canvas, scene, camera, clock, raycaster, materials, setupLighting, resize, lights, renderScene } from "./core/engine.js";
 import { game, input, world, fps } from "./core/state.js";
 import { ensureAudio, playSound, generatePhrase, cleanPhrase, flatDistance, toScreen, directionFromAngles, lerpAngle, moveTowards } from "./core/utils.js";
 import { closePeer, createMatch, joinMatch, send, initNetworkLinks } from "./core/network.js";
@@ -31,12 +31,12 @@ const FPS_PLAYER_RADIUS_WORLD = 0.42;
 const FPS_PLAYER_HEIGHT_WORLD = 1.78;
 const FPS_RAMP_PROBE_MARGIN = 0.08;
 const FPS_RAMP_LAND_EPSILON = 0.10;
-const FPS_RAMP_STEP_UP = 0.46;
+const FPS_RAMP_STEP_UP = 0.56;
 const FPS_RAMP_STEP_DOWN = 0.72;
 const FPS_RAMP_SOLID_TOP_CLEARANCE = 0.06;
 const FPS_WALK_MAX_SPEED = 13.6;
 const FPS_SLIDE_MAX_SPEED = 21.0;
-const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null;
+const activeDamagePops = []; let lastFrame = performance.now(), hitMarkerTimeout = null, lastDamageSoundAt = 0;
 let weaponIds = Object.keys(weaponCatalog);
 let standardWeaponIds = ["pistol", "rifle", "sniper"];
 let randomLoadoutPresets = [];
@@ -127,8 +127,16 @@ function activeFpsRules() {
 function abilityAllowed(name) { return activeLoadout().abilities.includes(name); }
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
 function jumpAbilityStrength() { return 22.5; }
-function aimingSensitivityMultiplier() { const cfg = weaponConfig(); const aimFov = cfg.aimFov || FPS_AIM_FOV; return FPS_AIM_SENSITIVITY_MULTIPLIER * Math.sqrt(Math.max(0.08, aimFov / FPS_DEFAULT_FOV)); }
+function aimingSensitivityMultiplier() { const cfg = weaponConfig(); const aimFov = cfg.aimFov || FPS_AIM_FOV; return FPS_AIM_SENSITIVITY_MULTIPLIER * Math.sqrt(Math.max(0.08, aimFov / (game.fov || FPS_DEFAULT_FOV))); }
 function clearVictoryBanner() { document.getElementById("victoryBanner")?.remove(); }
+function hideKillNotice() { game.killNoticeTimer = 0; killNotice.classList.add("hidden"); killNotice.replaceChildren(); killNotice.dataset.victim = ""; killNotice.dataset.detailed = "0"; }
+function resultOverlayVisible() { return game.phase === "result"; }
+function victoryComicMonochromeAmount(now = performance.now()) {
+  if (game.phase !== "fpsVictoryLap" || game.result?.reason !== "deathmatch") return 0;
+  const elapsed = Math.max(0, (now - game.victoryLapStart) / 1000);
+  if (elapsed < 1.25) return 1;
+  return Math.max(0, 1 - (elapsed - 1.25) / 0.95);
+}
 function activeGolfPlayerIndex() { return game.role === "solo" ? game.currentPlayer : game.localIndex; }
 function golfBallForPlayer(index = activeGolfPlayerIndex()) { return world.golfBalls[index] || world.golfBalls[0]; }
 function useGolfBall(index = activeGolfPlayerIndex()) {
@@ -632,7 +640,7 @@ function setupWeapon() {
 }
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
-function showMenu() { clearVictoryBanner(); game.phase = "menu"; menu.classList.remove("hidden"); lobby.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); document.querySelector("#network").classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); overlay.classList.remove("fps"); document.exitPointerLock?.(); showMenuScene(); }
+function showMenu() { clearVictoryBanner(); game.phase = "menu"; menu.classList.remove("hidden"); lobby.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); document.querySelector("#network").classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps"); document.exitPointerLock?.(); showMenuScene(); }
 function showLobby() {
   clearVictoryBanner();
   game.phase = "lobby";
@@ -642,6 +650,8 @@ function showLobby() {
   hud.classList.add("hidden");
   weaponSelectOverlay.classList.add("hidden");
   overlay.classList.remove("fps");
+  settingsBtn.classList.add("hidden");
+  settingsPanel.classList.add("hidden");
   showMenuScene();
   if (game.role === "guest") {
     startGolfBtn.classList.add("hidden");
@@ -665,7 +675,7 @@ function showLobby() {
   startRandomFpsBtn.textContent = game.role === "solo" ? "Random Loadout Duel" : "Random FPS Duel";
   populateMapSelects().then(() => syncPracticeMapPlanner());
 }
-function startGolf(courseIds = null) { clearVictoryBanner(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
+function startGolf(courseIds = null) { clearVictoryBanner(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
 function applyGolfAtmosphere(hole) {
   if (!hole) return;
   const sky = hole.skyColor ?? 0x8fd3f4;
@@ -680,6 +690,7 @@ function applyGolfAtmosphere(hole) {
 function enterFps(isSimulation = false, options = {}) {
   clearVictoryBanner(); ensureFpsPlayers(game.playerCount);
   game.phase = "fps"; overlay.classList.add("fps"); menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); weaponSelectOverlay.classList.add("hidden"); weaponSelectOverlay.hidden = true; weaponSelectOverlay.style.display = "none"; resultPanel.classList.add("hidden"); resultPanel.classList.remove("fps-result"); world.golfRoot.visible = false; world.arenaRoot.visible = true; world.weapon.visible = true; world.meleeWeapon.visible = true;
+  updateFpsSettingsVisibility();
   power.classList.add("hidden"); shotArrow.classList.add("hidden"); game.dragging = false;
   if (!options.preserveFpsMatch) { game.fpsMapIndex = 0; game.fpsMapWins = Array(game.playerCount).fill(0); }
   game.randomTournament = Boolean(options.randomTournament ?? game.randomTournament);
@@ -1060,7 +1071,8 @@ function updateFps(dt, now) {
     const pct = Math.max(0, Math.min(100, ((total - game.reloadTimer) / total) * 100));
     if (bar && progress) {
       progress.classList.remove("hidden");
-      bar.style.width = `${pct}%`;
+      bar.style.width = "100%";
+      bar.style.transform = `scaleX(${pct / 100})`;
       bar.style.background = "#5ab0ff";
       bar.style.boxShadow = "0 0 8px rgba(90, 176, 255, 0.9)";
     }
@@ -1070,18 +1082,21 @@ function updateFps(dt, now) {
       game.ammo[reloadingWeapon] = weaponMaxAmmo(reloadingWeapon);
       game.reloadWeapon = null;
       if (progress) progress.classList.add("hidden");
+      if (bar) bar.style.transform = "scaleX(0)";
       updateHud();
     }
   } else if (game.radarTimer > 0) {
     const pct = Math.max(0, Math.min(100, (game.radarTimer / RADAR_DURATION) * 100));
     if (bar && progress) {
       progress.classList.remove("hidden");
-      bar.style.width = `${pct}%`;
+      bar.style.width = "100%";
+      bar.style.transform = `scaleX(${pct / 100})`;
       bar.style.background = "#00ffcc";
       bar.style.boxShadow = "0 0 8px rgba(0, 255, 204, 0.9)";
     }
   } else {
     if (progress) progress.classList.add("hidden");
+    if (bar) bar.style.transform = "scaleX(0)";
   }
   if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt;
   if (game.radarTimer > 0) {
@@ -1103,7 +1118,8 @@ function updateFpsCamera(dt) {
   game.visualRecoil = moveTowards(game.visualRecoil, 0, dt * 9);
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
   const cfg = weaponConfig(game.primaryWeapon);
-  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : FPS_DEFAULT_FOV, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix(); updateWeaponModel(dt, p);
+  const baseFov = game.fov || FPS_DEFAULT_FOV;
+  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix(); updateWeaponModel(dt, p);
 }
 function updateWeaponModel(dt, p) {
   const isRadarActive = game.radarTimer > 0;
@@ -1392,8 +1408,10 @@ function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundS
     const b = new THREE.Box3().setFromObject(surface);
     const insideX = position.x > b.min.x - FPS_PLAYER_RADIUS_WORLD && position.x < b.max.x + FPS_PLAYER_RADIUS_WORLD;
     const insideZ = position.z > b.min.z - FPS_PLAYER_RADIUS_WORLD && position.z < b.max.z + FPS_PLAYER_RADIUS_WORLD;
+    const stepHeight = b.max.y - previousY;
     const canSnap = (wasGrounded && wasGroundSurface === surface) ||
-                    (previousY >= b.max.y - 0.05 && position.y <= b.max.y);
+                    (previousY >= b.max.y - 0.12 && position.y <= b.max.y + 0.04) ||
+                    (wasGrounded && stepHeight >= -0.04 && stepHeight <= 0.58 && position.y <= b.max.y + 0.08);
     if (insideX && insideZ && canSnap && (!best || b.max.y > best.y)) {
       best = { y: b.max.y, surface };
     }
@@ -1512,8 +1530,8 @@ function resolvePlayerVsRampSolid(player, previousPosition, ramp, radius) {
 
 function resolvePlayerVsMeshObb(position, mesh, radius) {
   if (!mesh.geometry) return;
-  const MICRO_STEP_HEIGHT = 0.48;
-  const TOP_CLEARANCE = 0.08;
+  const MICRO_STEP_HEIGHT = 0.58;
+  const TOP_CLEARANCE = 0.006;
   if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
 
   mesh.updateMatrixWorld(true);
@@ -1737,7 +1755,7 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   group.position.copy(pos);
   group.traverse((child) => { if (child.isMesh) child.castShadow = true; });
   world.arenaRoot.add(group);
-  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, isSupercharged: Boolean(options.supercharged) });
+  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, isSupercharged: Boolean(options.supercharged) });
 }
 function throwGrenade() {
   if (game.phase !== "fps" || game.countdown > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
@@ -1750,18 +1768,49 @@ function throwGrenade() {
     origin.set(p.pos.x, p.pos.y + 0.65, p.pos.z);
   }
   const dir = directionFromAngles(p.yaw, p.pitch), vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel);
-  spawnGrenade(origin, vel, true, game.localIndex);
+  spawnGrenade(origin, vel, true, game.localIndex, { weaponName: "Grenade" });
   playSound("grenade");
-  send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex });
+  send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, weaponName: "Grenade" });
   updateHud();
 }
 function activateJumpAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
 function activateHealAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
+function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
 function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
 function projectileHitPlayer(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.86 : 0.95; return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius); }
-function explodeGrenade(g) { const pos = g.mesh.position.clone(); world.arenaRoot.remove(g.mesh); createExplosion(pos, grenadeRadius(g) * 0.5); playSound("explosion"); const damages = []; for (let i = 0; i < fps.players.length; i++) { const target = fps.players[i], dist = pos.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.72, 0))), radius = grenadeRadius(g); if (dist < radius && target.health > 0) { const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g)); if (dmg > 0) { damages.push({ target: i, damage: dmg }); const wasAlive = target.health > 0; target.health = Math.max(0, target.health - dmg); showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false); if (i === game.localIndex) showDamageTaken(dmg); if (wasAlive && target.health === 0 && i !== game.localIndex && g.owner === game.localIndex) { showEliminationNotice(i); } } } } send({ type: "fpsGrenadeExplode", x: pos.x, y: pos.y, z: pos.z, damage: damages[0]?.damage || 0, target: damages[0]?.target ?? null, damages, owner: g.owner, radius: grenadeRadius(g) }); const alive = aliveFpsPlayerIndexes(); if (alive.length === 1) startVictoryLap(alive[0], "deathmatch"); }
+function explodeGrenade(g) {
+  const pos = g.mesh.position.clone();
+  world.arenaRoot.remove(g.mesh);
+  createExplosion(pos, grenadeRadius(g) * 0.5);
+  playSound("explosion");
+  const damages = [];
+  const weaponName = explosiveWeaponLabel(g);
+  const ownerPos = fps.players[g.owner]?.pos;
+  for (let i = 0; i < fps.players.length; i++) {
+    const target = fps.players[i];
+    const dist = pos.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.72, 0)));
+    const radius = grenadeRadius(g);
+    if (dist < radius && target.health > 0) {
+      const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g));
+      if (dmg > 0) {
+        const killDistance = ownerPos ? ownerPos.distanceTo(target.pos) : dist;
+        damages.push({ target: i, damage: dmg, headshot: false, distance: killDistance, weaponName });
+        const wasAlive = target.health > 0;
+        target.health = Math.max(0, target.health - dmg);
+        if (g.owner === game.localIndex) showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
+        if (i === game.localIndex) showDamageTaken(dmg);
+        if (wasAlive && target.health === 0 && i !== game.localIndex && g.owner === game.localIndex) {
+          showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false });
+        }
+      }
+    }
+  }
+  send({ type: "fpsGrenadeExplode", x: pos.x, y: pos.y, z: pos.z, damage: damages[0]?.damage || 0, target: damages[0]?.target ?? null, damages, owner: g.owner, radius: grenadeRadius(g), weapon: g.weapon || null, weaponName });
+  const alive = aliveFpsPlayerIndexes();
+  if (alive.length === 1) startVictoryLap(alive[0], "deathmatch");
+}
 function createExplosion(pos, radius = GRENADE_SPLASH_RADIUS * 0.5) { const geo = new THREE.SphereGeometry(radius, 32, 24), mat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.8 }); const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos); world.arenaRoot.add(mesh); world.explosions.push({ mesh, timer: 0.4, max: 0.4 }); }
 function updateExplosions(dt) { for (let i = world.explosions.length - 1; i >= 0; i--) { const ex = world.explosions[i]; ex.timer -= dt; const s = 1.0 + (1.0 - ex.timer / ex.max) * 2.0; ex.mesh.scale.set(s, s, s); ex.mesh.material.opacity = ex.timer / ex.max; if (ex.timer <= 0) { world.arenaRoot.remove(ex.mesh); world.explosions.splice(i, 1); } } }
 function removeRemoteGrenadesNear(pos) { for (let i = world.grenades.length - 1; i >= 0; i--) { if (world.grenades[i].mesh.position.distanceTo(pos) < 1.0) { world.arenaRoot.remove(world.grenades[i].mesh); world.grenades.splice(i, 1); } } }
@@ -1784,7 +1833,7 @@ function fireHitscan() {
   if (cfg.projectile) { fireProjectileWeapon(cfg); return; }
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon === "heavySniper" ? "sniper" : game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
   const shooter = fps.players[game.localIndex], origin = new THREE.Vector3(shooter.pos.x, shooter.pos.y + (shooter.currentCamHeight || 0.72), shooter.pos.z);
-  const pelletCount = cfg.pellets || 1, pellets = [], hitDamages = new Map(), hitHeadshots = new Map(); let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null, hitTarget = null, hitWorldPos = null;
+  const pelletCount = cfg.pellets || 1, pellets = [], hitDamages = new Map(), hitHeadshots = new Map(), hitDistances = new Map(); let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null, hitTarget = null, hitWorldPos = null;
   for (let i = 0; i < pelletCount; i++) {
     const spread = input.aiming ? (cfg.aimSpread ?? 0) : (cfg.spread ?? 0);
     const direction = spread > 0 ? directionFromAngles(input.yaw + (Math.random() - 0.5) * spread * 2, input.pitch + (Math.random() - 0.5) * spread).normalize() : directionFromAngles(input.yaw, input.pitch).normalize();
@@ -1811,9 +1860,9 @@ function fireHitscan() {
     if (playerHitResult) { const pDist = playerHitResult.distance, throughWall = wallHit && wallHit.distance < pDist; pelletHit = !throughWall || true; pelletHS = playerHitResult.headshot; pelletDmg = Math.floor(cfg.damage * (pelletHS ? cfg.crit : 1) * (throughWall ? 0.5 : 1)); len = pDist; hitTarget ??= playerHitResult.index; hitWorldPos ??= playerHitResult.player.pos.clone(); } else if (wallHit) len = wallHit.distance;
     drawLaser(origin, direction, len, pelletHit, false, game.primaryWeapon);
     pellets.push({ dx: direction.x, dy: direction.y, dz: direction.z, length: len, hit: pelletHit });
-    if (pelletHit) { anyHit = true; anyHeadshot ||= pelletHS; totalDamage += pelletDmg; bestLength = Math.min(bestLength, len); hitDamages.set(playerHitResult.index, (hitDamages.get(playerHitResult.index) || 0) + pelletDmg); hitHeadshots.set(playerHitResult.index, Boolean(hitHeadshots.get(playerHitResult.index) || pelletHS)); }
+    if (pelletHit) { anyHit = true; anyHeadshot ||= pelletHS; totalDamage += pelletDmg; bestLength = Math.min(bestLength, len); hitDamages.set(playerHitResult.index, (hitDamages.get(playerHitResult.index) || 0) + pelletDmg); hitHeadshots.set(playerHitResult.index, Boolean(hitHeadshots.get(playerHitResult.index) || pelletHS)); hitDistances.set(playerHitResult.index, Math.min(hitDistances.get(playerHitResult.index) ?? Infinity, len)); }
   }
-  const damages = [...hitDamages.entries()].map(([target, damage]) => ({ target, damage, headshot: Boolean(hitHeadshots.get(target)) }));
+  const damages = [...hitDamages.entries()].map(([target, damage]) => ({ target, damage, headshot: Boolean(hitHeadshots.get(target)), distance: hitDistances.get(target) }));
   for (const entry of damages) {
     const target = fps.players[entry.target];
     const wasAlive = target.health > 0;
@@ -1821,7 +1870,11 @@ function fireHitscan() {
     const popPos = entry.headshot ? playerHeadHitCenter(target).add(new THREE.Vector3(0, 0.18, 0)) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
     showDamageDealt(entry.damage, popPos, entry.headshot);
     if (wasAlive && target.health === 0 && entry.target !== game.localIndex) {
-      showEliminationNotice(entry.target);
+      showEliminationNotice(entry.target, {
+        weapon: game.primaryWeapon,
+        distance: entry.distance ?? origin.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.9, 0))),
+        headshot: entry.headshot
+      });
     }
   }
   if (anyHit) { showHitMarker(anyHeadshot); updateHud(); }
@@ -1862,12 +1915,12 @@ function fireProjectileWeapon(cfg) {
   const origin = firstPersonProjectileOrigin(dir);
   if (cfg.projectile === "rocket") {
     const vel = dir.clone().multiplyScalar(58).add(shooter.vel.clone().multiplyScalar(0.25));
-    spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
-    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "rocket", timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
+    spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
+    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
   } else {
     const vel = dir.clone().multiplyScalar(54).add(shooter.vel);
-    spawnGrenade(origin, vel, true, game.localIndex, { kind: "grenadeLauncher", timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
-    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "grenadeLauncher", timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
+    spawnGrenade(origin, vel, true, game.localIndex, { kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
+    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
   }
   updateHud();
 }
@@ -1891,8 +1944,8 @@ function fireMelee() {
     if (dH < targetDist && dH < 2.6 && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
     else if (dB < targetDist && dB < 2.6 && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex); } }
-  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, headshot: hs }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex, { weapon: "melee", distance: targetDist, headshot: hs }); } }
+  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, headshot: hs, distance: hit ? targetDist : null }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
 function rayHitsPlayer(origin, direction, player) { const hC = playerHeadHitCenter(player), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = playerBodyHitCenter(player), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
@@ -1922,8 +1975,8 @@ function drawMeleeSwipe(origin, direction) {
   world.arenaRoot.add(swipeGroup); world.lasers.push({ beam: swipeGroup, ttl: 0.15, maxTtl: 0.15, isSwipe: true });
 }
 function updateLasers(dt) { for (let i = world.lasers.length - 1; i >= 0; i--) { const l = world.lasers[i]; l.ttl -= dt; const opacity = Math.max(0, l.ttl / l.maxTtl); if (l.beam.isGroup) l.beam.children.forEach(c => { if (c.material) c.material.opacity = opacity; }); else l.beam.material.opacity = opacity; if (l.ttl <= 0) { world.arenaRoot.remove(l.beam); world.lasers.splice(i, 1); } } }
-function showHitMarker(hs = false) { hitMarker.classList.toggle("headshot", hs); hitMarker.classList.remove("active"); void hitMarker.offsetWidth; hitMarker.classList.add("active"); playSound("hit"); clearTimeout(hitMarkerTimeout); hitMarkerTimeout = window.setTimeout(() => hitMarker.classList.remove("active", "headshot"), hs ? 190 : 145); }
-function showDamageDealt(amt, worldPos, hs = false) { const pop = document.createElement("div"); pop.className = "damage-pop" + (hs ? " headshot" : ""); pop.textContent = hs ? `HEADSHOT -${amt}` : `-${amt}`; damageLayer.appendChild(pop); activeDamagePops.push({ element: pop, pos: worldPos.clone(), timer: 0.84, maxTimer: 0.84, headshot: hs }); }
+function showHitMarker(hs = false) { hitMarker.classList.toggle("headshot", hs); hitMarker.classList.remove("active"); void hitMarker.offsetWidth; hitMarker.classList.add("active"); clearTimeout(hitMarkerTimeout); hitMarkerTimeout = window.setTimeout(() => hitMarker.classList.remove("active", "headshot"), hs ? 190 : 145); }
+function showDamageDealt(amt, worldPos, hs = false) { const pop = document.createElement("div"); pop.className = "damage-pop" + (hs ? " headshot" : ""); pop.textContent = `${Math.max(0, Math.round(Number(amt) || 0))}`; damageLayer.appendChild(pop); const now = performance.now(); if (now - lastDamageSoundAt > 45) { playSound("damage"); lastDamageSoundAt = now; } activeDamagePops.push({ element: pop, pos: worldPos.clone(), timer: 0.84, maxTimer: 0.84, headshot: hs }); }
 function updateDamagePops(dt) { for (let i = activeDamagePops.length - 1; i >= 0; i--) { const p = activeDamagePops[i]; p.timer -= dt; if (p.timer <= 0) { p.element.remove(); activeDamagePops.splice(i, 1); } else { const off = p.pos.clone().add(new THREE.Vector3(0, (1.0 - p.timer / p.maxTimer) * 0.8, 0)), screen = toScreen(off); p.element.style.left = `${screen.x}px`; p.element.style.top = `${screen.y}px`; p.element.style.opacity = `${p.timer / p.maxTimer}`; p.element.style.transform = `translate(-50%, -50%) scale(${(p.headshot ? 1.2 : 1.0) + (1.0 - p.timer / p.maxTimer) * 0.35})`; } } }
 function thirdPersonWeaponScale(weaponId) {
   const cfg = weaponConfig(weaponId);
@@ -2096,6 +2149,7 @@ function finishMatch(winner, reason) {
   const totals = totalStrokes();
   input.shootHeld = false;
   input.aiming = false;
+  input.pointerLocked = false;
   damageLayer.replaceChildren();
   damageVignette.classList.remove("active");
   killNotice.classList.add("hidden");
@@ -2104,26 +2158,37 @@ function finishMatch(winner, reason) {
   world.meleeWeapon.visible = false;
   world.playerMeshes.forEach((mesh) => { mesh.visible = false; });
   power.classList.add("hidden");
-  restartBtn.classList.toggle("hidden", game.role === "guest");
-  resultPanel.classList.remove("win-result", "lose-result", "tie-result", "fps-result");
+  overlay.classList.remove("fps");
+  settingsBtn.classList.add("hidden");
+  settingsPanel.classList.add("hidden");
+  clearVictoryBanner();
+
+  let waitText = resultPanel.querySelector(".result-wait");
+  if (!waitText) {
+    waitText = document.createElement("div");
+    waitText.className = "result-wait hidden";
+    resultPanel.appendChild(waitText);
+  }
+  const guestWaiting = game.role === "guest";
+  restartBtn.classList.toggle("hidden", guestWaiting);
+  waitText.classList.toggle("hidden", !guestWaiting);
+  waitText.textContent = guestWaiting ? "Waiting for the host to return everyone to the lobby." : "";
+
+  resultPanel.classList.remove("win-result", "lose-result", "tie-result", "fps-result", "guest-result");
+  resultPanel.classList.toggle("guest-result", guestWaiting);
   if (winner === -1) {
-    resultTitle.textContent = "It's a Tie!";
+    resultTitle.textContent = "DRAW";
     resultPanel.classList.add("tie-result");
   } else {
     const localWon = winner === game.localIndex;
-    resultTitle.textContent = localWon ? "You win" : "You lose";
+    resultTitle.textContent = localWon ? "YOU WON" : "YOU LOST";
     resultPanel.classList.add(localWon ? "win-result" : "lose-result");
   }
-  resultBody.textContent = reason === "deathmatch" ? `Arena score: ${formatScores(game.fpsMapWins)}. Golf scorecard: ${formatScores(totals)}.` : `Golf scorecard: ${formatScores(totals)}.`;
-  if (reason === "deathmatch") {
-    overlay.classList.add("fps");
-    resultPanel.classList.remove("hidden");
-    showFpsToast(winner === -1 ? "MATCH TIED" : (winner === game.localIndex ? "YOU WIN" : "YOU LOSE"), `Maps ${formatScores(game.fpsMapWins)}`);
-  } else {
-    overlay.classList.remove("fps");
-    document.getElementById("victoryBanner")?.remove();
-    resultPanel.classList.remove("hidden");
-  }
+
+  const arenaScore = `Arena score: ${formatScores(game.fpsMapWins)}.`;
+  const golfScore = `Golf scorecard: ${formatScores(totals)}.`;
+  resultBody.textContent = reason === "deathmatch" ? `${arenaScore} ${golfScore}` : golfScore;
+  resultPanel.classList.remove("hidden");
   updateHud();
 }
 function restartTournament(announce = true) { if (announce && game.role === "guest") return; resultPanel.classList.add("hidden"); if (announce) { send({ type: "restart" }); showLobby(); } else showLobby(); }
@@ -2158,7 +2223,7 @@ function updateHud() {
   weaponChip.classList.toggle("hidden", !isFps); weaponText.textContent = (game.activeWeapon === "gun" ? weaponLabelText(game.primaryWeapon) : "Club");
   ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun"); if (game.activeWeapon === "gun") ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
   const progress = document.getElementById("reloadProgress");
-  if (progress && !game.reloading) progress.classList.add("hidden");
+  if (progress && !game.reloading && game.radarTimer <= 0) progress.classList.add("hidden");
 }
 function switchWeapon(wt) { if (game.radarTimer > 0) return; if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
 function selectPrimaryWeapon(wp, animate = false) { if (game.radarTimer > 0) return; if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
@@ -2257,6 +2322,8 @@ function cancelReload() {
   game.reloadTimer = 0;
   game.reloadWeapon = null;
   document.getElementById("reloadProgress")?.classList.add("hidden");
+  const bar = document.getElementById("reloadBar");
+  if (bar) bar.style.transform = "scaleX(0)";
 }
 
 function applyWeaponState(aw, pw = game.primaryWeapon) {
@@ -2307,7 +2374,7 @@ function syncPrimaryWeaponModel() {
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
-function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; updateHud(); }
+function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#5ab0ff"; } updateHud(); }
 function resetFpsDuelState(randomTournament = false) {
   ensureFpsPlayers(game.playerCount);
   game.fpsMapWins = Array(game.playerCount).fill(0);
@@ -2406,7 +2473,7 @@ function continueFpsDuel() {
 }
 
 function onMouseMove(e) { if (!input.pointerLocked) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
-function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
+function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
 function onMouseUp(e) { if (e.button === 2) input.aiming = false; if (e.button === 0) input.shootHeld = false; }
 function onClick(e) { if (game.phase === "fps" && e.target === canvas && !input.pointerLocked) requestPointerLockSafe(); }
 function pointerGroundPoint(e) {
@@ -2465,6 +2532,15 @@ function requestPointerLockSafe() {
     lockRequest?.catch?.(() => {});
   } catch {}
 }
+function updateFpsSettingsVisibility() {
+  const show = game.phase === "fps" && !input.pointerLocked;
+  settingsBtn.classList.toggle("hidden", !show);
+  settingsPanel.classList.toggle("hidden", !show);
+  if (show) {
+    input.aiming = false;
+    input.shootHeld = false;
+  }
+}
 function syncSensitivity(v) { const m = Number(v); input.mouseSensitivity = FPS_BASE_MOUSE_SENSITIVITY * m; sensitivityInput.value = m; if (menuSensitivityInput) menuSensitivityInput.value = m; const l = `${m.toFixed(1)}x`; sensitivityValue.textContent = l; if (menuSensitivityValue) menuSensitivityValue.textContent = l; }
 function codeFromKeyEvent(e) { if (e.code) return e.code; const k = e.key || ""; if (k === " ") return "Space"; if (k.startsWith("Arrow")) return k; if (/^[a-z]$/i.test(k)) return `Key${k.toUpperCase()}`; if (/^[0-9]$/.test(k)) return `Digit${k}`; return k; }
 function toggleBuildMode() { game.buildMode = !game.buildMode; lobbyStatus.textContent = game.buildMode ? "Build mode on. Press V to place a block." : lobbyStatus.textContent; }
@@ -2495,9 +2571,12 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    if (elapsed >= 3.2) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
+    const victoryHold = game.result.reason === "deathmatch" ? 5.2 : 3.2;
+    if (elapsed >= victoryHold) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
   }
-  renderer.render(scene, camera); requestAnimationFrame(animate);
+  const comicMono = victoryComicMonochromeAmount(now);
+  renderScene(now * 0.001, { grayscale: comicMono, inkStrength: 0.48 + comicMono * 0.22, colorSteps: comicMono > 0.01 ? 4 : 5 });
+  requestAnimationFrame(animate);
 }
 
 window.addEventListener("resize", resize);
@@ -2506,7 +2585,7 @@ window.addEventListener("keydown", (e) => {
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();
   if ((game.phase === "fps" || game.phase === "fpsVictoryLap") && c.startsWith("Arrow")) e.preventDefault();
   if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
-    if (!input.pointerLocked) requestPointerLockSafe();
+    if (!input.pointerLocked) return;
     if (game.countdown <= 0) {
       const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
       if (isW) {
@@ -2544,7 +2623,7 @@ window.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
-document.addEventListener("pointerlockchange", () => input.pointerLocked = document.pointerLockElement === canvas);
+document.addEventListener("pointerlockchange", () => { input.pointerLocked = document.pointerLockElement === canvas; updateFpsSettingsVisibility(); });
 document.addEventListener("mousemove", onMouseMove); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!activeWeaponIds().includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));
 canvas.addEventListener("pointerdown", onPointerDown); window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", finishGolfDrag); window.addEventListener("mousedown", (e) => { if (e.button === 0 && game.phase === "golf") onPointerDown(e); }); window.addEventListener("mousemove", onPointerMove); window.addEventListener("mouseup", finishGolfDrag); canvas.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -2626,7 +2705,7 @@ mapUploadInput?.addEventListener("change", (e) => {
   }
 });
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
-phraseInput.value = generatePhrase(); syncSensitivity(1.0);
+phraseInput.value = generatePhrase(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");
 if (gdRoom && gdRole) {
@@ -2646,16 +2725,86 @@ function showDamageTaken(amount) {
   playSound("hurt");
 }
 
-function showKilledBy(weaponName) {
-  game.killNoticeTimer = 4.0;
-  killNotice.textContent = `KILLED BY ${weaponName}`;
-  killNotice.classList.remove("hidden");
+function formatKillDistance(distance) {
+  const value = Number(distance);
+  if (!Number.isFinite(value) || value < 0) return "-- m";
+  if (value < 1) return "<1 m";
+  if (value < 10) return `${value.toFixed(1)} m`;
+  return `${Math.round(value)} m`;
 }
 
-function showEliminationNotice(victimIndex) {
-  game.killNoticeTimer = 4.0;
-  killNotice.textContent = `PLAYER ${victimIndex + 1} ELIMINATED`;
+function killNoticeHasDetail(details = {}) {
+  return details.weaponName || details.weapon || Number.isFinite(Number(details.distance)) || details.headshot !== undefined;
+}
+
+function replayKillNoticeAnimation() {
+  killNotice.style.animation = "none";
+  void killNotice.offsetWidth;
+  killNotice.style.animation = "";
+}
+
+function setKillNoticeCard({ badge, main, weaponName, distance, headshot = false, death = false, victimIndex = null, detailed = false, resultLabel = null }) {
+  if (resultOverlayVisible()) { hideKillNotice(); return; }
+  game.killNoticeTimer = 5.1;
+  killNotice.dataset.victim = victimIndex === null || victimIndex === undefined ? "" : String(victimIndex);
+  killNotice.dataset.detailed = detailed ? "1" : "0";
+  killNotice.className = `kill-notice${headshot ? " headshot" : ""}${death ? " death" : ""}`;
+  killNotice.replaceChildren();
+
+  const badgeEl = document.createElement("div");
+  badgeEl.className = "kill-badge";
+  badgeEl.textContent = badge;
+
+  const mainEl = document.createElement("div");
+  mainEl.className = "kill-main";
+  mainEl.textContent = main;
+
+  const metaEl = document.createElement("div");
+  metaEl.className = "kill-meta";
+  const addMeta = (text, hot = false) => {
+    const item = document.createElement("span");
+    if (hot) item.className = "kill-hot";
+    item.textContent = text;
+    metaEl.appendChild(item);
+  };
+  addMeta(weaponName || "Unknown");
+  addMeta(formatKillDistance(distance));
+  addMeta(resultLabel || (headshot ? "HEADSHOT" : (death ? "DEATH" : "BODY SHOT")), headshot || death);
+
+  killNotice.append(badgeEl, mainEl, metaEl);
   killNotice.classList.remove("hidden");
+  replayKillNoticeAnimation();
+}
+
+function showKilledBy(weaponName, details = {}) {
+  setKillNoticeCard({
+    badge: details.headshot ? "HEADSHOT DEATH" : "YOU WERE ELIMINATED",
+    main: `KILLED BY ${weaponName}`,
+    weaponName,
+    distance: details.distance,
+    headshot: Boolean(details.headshot),
+    death: true,
+    detailed: killNoticeHasDetail(details)
+  });
+}
+
+function showEliminationNotice(victimIndex, details = {}) {
+  if (resultOverlayVisible()) { hideKillNotice(); return; }
+  const hasDetail = killNoticeHasDetail(details);
+  if (!hasDetail && killNotice.dataset.victim === String(victimIndex) && killNotice.dataset.detailed === "1" && game.killNoticeTimer > 0) return;
+  const alreadyShowingVictim = killNotice.dataset.victim === String(victimIndex) && game.killNoticeTimer > 0;
+  if (!alreadyShowingVictim) playSound("kill");
+  const weaponName = hasDetail ? (details.weaponName || (details.weapon ? weaponLabelText(details.weapon) : weaponLabelText(game.primaryWeapon))) : "Unknown";
+  setKillNoticeCard({
+    badge: "ELIMINATION",
+    main: `${details.enemyName || `P${victimIndex + 1}`} DOWN`,
+    weaponName,
+    distance: details.distance,
+    headshot: false,
+    victimIndex,
+    detailed: hasDetail,
+    resultLabel: "ELIMINATED"
+  });
 }
 
 function weaponLabel(wp) {

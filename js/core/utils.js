@@ -15,17 +15,18 @@ export function playSound(type) {
   const master = audioContext.createGain();
   master.connect(audioContext.destination);
 
-  const blip = (frequency, duration, gain, wave = "sine", detune = 0) => {
+  const blip = (frequency, duration, gain, wave = "sine", detune = 0, delay = 0) => {
+    const start = now + delay;
     const osc = audioContext.createOscillator();
     const amp = audioContext.createGain();
     osc.type = wave;
-    osc.frequency.setValueAtTime(frequency, now);
-    osc.detune.setValueAtTime(detune, now);
-    amp.gain.setValueAtTime(gain, now);
-    amp.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.frequency.setValueAtTime(frequency, start);
+    osc.detune.setValueAtTime(detune, start);
+    amp.gain.setValueAtTime(gain, start);
+    amp.gain.exponentialRampToValueAtTime(0.001, start + duration);
     osc.connect(amp).connect(master);
-    osc.start(now);
-    osc.stop(now + duration + 0.02);
+    osc.start(start);
+    osc.stop(start + duration + 0.02);
   };
 
   if (type === "pistol") {
@@ -92,6 +93,16 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.18, now);
     blip(1180, 0.06, 0.62, "triangle");
     blip(1540, 0.04, 0.36, "triangle");
+  } else if (type === "damage") {
+    master.gain.setValueAtTime(0.075, now);
+    blip(1320, 0.035, 0.34, "triangle");
+    blip(1760, 0.025, 0.18, "sine", 0, 0.018);
+  } else if (type === "kill") {
+    master.gain.setValueAtTime(0.34, now);
+    blip(210, 0.16, 0.42, "square");
+    blip(760, 0.14, 0.46, "triangle", 0, 0.05);
+    blip(1160, 0.16, 0.36, "sawtooth", 0, 0.11);
+    blip(1580, 0.22, 0.24, "sine", 0, 0.18);
   } else if (type === "hurt") {
     master.gain.setValueAtTime(0.28, now);
     blip(92, 0.22, 0.8, "sawtooth");

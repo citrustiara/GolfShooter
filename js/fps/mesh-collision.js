@@ -6,8 +6,9 @@ const DEFAULT_CELL_SIZE = 6;
 const DEFAULT_WALKABLE_NORMAL_Y = 0.42;
 const DEFAULT_MIN_TRIANGLE_AREA = 0.000001;
 const QUERY_EPSILON = 0.00001;
-const DEFAULT_PLAYER_STEP_HEIGHT = 0.48;
-const MIN_PLAYER_STEP_HEIGHT = 0.025;
+const DEFAULT_PLAYER_STEP_HEIGHT = 0.58;
+const MIN_PLAYER_STEP_HEIGHT = 0.004;
+const STEP_SURFACE_QUERY_RADIUS = 0.18;
 
 export function buildTriangleMeshColliderFromObject(root, options = {}) {
   const triangles = [];
@@ -80,11 +81,11 @@ export function meshGroundSurface(colliders, position, previousPosition, velocit
         if (y === null) return;
 
         const previousY = previousPosition?.y ?? position.y;
-        const nearSurfaceNow = position.y >= y - 0.82 && position.y <= y + 0.20;
-        const crossedSurface = previousY >= y - 0.08 && position.y <= y + 0.20;
-        const maxStepUp = alreadyOnCollider ? 0.78 : (wasGrounded ? 0.56 : 0.24);
+        const nearSurfaceNow = position.y >= y - 0.82 && position.y <= y + 0.24;
+        const crossedSurface = previousY >= y - 0.10 && position.y <= y + 0.24;
+        const maxStepUp = alreadyOnCollider ? 0.82 : (wasGrounded ? 0.64 : 0.26);
         const canStepUp = wasGrounded && previousY >= y - maxStepUp && nearSurfaceNow;
-        const canContinue = alreadyOnCollider && position.y >= y - 1.05 && position.y <= y + 0.82;
+        const canContinue = alreadyOnCollider && position.y >= y - 1.05 && position.y <= y + 0.86;
         if (!canContinue && !crossedSurface && !canStepUp) return;
 
         if (!best || y > best.y) {
@@ -221,12 +222,13 @@ function findStepSurfaceY(collider, player, baseY, radius, maxStepHeight) {
 
   for (const probe of probes) {
     const seen = new Set();
-    forEachCandidateTriangle(collider, probe.x, probe.z, 0.10, seen, (tri) => {
+    forEachCandidateTriangle(collider, probe.x, probe.z, STEP_SURFACE_QUERY_RADIUS, seen, (tri) => {
       if (Math.abs(tri.ny) < collider.walkableNormalY) return;
-      const y = triangleYAtXZ(tri, probe.x, probe.z, 0.04);
+      const y = triangleYAtXZ(tri, probe.x, probe.z, 0.065);
       if (y === null) return;
       const stepHeight = y - baseY;
-      if (stepHeight < MIN_PLAYER_STEP_HEIGHT || stepHeight > maxStepHeight) return;
+      if (stepHeight < -0.035 || stepHeight > maxStepHeight) return;
+      if (stepHeight < MIN_PLAYER_STEP_HEIGHT && y <= baseY + MIN_PLAYER_STEP_HEIGHT) return;
       if (bestY === null || y > bestY) bestY = y;
     });
   }
@@ -236,14 +238,21 @@ function findStepSurfaceY(collider, player, baseY, radius, maxStepHeight) {
 
 function stepProbes(x, z, velX, velZ, radius) {
   const probes = groundProbes(x, z, radius);
+  const edge = Math.max(0.22, radius * 0.96);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    probes.push({ x: x + Math.cos(a) * edge, z: z + Math.sin(a) * edge });
+  }
   const speed = Math.hypot(velX, velZ);
   if (speed > 0.001) {
     const dirX = velX / speed;
     const dirZ = velZ / speed;
-    const forward = Math.max(0.18, radius * 0.92);
-    const side = Math.max(0.10, radius * 0.42);
+    const forward = Math.max(0.24, radius * 1.08);
+    const farForward = Math.max(0.36, radius * 1.34);
+    const side = Math.max(0.12, radius * 0.48);
     probes.push(
       { x: x + dirX * forward, z: z + dirZ * forward },
+      { x: x + dirX * farForward, z: z + dirZ * farForward },
       { x: x + dirX * forward - dirZ * side, z: z + dirZ * forward + dirX * side },
       { x: x + dirX * forward + dirZ * side, z: z + dirZ * forward - dirX * side }
     );

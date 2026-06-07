@@ -63,6 +63,7 @@ export const game = {
   randomWeapon: "pistol",
   randomLoadout: null,
   maxHealth: 100,
+  fov: 90,
   fpsCustomMap: null,
   fpsCustomMapActive: false,
   fpsImportedAssetUrl: "",
