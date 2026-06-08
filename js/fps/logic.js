@@ -1,12 +1,12 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
-import { game, world, fps, input } from "../core/state.js";
+import { game, world, fps } from "../core/state.js";
 import { materials, scene, lights } from "../core/engine.js";
 import { fpsArenaThemes } from "./themes.js";
-import { FPS_HEAD_VISUAL_HEIGHT } from "../core/constants.js";
 import { makeRampMesh } from "../core/ramps.js";
 import { buildTriangleMeshColliderFromObject } from "./mesh-collision.js";
+import { makePlayerMesh } from "./player-mesh.js";
 
 export function setupArena() {
   const mapIndex = game.fpsMapIndex || 0;
@@ -33,6 +33,7 @@ export function setupArena() {
   world.ramps = [];
   world.lasers = [];
   world.grenades = [];
+  world.smokeClouds = [];
   world.explosions = [];
   world.arenaFloors = floorDefs.map((floor) => ({ ...floor }));
   world.arenaFloorCollision = activeMap.floorCollision !== false;
@@ -84,7 +85,7 @@ export function setupArena() {
 
   const skyShell = new THREE.Mesh(
     new THREE.SphereGeometry(170, 32, 16),
-    new THREE.MeshBasicMaterial({ color: brightenArenaColor(theme.sky, 0.58, 0.34), side: THREE.BackSide })
+    new THREE.MeshBasicMaterial({ color: brightenArenaColor(theme.sky, 0.64, 0.34), side: THREE.BackSide })
   );
   skyShell.position.y = 28;
   world.arenaRoot.add(skyShell);
@@ -377,18 +378,18 @@ function brightenArenaColor(hex, minLightness = 0.54, minSaturation = 0.24) {
 }
 
 function applyFpsArenaTheme(theme) {
-  const sky = brightenArenaColor(theme.sky, 0.58, 0.34);
-  const fog = brightenArenaColor(theme.fog ?? theme.sky, 0.48, 0.24);
+  const sky = brightenArenaColor(theme.sky, 0.64, 0.34);
+  const fog = brightenArenaColor(theme.fog ?? theme.sky, 0.54, 0.24);
   scene.background = sky;
   scene.fog = new THREE.Fog(fog, theme.fogNear, theme.fogFar);
   if (lights.hemi) {
     lights.hemi.color.setHex(0xf4fbff);
     lights.hemi.groundColor.setHex(0x8ea06d);
-    lights.hemi.intensity = 2.65;
+    lights.hemi.intensity = 3.05;
   }
   if (lights.sun) {
     lights.sun.color.setHex(0xffffff);
-    lights.sun.intensity = 3.15;
+    lights.sun.intensity = 3.65;
     lights.sun.position.set(14, 26, 10);
   }
 }
@@ -990,72 +991,4 @@ function loadArenaAsset(asset) {
   });
 }
 
-export function makePlayerMesh(material) {
-  const group = new THREE.Group();
-  const armorMat = new THREE.MeshStandardMaterial({ color: 0x161d22, roughness: 0.45, metalness: 0.25 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x8ff7ff });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1114, roughness: 0.5, metalness: 0.45 });
-
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.94, 8, 18), material);
-  body.position.y = 0.89;
-  body.castShadow = true;
-
-  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.6, 0.14), armorMat);
-  chestPlate.position.set(0, 1.05, -0.3);
-  chestPlate.castShadow = true;
-
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.1, 0.22), darkMat);
-  belt.position.set(0, 0.55, -0.05);
-
-  const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), armorMat);
-  shoulderL.position.set(-0.5, 1.25, -0.04);
-  shoulderL.scale.set(1.15, 0.72, 0.9);
-  const shoulderR = shoulderL.clone();
-  shoulderR.position.x = 0.5;
-
-  const headGroup = new THREE.Group();
-  headGroup.name = "headGroup";
-  headGroup.position.y = FPS_HEAD_VISUAL_HEIGHT;
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), material);
-  head.castShadow = true;
-
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), eyeMat);
-  eyeL.position.set(-0.105, 0.04, -0.265);
-  eyeL.scale.set(1.15, 0.82, 0.32);
-  const eyeR = eyeL.clone();
-  eyeR.position.x = 0.105;
-
-  headGroup.add(head, eyeL, eyeR);
-
-  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.48, 12), armorMat);
-  legL.position.set(-0.2, 0.3, 0);
-  legL.castShadow = true;
-
-  const legR = legL.clone();
-  legR.position.x = 0.2;
-
-  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.24), darkMat);
-  footL.position.set(-0.2, 0.04, -0.06);
-  footL.castShadow = true;
-
-  const footR = footL.clone();
-  footR.position.x = 0.2;
-
-  group.add(body, chestPlate, belt, shoulderL, shoulderR, headGroup, legL, legR, footL, footR);
-
-  const gunPart = new THREE.Group();
-  gunPart.name = "gun";
-  gunPart.position.set(0.32, -0.08, -0.3);
-  gunPart.rotation.set(0.05, -0.1, 0.08);
-  headGroup.add(gunPart);
-
-  const meleePart = new THREE.Group();
-  meleePart.name = "melee";
-  meleePart.position.set(0.05, 0.08, -0.16);
-  meleePart.rotation.set(0.35, -0.25, -0.5);
-  meleePart.visible = false;
-  headGroup.add(meleePart);
-
-  return group;
-}
+export { makePlayerMesh };

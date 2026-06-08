@@ -61,13 +61,19 @@
           <span class="cooldown-text" id="grenadeCDText"></span>
           <span class="ability-icon">●</span>
         </div>
+        <div class="ability-slot" id="smokeAbility">
+          <span class="key-hint">X</span>
+          <div class="cooldown-overlay" id="smokeOverlay"></div>
+          <span class="cooldown-text" id="smokeCDText"></span>
+          <span class="ability-icon">◒</span>
+        </div>
       </div>
       <div class="chip hidden" id="healthChip">Health<strong id="healthText">100</strong></div>
       <div class="chip hidden" id="weaponChip">Weapon<strong id="weaponText">Gun</strong></div>
       <div class="chip hidden" id="ammoChip">Ammo<strong id="ammoText">7 / 7</strong></div>
     </div>
     <div class="kill-notice hidden" id="killNotice"></div>
-    <div class="radar-marker hidden" id="radarMarker">ENEMY</div>
+    <div class="radar-marker hidden" id="radarMarker" aria-hidden="true"></div>
 
     <button class="settings hidden" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
     <div class="settings-panel hidden" id="settingsPanel">

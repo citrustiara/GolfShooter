@@ -671,7 +671,7 @@
   ],
   "config": {
     "hp": 100,
-    "abilities": ["jetpack", "grenade"],
+    "abilities": ["jetpack", "grenade", "smoke"],
     "weapons": ["heaviestSpermShooter", "heavySpermShooter", "spermShooter"],
     "abilityKeys": {
       "jetpack": "Space"

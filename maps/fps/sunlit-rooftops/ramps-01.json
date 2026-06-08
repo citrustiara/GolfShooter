@@ -1,0 +1,112 @@
+[
+  {
+    "name": "west-north-ramp",
+    "x": -32,
+    "y": 14,
+    "z": -10,
+    "width": 4,
+    "length": 12,
+    "height": 6,
+    "rot": 3.142,
+    "color": 12756605
+  },
+  {
+    "name": "north-scaffold-1-ramp",
+    "x": -8.5,
+    "y": 14.25,
+    "z": -25.25,
+    "width": 3,
+    "length": 8,
+    "height": 4,
+    "rot": 0,
+    "color": 12756605
+  },
+  {
+    "name": "scaffold-1-2-ramp",
+    "x": -6.25,
+    "y": 18,
+    "z": -16.75,
+    "width": 2.5,
+    "length": 6,
+    "height": 5.2,
+    "rot": 0,
+    "color": 12756605
+  },
+  {
+    "name": "scaffold-2-center-ramp",
+    "x": -1.25,
+    "y": 23,
+    "z": -8.75,
+    "width": 3,
+    "length": 8,
+    "height": 5,
+    "rot": 1.571,
+    "color": 12756605
+  },
+  {
+    "name": "center-bridge-east-ramp",
+    "x": 12,
+    "y": 22.18,
+    "z": -2,
+    "width": 3,
+    "length": 8,
+    "height": 6,
+    "rot": -1.571,
+    "color": 8421504
+  },
+  {
+    "name": "se-east-ramp",
+    "x": 24.75,
+    "y": 16,
+    "z": 10,
+    "width": 4,
+    "length": 12,
+    "height": 6,
+    "rot": 0,
+    "color": 12756605
+  },
+  {
+    "name": "west-north-ramp-1",
+    "x": 6,
+    "y": 12,
+    "z": 35,
+    "width": 4,
+    "length": 18,
+    "height": 10.2,
+    "rot": 1.571,
+    "color": 12632256
+  },
+  {
+    "name": "center-bridge-east-ramp-1",
+    "x": 38,
+    "y": 16.25,
+    "z": -2,
+    "width": 3,
+    "length": 8,
+    "height": 5.92,
+    "rot": -1.571,
+    "color": 8421504
+  },
+  {
+    "name": "west-north-ramp-1",
+    "x": 24.75,
+    "y": 16,
+    "z": 22,
+    "width": 4,
+    "length": 12,
+    "height": 6,
+    "rot": 3.142,
+    "color": 12756605
+  },
+  {
+    "name": "west-north-ramp-1",
+    "x": -35.5,
+    "y": 12.75,
+    "z": 23.25,
+    "width": 4,
+    "length": 12,
+    "height": 6,
+    "rot": 3.142,
+    "color": 12756605
+  }
+]

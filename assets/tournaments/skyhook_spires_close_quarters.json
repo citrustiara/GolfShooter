@@ -3,5 +3,5 @@
   "map": "fps/skyhook-spires.json",
   "weapons": ["drumShotgun", "desertEagle", "melee"],
   "hp": 135,
-  "abilities": ["jump", "heal", "grenade"]
+  "abilities": ["jump", "heal", "grenade", "smoke"]
 }

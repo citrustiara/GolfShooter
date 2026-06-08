@@ -6,7 +6,8 @@
       "hp": 999,
       "speed": 0.62,
       "abilities": [
-        "grenade"
+        "grenade",
+        "smoke"
       ],
       "cooldowns": {
         "grenade": 4.2
@@ -44,6 +45,7 @@
       "speed": 0.95,
       "abilities": [
         "grenade",
+        "smoke",
         "radar"
       ],
       "cooldowns": {
@@ -59,6 +61,7 @@
         "jump",
         "heal",
         "grenade",
+        "smoke",
         "radar"
       ],
       "cooldowns": {}

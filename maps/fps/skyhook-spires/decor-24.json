@@ -1,0 +1,44 @@
+[
+  {
+    "name": "east-transit-roof-bridge-neon-s",
+    "x": 58,
+    "y": 8.035,
+    "z": 2.25,
+    "sx": 12,
+    "sy": 0.07,
+    "sz": 0.12,
+    "color": 3532543,
+    "rotX": 0,
+    "rotY": 0,
+    "rotZ": 0,
+    "collidable": false
+  },
+  {
+    "name": "east-transit-roof-bridge-neon-w",
+    "x": 52,
+    "y": 8.035,
+    "z": 0,
+    "sx": 0.12,
+    "sy": 0.07,
+    "sz": 4.5,
+    "color": 3532543,
+    "rotX": 0,
+    "rotY": 0,
+    "rotZ": 0,
+    "collidable": false
+  },
+  {
+    "name": "east-transit-roof-bridge-neon-e",
+    "x": 64,
+    "y": 8.035,
+    "z": 0,
+    "sx": 0.12,
+    "sy": 0.07,
+    "sz": 4.5,
+    "color": 3532543,
+    "rotX": 0,
+    "rotY": 0,
+    "rotZ": 0,
+    "collidable": false
+  }
+]

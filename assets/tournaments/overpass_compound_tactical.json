@@ -3,5 +3,5 @@
   "map": "fps/overpass-compound.json",
   "weapons": ["ak47", "desertEagle", "melee"],
   "hp": 100,
-  "abilities": ["grenade"]
+  "abilities": ["grenade", "smoke"]
 }

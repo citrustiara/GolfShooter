@@ -8,6 +8,7 @@
   ],
   "hp": 100,
   "abilities": [
-    "grenade"
+    "grenade",
+    "smoke"
   ]
 }

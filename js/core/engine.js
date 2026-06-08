@@ -22,6 +22,9 @@ uniform float time;
 uniform float grayscale;
 uniform float inkStrength;
 uniform float colorSteps;
+uniform float contrast;
+uniform float brightness;
+uniform float redHighlight;
 varying vec2 vUv;
 
 float luma(vec3 color) {
@@ -32,42 +35,55 @@ float grain(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453123);
 }
 
+vec3 sampleScene(vec2 uv) {
+  vec3 c = texture2D(tDiffuse, uv).rgb;
+  return clamp((c - 0.5) * contrast + 0.5 + brightness, 0.0, 1.0);
+}
+
 void main() {
   vec2 texel = 1.0 / max(resolution, vec2(1.0));
-  vec3 raw = texture2D(tDiffuse, vUv).rgb;
+  vec3 source = texture2D(tDiffuse, vUv).rgb;
+  vec3 raw = clamp((source - 0.5) * contrast + 0.5 + brightness, 0.0, 1.0);
   float center = luma(raw);
 
-  float left = luma(texture2D(tDiffuse, vUv + vec2(-texel.x, 0.0)).rgb);
-  float right = luma(texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb);
-  float up = luma(texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb);
-  float down = luma(texture2D(tDiffuse, vUv + vec2(0.0, -texel.y)).rgb);
-  float diagA = luma(texture2D(tDiffuse, vUv + texel * vec2(1.0, 1.0)).rgb);
-  float diagB = luma(texture2D(tDiffuse, vUv + texel * vec2(-1.0, -1.0)).rgb);
+  float left = luma(sampleScene(vUv + vec2(-texel.x, 0.0)));
+  float right = luma(sampleScene(vUv + vec2(texel.x, 0.0)));
+  float up = luma(sampleScene(vUv + vec2(0.0, texel.y)));
+  float down = luma(sampleScene(vUv + vec2(0.0, -texel.y)));
+  float diagA = luma(sampleScene(vUv + texel * vec2(1.0, 1.0)));
+  float diagB = luma(sampleScene(vUv + texel * vec2(-1.0, -1.0)));
   float edge = abs(left - right) + abs(up - down) + abs(diagA - diagB) * 0.55;
-  edge = smoothstep(0.10, 0.38, edge * 1.85) * inkStrength;
+  edge = smoothstep(0.07, 0.30, edge * 2.25) * inkStrength;
 
   float steps = max(2.0, colorSteps);
-  vec3 boosted = clamp(raw * 1.30 + 0.07, 0.0, 1.0);
+  vec3 boosted = clamp(raw * 1.34 + 0.10, 0.0, 1.0);
   vec3 poster = floor(boosted * steps) / steps;
   float posterLuma = luma(poster);
-  poster = mix(vec3(posterLuma), poster, 1.10);
+  poster = mix(vec3(posterLuma), poster, 1.12);
 
   vec2 grid = vUv * resolution / 7.5;
   vec2 cell = fract(grid) - 0.5;
-  float shadowDots = (1.0 - smoothstep(0.20, 0.48, length(cell))) * (1.0 - smoothstep(0.18, 0.76, center));
-  float hatch = smoothstep(0.46, 0.50, abs(fract((vUv.x + vUv.y) * resolution.x * 0.038) - 0.5)) * (1.0 - smoothstep(0.16, 0.64, center));
-  vec3 comic = poster - shadowDots * 0.052 * inkStrength - hatch * 0.024 * inkStrength;
-  comic = mix(clamp(raw * 1.18 + 0.08, 0.0, 1.0), comic, 0.68);
+  float shadowDots = (1.0 - smoothstep(0.20, 0.48, length(cell))) * (1.0 - smoothstep(0.22, 0.82, center));
+  float hatch = smoothstep(0.46, 0.50, abs(fract((vUv.x + vUv.y) * resolution.x * 0.038) - 0.5)) * (1.0 - smoothstep(0.20, 0.72, center));
+  vec3 comic = poster - shadowDots * 0.044 * inkStrength - hatch * 0.021 * inkStrength;
+  comic = mix(clamp(raw * 1.20 + 0.10, 0.0, 1.0), comic, 0.72);
 
-  float monoValue = floor(clamp(center * 1.28 + 0.12, 0.0, 1.0) * 5.0) / 5.0;
-  vec3 mono = vec3(monoValue);
-  comic = mix(comic, mono, clamp(grayscale, 0.0, 1.0));
-  comic *= 1.0 - edge * 0.40;
+  float monoMix = clamp(grayscale, 0.0, 1.0);
+  float monoGate = smoothstep(0.72, 0.98, monoMix);
+  float monoBase = clamp((center - 0.5) * (1.34 + monoMix * 1.25) + 0.60 + monoMix * 0.05, 0.0, 1.0);
+  float monoPoster = floor(monoBase * 5.0) / 5.0;
+  float hardBw = step(0.55, monoBase);
+  vec3 mono = vec3(mix(monoPoster, hardBw, monoGate));
+  comic = mix(comic, mono, monoMix);
+  comic *= 1.0 - edge * (0.56 + monoMix * 0.12);
 
-  float vignette = 1.0 - smoothstep(0.34, 0.82, distance(vUv, vec2(0.5))) * (0.055 + grayscale * 0.045);
+  float vignette = 1.0 - smoothstep(0.34, 0.82, distance(vUv, vec2(0.5))) * (0.035 + monoMix * 0.035);
   comic *= vignette;
-  comic = comic * (1.14 + grayscale * 0.10) + (0.045 + grayscale * 0.035);
-  comic += (grain(vUv * resolution + time * 31.0) - 0.5) * (0.009 + grayscale * 0.02);
+  comic = (comic - 0.5) * (1.10 + monoMix * 0.32) + 0.5;
+  comic = comic * (1.10 + monoMix * 0.08) + (0.055 + monoMix * 0.035);
+  float redMask = smoothstep(0.18, 0.62, raw.r - max(raw.g, raw.b)) * smoothstep(0.34, 0.88, raw.r);
+  comic = mix(comic, vec3(1.0, 0.025, 0.015), clamp(redHighlight * redMask, 0.0, 1.0));
+  comic += (grain(vUv * resolution + time * 31.0) - 0.5) * (0.008 + monoMix * 0.018);
 
   gl_FragColor = vec4(clamp(comic, 0.0, 1.0), 1.0);
 }
@@ -78,8 +94,11 @@ const comicUniforms = {
   resolution: { value: new THREE.Vector2(1, 1) },
   time: { value: 0 },
   grayscale: { value: 0 },
-  inkStrength: { value: 0.42 },
-  colorSteps: { value: 5 }
+  inkStrength: { value: 0.58 },
+  colorSteps: { value: 5 },
+  contrast: { value: 1.16 },
+  brightness: { value: 0.06 },
+  redHighlight: { value: 0 }
 };
 const comicRenderTarget = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true, stencilBuffer: false });
 comicRenderTarget.texture.name = "ComicPostProcessTexture";
@@ -112,8 +131,11 @@ export function renderScene(timeSeconds = 0, options = {}) {
   syncComicRenderTarget();
   comicUniforms.time.value = timeSeconds;
   comicUniforms.grayscale.value = options.grayscale ?? 0;
-  comicUniforms.inkStrength.value = options.inkStrength ?? 0.42;
+  comicUniforms.inkStrength.value = options.inkStrength ?? 0.58;
   comicUniforms.colorSteps.value = options.colorSteps ?? 5;
+  comicUniforms.contrast.value = options.contrast ?? 1.16;
+  comicUniforms.brightness.value = options.brightness ?? 0.06;
+  comicUniforms.redHighlight.value = options.redHighlight ?? 0;
 
   renderer.setRenderTarget(comicRenderTarget);
   renderer.clear();

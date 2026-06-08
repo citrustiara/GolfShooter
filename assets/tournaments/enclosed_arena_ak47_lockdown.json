@@ -9,6 +9,7 @@
   "hp": 110,
   "abilities": [
     "grenade",
+    "smoke",
     "heal"
   ],
   "cooldowns": {

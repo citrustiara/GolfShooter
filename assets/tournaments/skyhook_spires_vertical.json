@@ -3,5 +3,5 @@
   "map": "fps/skyhook-spires.json",
   "weapons": ["ak47", "tacticalSniper", "melee"],
   "hp": 120,
-  "abilities": ["jump", "grenade", "radar"]
+  "abilities": ["jump", "grenade", "smoke", "radar"]
 }

@@ -52,6 +52,7 @@ export const game = {
   jumpCooldown: 0,
   healCooldown: 0,
   grenadeCooldown: 0,
+  smokeCooldown: 0,
   radarCooldown: 0,
   radarTimer: 0,
   slideTimer: 0,
@@ -117,6 +118,7 @@ export const world = {
   playerMeshes: [],
   lasers: [],
   grenades: [],
+  smokeClouds: [],
   explosions: []
 };
 

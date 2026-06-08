@@ -14,6 +14,31 @@ async function loadJson(url) {
   return response.json();
 }
 
+function resolveRelativeUrl(baseUrl, includePath) {
+  return new URL(includePath, new URL(baseUrl, window.location.href)).href;
+}
+
+async function resolveJsonIncludes(value, baseUrl) {
+  if (Array.isArray(value)) {
+    return Promise.all(value.map((item) => resolveJsonIncludes(item, baseUrl)));
+  }
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value.$include)) {
+    const chunks = await Promise.all(value.$include.map(async (includePath) => {
+      const includeUrl = resolveRelativeUrl(baseUrl, includePath);
+      const included = await loadJson(includeUrl);
+      return resolveJsonIncludes(included, includeUrl);
+    }));
+    return chunks.flatMap((chunk) => Array.isArray(chunk) ? chunk : [chunk]);
+  }
+  const entries = await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await resolveJsonIncludes(item, baseUrl)]));
+  return Object.fromEntries(entries);
+}
+
+async function loadMapJson(url) {
+  return resolveJsonIncludes(await loadJson(url), url);
+}
+
 function replaceArray(target, values) {
   target.splice(0, target.length, ...values);
 }
@@ -40,11 +65,23 @@ function normalizeFpsMap(map) {
   return map.theme ? { ...map.theme, ...map } : map;
 }
 
+async function loadManifestMaps(paths = [], normalizer = (value) => value) {
+  const maps = await Promise.all(paths.map(async (path) => {
+    try {
+      return normalizer(await loadMapJson(`maps/${path}`));
+    } catch (error) {
+      console.warn(`Could not load map ${path}.`, error);
+      return null;
+    }
+  }));
+  return maps.filter(Boolean);
+}
+
 async function loadMapList(manifest) {
-  const fpsMaps = await Promise.all((manifest.fpsMaps || []).map((path) => loadJson(`maps/${path}`)));
-  const golfMaps = await Promise.all((manifest.golfMaps || []).map((path) => loadJson(`maps/${path}`)));
-  replaceArray(fpsArenaThemes, fpsMaps.map(normalizeFpsMap));
-  replaceArray(holeCatalog, golfMaps.map(normalizeGolfHole));
+  const fpsMaps = await loadManifestMaps(manifest.fpsMaps || [], normalizeFpsMap);
+  const golfMaps = await loadManifestMaps(manifest.golfMaps || [], normalizeGolfHole);
+  if (fpsMaps.length) replaceArray(fpsArenaThemes, fpsMaps);
+  if (golfMaps.length) replaceArray(holeCatalog, golfMaps);
 }
 
 async function loadWeaponContent() {
@@ -123,15 +160,15 @@ export async function loadGameContent() {
       { id: "neon_depot_close_quarters", map: "fps/neon-depot.json", weapons: ["shotgun", "melee"], hp: 150, abilities: ["jump", "heal"] },
       { id: "juggernaut", map: "fps/neon-depot.json", weapons: ["minigun", "melee"], hp: 999, abilities: [] },
       { id: "sunlit_rooftops_snipers", map: "fps/sunlit-rooftops.json", weapons: ["sniper", "heavySniper"], hp: 100, abilities: ["jump", "radar"] },
-      { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade"] },
-      { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["ak47", "tacticalSniper", "melee"], hp: 120, abilities: ["jump", "grenade", "radar"] },
+      { id: "needle_corridor_explosive", map: "fps/needle-corridor.json", weapons: ["rocket", "grenadeLauncher"], hp: 200, abilities: ["grenade", "smoke"] },
+      { id: "skyhook_spires_vertical", map: "fps/skyhook-spires.json", weapons: ["ak47", "tacticalSniper", "melee"], hp: 120, abilities: ["jump", "grenade", "smoke", "radar"] },
       { id: "skyhook_spires_drum_showdown", map: "fps/skyhook-spires.json", weapons: ["drumShotgun", "pistol", "melee"], hp: 125, abilities: ["jump", "heal"] },
-      { id: "phallic_palace_heaviest_sperm", map: "fps/phallic-palace.json", weapons: ["heaviestSpermShooter", "heavySpermShooter", "melee"], hp: 150, abilities: ["jetpack", "grenade"] },
+      { id: "phallic_palace_heaviest_sperm", map: "fps/phallic-palace.json", weapons: ["heaviestSpermShooter", "heavySpermShooter", "melee"], hp: 150, abilities: ["jetpack", "grenade", "smoke"] },
       { id: "phallic_palace_snipers", map: "fps/phallic-palace.json", weapons: ["heavySniper", "sniper"], hp: 100, abilities: ["jump", "radar"] },
       { id: "enclosed_arena_tactical_sniper", map: "fps/enclosed-arena.json", weapons: ["tacticalSniper", "melee"], hp: 100, abilities: [] },
       { id: "shaft_arena_tactical_sniper", map: "fps/shaft-arena.json", weapons: ["tacticalSniper", "desertEagle", "melee"], hp: 100, abilities: ["jump", "radar"] },
-      { id: "overpass_compound_tactical", map: "fps/overpass-compound.json", weapons: ["ak47", "desertEagle", "melee"], hp: 100, abilities: ["grenade"] },
-      { id: "overpass_compound_sniper", map: "fps/overpass-compound.json", weapons: ["tacticalSniper", "pistol", "melee"], hp: 100, abilities: ["grenade"] }
+      { id: "overpass_compound_tactical", map: "fps/overpass-compound.json", weapons: ["ak47", "desertEagle", "melee"], hp: 100, abilities: ["grenade", "smoke"] },
+      { id: "overpass_compound_sniper", map: "fps/overpass-compound.json", weapons: ["tacticalSniper", "pistol", "melee"], hp: 100, abilities: ["grenade", "smoke"] }
     ];
     replaceArray(tournamentCombinations, defaultCombinations);
   }

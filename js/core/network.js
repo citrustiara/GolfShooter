@@ -85,6 +85,7 @@ export const networkLinks = {
   applyRemoteFpsState: null,
   spawnGrenade: null,
   createExplosion: null,
+  createSmokeCloud: null,
   removeRemoteGrenadesNear: null,
   startVictoryLap: null,
   restartTournament: null,
@@ -271,6 +272,7 @@ function shouldRelay(message) {
     "fpsGrenadeExplode",
     "fpsGrenadeShot",
     "fpsGrenadeSupercharge",
+    "fpsSmokeDeploy",
     "matchResult",
     "restart"
   ].includes(message.type);
@@ -385,7 +387,7 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "fpsGrenadeThrow") {
-    playSound("grenade");
+    playSound(message.kind === "smoke" ? "smoke" : "grenade");
     networkLinks.spawnGrenade(
       new THREE.Vector3(message.x, message.y, message.z),
       new THREE.Vector3(message.vx, message.vy, message.vz),
@@ -393,6 +395,12 @@ export function handleMessage(message, sourceConnection = null) {
       message.owner,
       message
     );
+  }
+
+  if (message.type === "fpsSmokeDeploy") {
+    playSound("smoke");
+    networkLinks.removeRemoteGrenadesNear(new THREE.Vector3(message.x, message.y, message.z));
+    networkLinks.createSmokeCloud?.(new THREE.Vector3(message.x, message.y, message.z), message.radius, message.duration, message.id || null);
   }
 
   if (message.type === "fpsGrenadeExplode") {

@@ -3,5 +3,5 @@
   "map": "fps/needle-corridor.json",
   "weapons": ["rocket", "grenadeLauncher"],
   "hp": 200,
-  "abilities": ["grenade"]
+  "abilities": ["grenade", "smoke"]
 }

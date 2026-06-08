@@ -115,6 +115,10 @@ export function playSound(type) {
     master.gain.setValueAtTime(0.22, now);
     blip(360, 0.14, 0.42, "triangle");
     blip(180, 0.16, 0.28, "square");
+  } else if (type === "smoke") {
+    master.gain.setValueAtTime(0.16, now);
+    blip(190, 0.22, 0.24, "triangle", -260);
+    blip(92, 0.38, 0.18, "sawtooth", -120, 0.04);
   } else if (type === "explosion") {
     master.gain.setValueAtTime(0.42, now);
     blip(64, 0.42, 1.0, "sawtooth");

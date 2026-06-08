@@ -1,0 +1,177 @@
+[
+  {
+    "x": -24.65,
+    "y": 0,
+    "z": 0,
+    "sx": 1,
+    "sy": 12,
+    "sz": 52,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": 24.65,
+    "y": 0,
+    "z": 0,
+    "sx": 1,
+    "sy": 12,
+    "sz": 52,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": -24.65,
+    "sx": 52,
+    "sy": 12,
+    "sz": 1,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 24.65,
+    "sx": 52,
+    "sy": 12,
+    "sz": 1,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "name": "shaft",
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "sx": 4,
+    "sy": 12,
+    "sz": 4,
+    "color": 6045747,
+    "isPlatform": true
+  },
+  {
+    "name": "left-ball",
+    "x": -3,
+    "y": 0,
+    "z": 0,
+    "sx": 3.6,
+    "sy": 4.5,
+    "sz": 3.6,
+    "color": 6045747,
+    "isPlatform": true
+  },
+  {
+    "name": "right-ball",
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "sx": 3.6,
+    "sy": 4.5,
+    "sz": 3.6,
+    "color": 6045747,
+    "isPlatform": true
+  },
+  {
+    "name": "glans",
+    "x": 0,
+    "y": 12,
+    "z": 0,
+    "sx": 4.6,
+    "sy": 2.2,
+    "sz": 4.6,
+    "color": 14723486,
+    "isPlatform": true
+  },
+  {
+    "name": "slit",
+    "x": 0,
+    "y": 14.2,
+    "z": 0,
+    "sx": 0.5,
+    "sy": 0.1,
+    "sz": 1.8,
+    "color": 10497825,
+    "isPlatform": true
+  },
+  {
+    "x": -15,
+    "y": 0,
+    "z": -15,
+    "sx": 4,
+    "sy": 5,
+    "sz": 4,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": 15,
+    "y": 0,
+    "z": 15,
+    "sx": 4,
+    "sy": 5,
+    "sz": 4,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": -15,
+    "y": 0,
+    "z": 15,
+    "sx": 4,
+    "sy": 5,
+    "sz": 4,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": 15,
+    "y": 0,
+    "z": -15,
+    "sx": 4,
+    "sy": 5,
+    "sz": 4,
+    "color": 3156274,
+    "isPlatform": false
+  },
+  {
+    "x": -8,
+    "y": 0,
+    "z": -8,
+    "sx": 2.5,
+    "sy": 2.5,
+    "sz": 2.5,
+    "color": 4150400,
+    "isPlatform": false
+  },
+  {
+    "x": 8,
+    "y": 0,
+    "z": 8,
+    "sx": 2.5,
+    "sy": 2.5,
+    "sz": 2.5,
+    "color": 4150400,
+    "isPlatform": false
+  },
+  {
+    "x": -8,
+    "y": 0,
+    "z": 8,
+    "sx": 2.5,
+    "sy": 2.5,
+    "sz": 2.5,
+    "color": 4150400,
+    "isPlatform": false
+  },
+  {
+    "x": 8,
+    "y": 0,
+    "z": -8,
+    "sx": 2.5,
+    "sy": 2.5,
+    "sz": 2.5,
+    "color": 4150400,
+    "isPlatform": false
+  }
+]
