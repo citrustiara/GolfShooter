@@ -18,14 +18,15 @@ function updateGrenades(dt) {
     
     g.timer -= dt;
     
+    const detonatesOnContact = g.kind === "rocket" || g.kind === "grenadeLauncher";
     let hitObstacle = false;
-    if (g.kind === "rocket" || g.kind === "grenadeLauncher") {
+    if (detonatesOnContact) {
       hitObstacle = projectileHitObstacle(g);
     } else {
       for (const obs of world.obstacles) {
-        collideGrenadeWithObstacle(g, obs, 0.22);
+        if (collideGrenadeWithObstacle(g, obs, 0.22)) hitObstacle = true;
       }
-      collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, 0.22, 0.4, 0.8);
+      if (collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, 0.22, 0.4, 0.8)) hitObstacle = true;
     }
     
     const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
@@ -61,7 +62,8 @@ function updateGrenades(dt) {
       g.vel.z *= 0.8;
     }
     
-    if (outOfArena || hitObstacle || hitPlayer || (hitGround && (g.kind === "rocket" || g.kind === "grenadeLauncher")) || g.timer <= 0 || g.mesh.position.y < -8) {
+    const superchargedImpact = g.isSupercharged && g.kind === "grenade" && (hitObstacle || hitGround || hitPlayer);
+    if (outOfArena || (hitObstacle && detonatesOnContact) || hitPlayer || (hitGround && detonatesOnContact) || superchargedImpact || g.timer <= 0 || g.mesh.position.y < -8) {
       if (g.kind === "smoke") {
         if (g.mesh.position.y >= -8) {
           if (g.localAuthority) deploySmokeGrenade(g);
@@ -113,35 +115,52 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   world.arenaRoot.add(group);
   world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged) });
 }
+function startThrowAnimation(kind = "grenade") {
+  game.throwTimer = 0.36;
+  game.throwBlockTimer = Math.max(game.throwBlockTimer || 0, 0.36);
+  game.throwKind = kind;
+  game.inspectTimer = 0;
+  input.aiming = false;
+}
+function firstPersonThrowOrigin(direction) {
+  const camPos = camera.position.clone();
+  const flatDir = directionFromAngles(input.yaw, 0);
+  const right = new THREE.Vector3().crossVectors(flatDir, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const handOrigin = camPos.clone()
+    .addScaledVector(direction, 0.58)
+    .addScaledVector(right, 0.24)
+    .addScaledVector(up, -0.16);
+  if (!isPointInsideProjectileBlocker(handOrigin, 0.16)) return handOrigin;
+  for (const distance of [0.28, 0.42, 0.58, 0.74]) {
+    const fallback = camPos.clone().addScaledVector(direction, distance).addScaledVector(up, -0.04);
+    if (!isPointInsideProjectileBlocker(fallback, 0.12)) return fallback;
+  }
+  return camPos.clone().addScaledVector(direction, 0.18);
+}
 function throwGrenade() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
+  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
   game.grenadeCooldown = abilityCooldown("grenade", GRENADE_COOLDOWN);
   const p = fps.players[game.localIndex];
-  const origin = new THREE.Vector3();
-  if (world.weaponTip) {
-    world.weaponTip.getWorldPosition(origin);
-  } else {
-    origin.set(p.pos.x, p.pos.y + 0.65, p.pos.z);
-  }
-  const dir = directionFromAngles(p.yaw, p.pitch), vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel);
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const origin = firstPersonThrowOrigin(dir);
+  const vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel.clone().multiplyScalar(0.75));
+  startThrowAnimation("grenade");
   spawnGrenade(origin, vel, true, game.localIndex, { weaponName: "Grenade" });
   playSound("grenade");
   send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, weaponName: "Grenade" });
   updateHud();
 }
 function throwSmokeGrenade() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.smokeCooldown > 0 || !abilityAllowed("smoke")) return;
+  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.smokeCooldown > 0 || !abilityAllowed("smoke")) return;
   game.smokeCooldown = abilityCooldown("smoke", SMOKE_GRENADE_COOLDOWN);
   const p = fps.players[game.localIndex];
-  const origin = new THREE.Vector3();
-  if (world.weaponTip) {
-    world.weaponTip.getWorldPosition(origin);
-  } else {
-    origin.set(p.pos.x, p.pos.y + 0.65, p.pos.z);
-  }
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const origin = firstPersonThrowOrigin(dir);
   const id = `${game.localIndex}-${Math.floor(performance.now())}-${Math.random().toString(36).slice(2, 8)}`;
-  const dir = directionFromAngles(p.yaw, p.pitch), vel = dir.clone().multiplyScalar(SMOKE_GRENADE_SPEED).add(p.vel);
+  const vel = dir.clone().multiplyScalar(SMOKE_GRENADE_SPEED).add(p.vel.clone().multiplyScalar(0.75));
   const options = { kind: "smoke", weaponName: "Smoke Grenade", timer: 1.8, gravity: GRENADE_GRAVITY * 0.82, radius: SMOKE_GRENADE_RADIUS, duration: SMOKE_GRENADE_DURATION, id };
+  startThrowAnimation("smoke");
   spawnGrenade(origin, vel, true, game.localIndex, options);
   playSound("smoke");
   send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
@@ -153,7 +172,12 @@ function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier |
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
 function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
 function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
-function projectileHitPlayer(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.86 : 0.95; return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius); }
+function projectileHitPlayer(g) {
+  const superchargedGrenade = g.kind === "grenade" && g.isSupercharged;
+  if (g.kind !== "rocket" && g.kind !== "grenadeLauncher" && !superchargedGrenade) return false;
+  const radius = superchargedGrenade ? 0.62 : (g.kind === "grenadeLauncher" ? 0.86 : 0.95);
+  return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius);
+}
 function explodeGrenade(g) {
   const pos = g.mesh.position.clone();
   world.arenaRoot.remove(g.mesh);
@@ -196,18 +220,18 @@ function deploySmokeGrenade(g) {
 }
 function createSmokeCloud(pos, radius = SMOKE_GRENADE_RADIUS, duration = SMOKE_GRENADE_DURATION, id = null) {
   if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return;
-  radius = Math.max(2, Math.min(24, Number(radius) || SMOKE_GRENADE_RADIUS));
+  radius = Math.max(2, Math.min(34, Number(radius) || SMOKE_GRENADE_RADIUS));
   duration = Math.max(1, Math.min(15, Number(duration) || SMOKE_GRENADE_DURATION));
   if (id && world.smokeClouds.some((cloud) => cloud.id === id)) return;
   const group = new THREE.Group();
   group.position.copy(pos);
-  const puffCount = 26;
+  const puffCount = Math.max(34, Math.min(58, Math.round(radius * 3.1)));
   const puffs = [];
   for (let i = 0; i < puffCount; i++) {
     const angle = (i / puffCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.65;
-    const dist = Math.sqrt(Math.random()) * radius * 0.58;
-    const y = Math.random() * radius * 0.34;
-    const size = radius * (0.16 + Math.random() * 0.16);
+    const dist = Math.sqrt(Math.random()) * radius * 0.68;
+    const y = Math.random() * radius * 0.42;
+    const size = radius * (0.14 + Math.random() * 0.14);
     const shade = 0.46 + Math.random() * 0.32;
     const mat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(shade, shade, shade),
@@ -255,10 +279,11 @@ function createExplosion(pos, radius = GRENADE_SPLASH_RADIUS * 0.5) { const geo 
 function updateExplosions(dt) { for (let i = world.explosions.length - 1; i >= 0; i--) { const ex = world.explosions[i]; ex.timer -= dt; const s = 1.0 + (1.0 - ex.timer / ex.max) * 2.0; ex.mesh.scale.set(s, s, s); ex.mesh.material.opacity = ex.timer / ex.max; if (ex.timer <= 0) { world.arenaRoot.remove(ex.mesh); world.explosions.splice(i, 1); } } }
 function removeRemoteGrenadesNear(pos) { for (let i = world.grenades.length - 1; i >= 0; i--) { if (world.grenades[i].mesh.position.distanceTo(pos) < 1.0) { world.arenaRoot.remove(world.grenades[i].mesh); world.grenades.splice(i, 1); } } }
 function disposeGrenade(g, announce = false) { const pos = g.mesh.position.clone(); world.arenaRoot.remove(g.mesh); const index = world.grenades.indexOf(g); if (index >= 0) world.grenades.splice(index, 1); createExplosion(pos, 1.4); if (announce) send({ type: "fpsGrenadeShot", x: pos.x, y: pos.y, z: pos.z }); }
-function superchargeGrenade(g, announce = false) { g.isSupercharged = true; g.damageMultiplier = 2; g.radiusMultiplier = 2; g.mesh.traverse((child) => { if (child.material?.color) child.material.color.setHex(0xb84dff); if (child.material?.emissive) { child.material.emissive.setHex(0xb84dff); child.material.emissiveIntensity = 1.1; } }); if (announce) { const pos = g.mesh.position; send({ type: "fpsGrenadeSupercharge", x: pos.x, y: pos.y, z: pos.z }); } }
+function superchargeGrenade(g, announce = false) { if (!g || g.kind === "smoke") return; g.isSupercharged = true; g.damageMultiplier = 2; g.radiusMultiplier = 2; g.mesh.traverse((child) => { if (child.material?.color) child.material.color.setHex(0xb84dff); if (child.material?.emissive) { child.material.emissive.setHex(0xb84dff); child.material.emissiveIntensity = 1.1; } }); if (announce) { const pos = g.mesh.position; send({ type: "fpsGrenadeSupercharge", x: pos.x, y: pos.y, z: pos.z }); } }
 function grenadeRayHit(origin, direction, maxDistance) {
   let best = null;
   for (const grenade of world.grenades) {
+    if (grenade.kind === "smoke") continue;
     const distance = rayHitsSphere(origin, direction, grenade.mesh.position, grenade.kind === "rocket" ? 0.38 : 0.28);
     if (distance !== null && distance <= maxDistance && (!best || distance < best.distance)) best = { grenade, distance };
   }
@@ -266,7 +291,7 @@ function grenadeRayHit(origin, direction, maxDistance) {
 }
 
 function fireHitscan() {
-  if (game.radarTimer > 0) return;
+  if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
   if (game.phase !== "fps" || game.countdown > 0 || game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
   const cfg = weaponConfig();
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
@@ -374,7 +399,7 @@ function playerBodyHitCenter(player) {
   return player.pos.clone().add(new THREE.Vector3(0, FPS_BODY_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
 }
 function fireMelee() {
-  if (game.radarTimer > 0) return;
+  if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
   const now = performance.now(); if (now - game.lastShotAt < 250) return; game.lastShotAt = now; game.meleeSwingTimer = 0.25; playSound("melee");
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);

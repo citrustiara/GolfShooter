@@ -4,6 +4,30 @@ function showMenuScene() {
   world.golfRoot.visible = true; world.arenaRoot.visible = false; camera.position.set(-28, 12, 28); camera.lookAt(0, 0, 0); camera.fov = 62; camera.updateProjectionMatrix();
 }
 
+const weaponOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x050607, side: THREE.BackSide, depthWrite: false });
+
+function addWeaponOutlineForMesh(mesh, scale = 1.055) {
+  if (!mesh?.isMesh || mesh.userData?.isWeaponOutline || !mesh.geometry || !mesh.parent) return;
+  const outline = new THREE.Mesh(mesh.geometry, weaponOutlineMaterial);
+  outline.name = "weaponComicOutline";
+  outline.userData.isWeaponOutline = true;
+  outline.position.copy(mesh.position);
+  outline.rotation.copy(mesh.rotation);
+  outline.quaternion.copy(mesh.quaternion);
+  outline.scale.copy(mesh.scale).multiplyScalar(scale);
+  outline.renderOrder = (mesh.renderOrder || 0) - 1;
+  outline.frustumCulled = mesh.frustumCulled;
+  mesh.parent.add(outline);
+}
+
+function addWeaponOutlines(root, scale = 1.055) {
+  const meshes = [];
+  root.traverse((child) => {
+    if (child.isMesh && !child.userData?.isWeaponOutline) meshes.push(child);
+  });
+  meshes.forEach((mesh) => addWeaponOutlineForMesh(mesh, scale));
+}
+
 function rebuildWeaponMesh(weaponId, targetGroup) {
   if (!targetGroup) return;
   while (targetGroup.children.length > 0) {
@@ -15,6 +39,7 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
   if (cfg.glbModel) {
     const clone = cfg.glbModel.clone();
     targetGroup.add(clone);
+    addWeaponOutlines(clone, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.075 : 1.055);
     
     const tip = new THREE.Group();
     const muzzle = cfg.muzzle || { x: 0, y: 0.08, z: -1.0 };
@@ -54,6 +79,7 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     targetGroup.add(mesh);
+    addWeaponOutlineForMesh(mesh, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.075 : 1.055);
   });
 
   const tip = new THREE.Group();
@@ -187,8 +213,8 @@ function enterFps(isSimulation = false, options = {}) {
   const startingWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : 
                          (allowedWeapons.find((id) => id !== "melee") || allowedWeapons[0] || "pistol");
   const startAsMelee = randomMelee || startingWeapon === "melee";
-  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
-  game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.smokeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
+  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.stepTimer = 0; p.stepSide = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
+  game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.throwTimer = 0; game.throwBlockTimer = 0; game.throwKind = ""; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.smokeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
   if (game.role === "solo") game.localIndex = 0;
   setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState(game.activeWeapon, game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
 }

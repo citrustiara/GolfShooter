@@ -53,7 +53,7 @@ void main() {
   float diagA = luma(sampleScene(vUv + texel * vec2(1.0, 1.0)));
   float diagB = luma(sampleScene(vUv + texel * vec2(-1.0, -1.0)));
   float edge = abs(left - right) + abs(up - down) + abs(diagA - diagB) * 0.55;
-  edge = smoothstep(0.07, 0.30, edge * 2.25) * inkStrength;
+  edge = smoothstep(0.055, 0.265, edge * 2.55) * inkStrength;
 
   float steps = max(2.0, colorSteps);
   vec3 boosted = clamp(raw * 1.34 + 0.10, 0.0, 1.0);
@@ -75,7 +75,10 @@ void main() {
   float hardBw = step(0.55, monoBase);
   vec3 mono = vec3(mix(monoPoster, hardBw, monoGate));
   comic = mix(comic, mono, monoMix);
-  comic *= 1.0 - edge * (0.56 + monoMix * 0.12);
+
+  float shadowLift = (1.0 - smoothstep(0.12, 0.44, center)) * (1.0 - clamp(edge * 1.35, 0.0, 1.0)) * (1.0 - monoMix);
+  comic = mix(comic, max(comic, vec3(0.28)), shadowLift * 0.48);
+  comic *= 1.0 - edge * (0.64 + monoMix * 0.12);
 
   float vignette = 1.0 - smoothstep(0.34, 0.82, distance(vUv, vec2(0.5))) * (0.035 + monoMix * 0.035);
   comic *= vignette;

@@ -138,6 +138,23 @@ function updateFpsMovement(dt) {
   }
   resolvePlayerVsTriangleMeshColliders(world.meshColliders, p, previousPosition, FPS_PLAYER_RADIUS_WORLD, FPS_PLAYER_HEIGHT_WORLD);
   clampArenaPosition(p.pos, FPS_PLAYER_RADIUS_WORLD);
+  updateFootstepAudio(p, dt, move);
+}
+
+function updateFootstepAudio(player, dt, move) {
+  player.stepTimer = Math.max(0, (player.stepTimer || 0) - dt);
+  if (game.phase !== "fps" || game.countdown > 0 || player.health <= 0 || !player.grounded || player.sliding || move.lengthSq() <= 0.01) return;
+  const speed = Math.hypot(player.vel.x, player.vel.z);
+  if (speed < 1.9 || player.stepTimer > 0) return;
+  const loadoutSpeed = Math.max(0.45, activeLoadout().speed || 1);
+  const speedRatio = Math.max(0, Math.min(1, speed / (FPS_WALK_MAX_SPEED * loadoutSpeed)));
+  const volume = 0.14 + speedRatio * 0.07;
+  player.stepSide = player.stepSide ? 0 : 1;
+  playSound("footstep", { volume });
+  if (game.connected) {
+    send({ type: "fpsFootstep", player: game.localIndex, x: player.pos.x, y: player.pos.y, z: player.pos.z, volume });
+  }
+  player.stepTimer = Math.max(0.24, 0.49 - speedRatio * 0.18);
 }
 
 function shouldSkipCompositeSurfaceCollision(player, obstacle) {
@@ -419,6 +436,7 @@ function collideGrenadeWithObstacle(g, obs, radius) {
 
 Object.assign(globalThis, {
   updateFpsMovement,
+  updateFootstepAudio,
   shouldSkipCompositeSurfaceCollision,
   fpsFlatSurfaceY,
   fpsRampSurface,

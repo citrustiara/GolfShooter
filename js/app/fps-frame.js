@@ -22,7 +22,7 @@ function updateFps(dt, now) {
   weaponSelectOverlay.classList.add("hidden");
   const isWinner = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
   if (isWinner && game.countdown <= 0) {
-    if (game.radarTimer > 0) input.aiming = false;
+    if (game.radarTimer > 0 || game.throwBlockTimer > 0) input.aiming = false;
     updateFpsCamera(dt);
     updateFpsMovement(dt);
   }
@@ -63,7 +63,7 @@ function updateFps(dt, now) {
     if (progress) progress.classList.add("hidden");
     if (bar) bar.style.transform = "scaleX(0)";
   }
-  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt;
+  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.throwTimer > 0) game.throwTimer = Math.max(0, game.throwTimer - dt); if (game.throwBlockTimer > 0) game.throwBlockTimer = Math.max(0, game.throwBlockTimer - dt); if (game.throwTimer <= 0) game.throwKind = ""; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt;
   if (game.radarTimer > 0) {
     game.radarTimer -= dt;
     if (game.radarTimer <= 0) {
@@ -146,7 +146,14 @@ function updateWeaponModel(dt, p) {
 
   // Compute animation-related Y offset
   let animY = 0;
-  if (!isRadarActive && game.weaponSwapTimer > 0) {
+  let throwArc = 0;
+  if (!isRadarActive && game.throwTimer > 0) {
+    const throwDuration = 0.36;
+    const throwProgress = 1 - Math.max(0, game.throwTimer) / throwDuration;
+    throwArc = Math.sin(Math.min(1, throwProgress) * Math.PI);
+    animY = -throwArc * 0.52;
+    offset.add(camDir.clone().multiplyScalar(throwArc * 0.18)).add(right.clone().multiplyScalar(-throwArc * 0.12));
+  } else if (!isRadarActive && game.weaponSwapTimer > 0) {
     animY = -Math.sin((game.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5;
   } else if (!isRadarActive && game.reloading) {
     const total = cfg.reload || 1.4;
@@ -206,6 +213,9 @@ function updateWeaponModel(dt, p) {
   weapon.quaternion.copy(camera.quaternion);
   if (isRadarActive) {
     weapon.rotateX(0.5);
+  } else if (throwArc > 0) {
+    weapon.rotateX(-0.55 * throwArc);
+    weapon.rotateZ(0.35 * throwArc);
   } else if (inspectProgress > 0) {
     weapon.rotateY(1.3 * inspectProgress);
     weapon.rotateX(0.15 * inspectProgress);

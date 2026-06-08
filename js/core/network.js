@@ -267,6 +267,7 @@ function shouldRelay(message) {
     "phaseFps",
     "fpsWeaponChoice",
     "fpsState",
+    "fpsFootstep",
     "fpsShot",
     "fpsGrenadeThrow",
     "fpsGrenadeExplode",
@@ -354,6 +355,14 @@ export function handleMessage(message, sourceConnection = null) {
     if (message.weapon !== undefined) remote.weapon = message.weapon;
   }
 
+  if (message.type === "fpsFootstep") {
+    if (message.player === game.localIndex || (game.phase !== "fps" && game.phase !== "fpsVictoryLap")) return;
+    const pos = new THREE.Vector3(message.x, message.y, message.z);
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return;
+    const volume = Math.max(0.04, Math.min(0.28, Number(message.volume) || 0.15));
+    playSound("footstep", { position: pos, volume, minDistance: 2.0, maxDistance: 42 });
+  }
+
   if (message.type === "fpsShot") {
     const origin = new THREE.Vector3(message.ox, message.oy, message.oz);
     const direction = new THREE.Vector3(message.dx, message.dy, message.dz);
@@ -424,18 +433,18 @@ export function handleMessage(message, sourceConnection = null) {
 
   if (message.type === "fpsGrenadeSupercharge") {
     const pos = new THREE.Vector3(message.x, message.y, message.z);
-    const grenade = world.grenades.find((g) => g.mesh.position.distanceTo(pos) < 1.5);
+    const grenade = world.grenades.find((g) => g.mesh.position.distanceTo(pos) < 1.5 && g.kind !== "smoke");
     if (grenade) {
       grenade.isSupercharged = true;
       grenade.damageMultiplier = 2;
       grenade.radiusMultiplier = 2;
-      if (grenade.mesh.material) {
-        grenade.mesh.material.color.setHex(0xb84dff);
-        if (grenade.mesh.material.emissive) {
-          grenade.mesh.material.emissive.setHex(0xb84dff);
-          grenade.mesh.material.emissiveIntensity = 1.1;
+      grenade.mesh.traverse((child) => {
+        if (child.material?.color) child.material.color.setHex(0xb84dff);
+        if (child.material?.emissive) {
+          child.material.emissive.setHex(0xb84dff);
+          child.material.emissiveIntensity = 1.1;
         }
-      }
+      });
     }
   }
 

@@ -9,11 +9,37 @@ export function ensureAudio() {
   if (audioContext.state === "suspended") audioContext.resume();
 }
 
-export function playSound(type) {
+export function playSound(type, options = {}) {
   if (!audioContext) return;
+  if (typeof options === "number") options = { volume: options };
   const now = audioContext.currentTime;
   const master = audioContext.createGain();
-  master.connect(audioContext.destination);
+  const output = audioContext.createGain();
+  const volume = Math.max(0, Math.min(3, Number(options.volume ?? 1) || 0));
+  let distanceGain = 1;
+  let panValue = 0;
+  if (options.position && Number.isFinite(options.position.x) && Number.isFinite(options.position.y) && Number.isFinite(options.position.z)) {
+    const source = new THREE.Vector3(options.position.x, options.position.y, options.position.z);
+    const toSource = source.clone().sub(camera.position);
+    const distance = toSource.length();
+    const minDistance = Math.max(0, Number(options.minDistance ?? 2) || 2);
+    const maxDistance = Math.max(minDistance + 1, Number(options.maxDistance ?? 55) || 55);
+    const falloff = Math.max(0, Math.min(1, (distance - minDistance) / (maxDistance - minDistance)));
+    distanceGain = (1 - falloff) * (1 - falloff);
+    if (distance > 0.001) {
+      const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+      panValue = Math.max(-1, Math.min(1, toSource.normalize().dot(cameraRight) * 0.82));
+    }
+  }
+  if (volume <= 0 || distanceGain <= 0.0001) return;
+  output.gain.setValueAtTime(volume * distanceGain, now);
+  if (audioContext.createStereoPanner) {
+    const panner = audioContext.createStereoPanner();
+    panner.pan.setValueAtTime(panValue, now);
+    master.connect(panner).connect(output).connect(audioContext.destination);
+  } else {
+    master.connect(output).connect(audioContext.destination);
+  }
 
   const blip = (frequency, duration, gain, wave = "sine", detune = 0, delay = 0) => {
     const start = now + delay;
@@ -132,6 +158,11 @@ export function playSound(type) {
   } else if (type === "slide") {
     master.gain.setValueAtTime(0.12, now);
     blip(210, 0.18, 0.24, "sawtooth", -220);
+  } else if (type === "footstep" || type === "step") {
+    const pitch = (Math.random() - 0.5) * 26;
+    master.gain.setValueAtTime(0.18, now);
+    blip(82, 0.065, 0.38, "triangle", pitch - 70);
+    blip(132, 0.045, 0.16, "sine", pitch, 0.012);
   } else if (type === "golfHit") {
     master.gain.setValueAtTime(0.22, now);
     blip(760, 0.05, 0.42, "triangle");

@@ -82,6 +82,26 @@ function placeBuildBox() {
   mapJsonInput && (mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2));
   setupArena();
 }
+function tryActivateAbilityKey(code) {
+  const handlers = [
+    ["jump", activateJumpAbility],
+    ["heal", activateHealAbility],
+    ["grenade", throwGrenade],
+    ["smoke", throwSmokeGrenade],
+    ["radar", activateRadar]
+  ];
+  for (const [name, handler] of handlers) {
+    if (abilityAllowed(name) && code === getAbilityKey(name)) {
+      handler();
+      return true;
+    }
+  }
+  if (code === getAbilityKey("grenade") && !abilityAllowed("grenade") && abilityAllowed("smoke")) {
+    throwSmokeGrenade();
+    return true;
+  }
+  return false;
+}
 
 function animate(now = performance.now()) {
   const dt = Math.min(0.033, (now - lastFrame) / 1000 || clock.getDelta()); lastFrame = now;
@@ -107,7 +127,7 @@ function animate(now = performance.now()) {
   const monoAmount = radarMono ? 1 : comicMono;
   renderScene(now * 0.001, {
     grayscale: monoAmount,
-    inkStrength: radarMono ? 1.05 : 0.62 + comicMono * 0.24,
+    inkStrength: radarMono ? 1.12 : 0.70 + comicMono * 0.26,
     colorSteps: radarMono ? 2 : (comicMono > 0.01 ? 4 : 5),
     contrast: radarMono ? 1.85 : 1.18 + comicMono * 0.18,
     brightness: radarMono ? 0.08 : 0.06,
@@ -148,14 +168,10 @@ window.addEventListener("keydown", (e) => {
             else if (meleeAllowed() && digit === aw.length + 1) switchWeapon("melee");
           }
         }
+        else if (tryActivateAbilityKey(c)) {}
         else if (c === "KeyB") toggleBuildMode();
         else if (c === "KeyV") placeBuildBox();
-        else if (c === getAbilityKey("jump")) activateJumpAbility();
-        else if (c === getAbilityKey("heal")) activateHealAbility();
-        else if (c === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0) game.inspectTimer = 2.0;
-        else if (c === getAbilityKey("grenade")) throwGrenade();
-        else if (c === getAbilityKey("smoke")) throwSmokeGrenade();
-        else if (c === getAbilityKey("radar")) activateRadar();
+        else if (c === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0 && game.throwBlockTimer <= 0) game.inspectTimer = 2.0;
       }
     }
   }
@@ -273,6 +289,7 @@ Object.assign(globalThis, {
   codeFromKeyEvent,
   toggleBuildMode,
   placeBuildBox,
+  tryActivateAbilityKey,
   animate,
   syncFov
 });
