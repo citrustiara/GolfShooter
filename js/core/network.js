@@ -256,6 +256,9 @@ function survivingFpsPlayerIndexes() {
 function startRoundIfOnlyOneSurvivor() {
   const alive = survivingFpsPlayerIndexes();
   if (alive.length === 1) networkLinks.startVictoryLap(alive[0], "deathmatch", false);
+  // Everyone died in the same instant (trade kill / shared explosion): the
+  // round must still end or the match soft-locks. -1 marks a tied round.
+  else if (alive.length === 0) networkLinks.startVictoryLap(-1, "deathmatch", false);
 }
 
 function shouldRelay(message) {
@@ -350,6 +353,9 @@ export function handleMessage(message, sourceConnection = null) {
     remote.health = message.health;
     if (wasAlive && remote.health <= 0) {
       if (networkLinks.showEliminationNotice) networkLinks.showEliminationNotice(message.player);
+      // The killer's matchResult can be lost or arrive late; the periodic
+      // health sync is the reliable signal, so end the round from here too.
+      if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
     }
     if (message.sliding !== undefined) remote.sliding = message.sliding;
     if (message.weapon !== undefined) remote.weapon = message.weapon;

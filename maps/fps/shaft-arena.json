@@ -209,9 +209,40 @@
       "sz": 2.5,
       "color": 4150400,
       "isPlatform": false
-    }
+    },
+
+    { "name": "balcony-north", "x": 0, "y": 5, "z": 22.5, "sx": 40, "sy": 0.5, "sz": 3.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-south", "x": 0, "y": 5, "z": -22.5, "sx": 40, "sy": 0.5, "sz": 3.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-west", "x": -22.5, "y": 5, "z": 0, "sx": 3.4, "sy": 0.5, "sz": 40, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-east", "x": 22.5, "y": 5, "z": 0, "sx": 3.4, "sy": 0.5, "sz": 40, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-corner-ne", "x": 22.2, "y": 5, "z": 22.2, "sx": 4.4, "sy": 0.5, "sz": 4.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-corner-nw", "x": -22.2, "y": 5, "z": 22.2, "sx": 4.4, "sy": 0.5, "sz": 4.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-corner-se", "x": 22.2, "y": 5, "z": -22.2, "sx": 4.4, "sy": 0.5, "sz": 4.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-corner-sw", "x": -22.2, "y": 5, "z": -22.2, "sx": 4.4, "sy": 0.5, "sz": 4.4, "color": 2237077, "isPlatform": true },
+    { "name": "balcony-rail-n", "x": 0, "y": 5.5, "z": 21, "sx": 34, "sy": 0.8, "sz": 0.35, "color": 3819606, "isPlatform": false },
+    { "name": "balcony-rail-s", "x": 0, "y": 5.5, "z": -21, "sx": 34, "sy": 0.8, "sz": 0.35, "color": 3819606, "isPlatform": false },
+    { "name": "balcony-rail-w", "x": -21, "y": 5.5, "z": 0, "sx": 0.35, "sy": 0.8, "sz": 34, "color": 3819606, "isPlatform": false },
+    { "name": "balcony-rail-e", "x": 21, "y": 5.5, "z": 0, "sx": 0.35, "sy": 0.8, "sz": 34, "color": 3819606, "isPlatform": false },
+
+    { "name": "shaft-deck-n", "x": 0, "y": 5, "z": 3.7, "sx": 8.4, "sy": 0.5, "sz": 3, "color": 4737096, "isPlatform": true },
+    { "name": "shaft-deck-s", "x": 0, "y": 5, "z": -3.7, "sx": 8.4, "sy": 0.5, "sz": 3, "color": 4737096, "isPlatform": true },
+    { "name": "shaft-deck-e", "x": 3.7, "y": 5, "z": 0, "sx": 3, "sy": 0.5, "sz": 4.4, "color": 4737096, "isPlatform": true },
+    { "name": "shaft-deck-w", "x": -3.7, "y": 5, "z": 0, "sx": 3, "sy": 0.5, "sz": 4.4, "color": 4737096, "isPlatform": true },
+
+    { "name": "bridge-east", "x": 12.9, "y": 5, "z": 0, "sx": 15.6, "sy": 0.5, "sz": 2.6, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-west", "x": -12.9, "y": 5, "z": 0, "sx": 15.6, "sy": 0.5, "sz": 2.6, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-north", "x": 0, "y": 5, "z": 12.9, "sx": 2.6, "sy": 0.5, "sz": 15.6, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-south", "x": 0, "y": 5, "z": -12.9, "sx": 2.6, "sy": 0.5, "sz": 15.6, "color": 2046820, "isPlatform": true },
+
+    { "name": "balcony-crate-ne", "x": 17, "y": 5.5, "z": 22.6, "sx": 1.8, "sy": 1.4, "sz": 1.8, "color": 4150400, "isPlatform": true },
+    { "name": "balcony-crate-sw", "x": -17, "y": 5.5, "z": -22.6, "sx": 1.8, "sy": 1.4, "sz": 1.8, "color": 4150400, "isPlatform": true }
   ],
-  "ramps": [],
+  "ramps": [
+    { "name": "balcony-ramp-n", "x": -12, "y": 0, "z": 15.5, "width": 3, "length": 10.6, "height": 5.5, "rot": 0, "color": 2965876 },
+    { "name": "balcony-ramp-s", "x": 12, "y": 0, "z": -15.5, "width": 3, "length": 10.6, "height": 5.5, "rot": 3.14159, "color": 2965876 },
+    { "name": "balcony-ramp-e", "x": 15.5, "y": 0, "z": 12, "width": 3, "length": 10.6, "height": 5.5, "rot": 1.571, "color": 2965876 },
+    { "name": "balcony-ramp-w", "x": -15.5, "y": 0, "z": -12, "width": 3, "length": 10.6, "height": 5.5, "rot": -1.571, "color": 2965876 }
+  ],
   "config": {
     "hp": 100,
     "abilities": [

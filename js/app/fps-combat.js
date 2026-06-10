@@ -140,7 +140,7 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   group.traverse((child) => { if (child.isMesh) child.castShadow = true; });
   world.arenaRoot.add(group);
   const isBouncerKind = options.kind === "bouncer";
-  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged), bounces: 0, maxBounces: options.maxBounces || 6, bounciness: isBouncerKind ? 0.98 : undefined, tangentKeep: isBouncerKind ? 0.99 : undefined });
+  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged), bounces: 0, maxBounces: options.maxBounces || (isBouncerKind ? 2 : 6), bounciness: isBouncerKind ? 0.98 : undefined, tangentKeep: isBouncerKind ? 0.99 : undefined });
 }
 function startThrowAnimation(kind = "grenade") {
   game.throwTimer = 0.36;
@@ -317,6 +317,21 @@ function grenadeRayHit(origin, direction, maxDistance) {
   return best;
 }
 
+function countObstaclesBeforeDistance(intersections, meshWallHit, distance) {
+  // Counts distinct obstacles the ray passes through before `distance`.
+  // Intersections on child meshes of a decorated obstacle collapse to their
+  // root so a single crate never counts as two walls.
+  const pierced = new Set();
+  for (const entry of intersections) {
+    if (entry.distance >= distance) continue;
+    let node = entry.object;
+    while (node && !world.obstacles.includes(node)) node = node.parent;
+    pierced.add(node || entry.object);
+  }
+  let count = pierced.size;
+  if (meshWallHit && meshWallHit.distance < distance) count += 1;
+  return count;
+}
 function fireHitscan() {
   if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
   if (game.phase !== "fps" || game.countdown > 0 || game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
@@ -349,7 +364,22 @@ function fireHitscan() {
       if (hit && (!playerHitResult || hit.distance < playerHitResult.distance)) playerHitResult = { ...hit, index: candidate.index, player: candidate.player };
     }
     let pelletHit = false, pelletDmg = 0, pelletHS = false, len = cfg.range || 80;
-    if (playerHitResult) { const pDist = playerHitResult.distance, throughWall = wallHit && wallHit.distance < pDist; pelletHit = !throughWall || true; pelletHS = playerHitResult.headshot; pelletDmg = Math.floor(cfg.damage * (pelletHS ? cfg.crit : 1) * (throughWall ? 0.5 : 1)); len = pDist; hitTarget ??= playerHitResult.index; hitWorldPos ??= playerHitResult.player.pos.clone(); } else if (wallHit) len = wallHit.distance;
+    if (playerHitResult) {
+      const pDist = playerHitResult.distance;
+      // Wallbang rule: a bullet punches through at most ONE obstacle (at half
+      // damage). Two or more walls in the way fully stop the shot.
+      const wallsBefore = countObstaclesBeforeDistance(intersects, meshWallHit, pDist);
+      if (wallsBefore >= 2) {
+        if (wallHit) len = wallHit.distance;
+      } else {
+        pelletHit = true;
+        pelletHS = playerHitResult.headshot;
+        pelletDmg = Math.floor(cfg.damage * (pelletHS ? cfg.crit : 1) * (wallsBefore === 1 ? 0.5 : 1));
+        len = pDist;
+        hitTarget ??= playerHitResult.index;
+        hitWorldPos ??= playerHitResult.player.pos.clone();
+      }
+    } else if (wallHit) len = wallHit.distance;
     drawLaser(origin, direction, len, pelletHit, false, game.primaryWeapon);
     pellets.push({ dx: direction.x, dy: direction.y, dz: direction.z, length: len, hit: pelletHit });
     if (pelletHit) { anyHit = true; anyHeadshot ||= pelletHS; totalDamage += pelletDmg; bestLength = Math.min(bestLength, len); hitDamages.set(playerHitResult.index, (hitDamages.get(playerHitResult.index) || 0) + pelletDmg); hitHeadshots.set(playerHitResult.index, Boolean(hitHeadshots.get(playerHitResult.index) || pelletHS)); hitDistances.set(playerHitResult.index, Math.min(hitDistances.get(playerHitResult.index) ?? Infinity, len)); }
@@ -407,7 +437,9 @@ function fireProjectileWeapon(cfg) {
   const origin = firstPersonProjectileOrigin(dir);
   if (cfg.projectile === "bouncer") {
     const vel = dir.clone().multiplyScalar(44);
-    const options = { kind: "bouncer", weapon: game.primaryWeapon, timer: 6, gravity: 0, damageMultiplier: 0.62, radiusMultiplier: 0.52 };
+    // High-damage orb that ricochets exactly once: first wall reflects it,
+    // the second contact (or a direct player hit) detonates it.
+    const options = { kind: "bouncer", weapon: game.primaryWeapon, timer: 6, gravity: 0, damageMultiplier: 1.3, radiusMultiplier: 0.52, maxBounces: 2 };
     spawnGrenade(origin, vel, true, game.localIndex, options);
     send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
   } else if (cfg.projectile === "rocket") {

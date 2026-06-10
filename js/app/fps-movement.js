@@ -125,6 +125,7 @@ function updateFpsMovement(dt) {
     updateHud();
     const alive = aliveFpsPlayerIndexes();
     if (alive.length === 1) startVictoryLap(alive[0], "deathmatch");
+    else if (alive.length === 0) startVictoryLap(-1, "deathmatch");
     const spawn = getArenaSpawnPoints(theme)[game.localIndex] || { x: 0, z: 0 };
     p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
     p.vel.set(0, 0, 0);

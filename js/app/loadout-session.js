@@ -75,7 +75,16 @@ function activeFpsRules() {
 function abilityAllowed(name) { return activeLoadout().abilities.includes(name); }
 function abilityCooldown(name, fallback) { return activeLoadout().cooldowns?.[name] ?? fallback; }
 function jumpAbilityStrength() { return 22.5; }
-function aimingSensitivityMultiplier() { const cfg = weaponConfig(); const aimFov = cfg.aimFov || FPS_AIM_FOV; return FPS_AIM_SENSITIVITY_MULTIPLIER * Math.sqrt(Math.max(0.08, aimFov / (game.fov || FPS_DEFAULT_FOV))); }
+function aimingSensitivityMultiplier() {
+  // Standard shooter ADS scaling ("zoom ratio"): sensitivity follows the ratio
+  // of the tangents of the half-FOVs, so a target moves across the screen at
+  // the same perceived speed whether hip-firing or hard-scoped with a sniper.
+  const cfg = weaponConfig();
+  const aimFov = cfg.aimFov || FPS_AIM_FOV;
+  const baseFov = game.fov || FPS_DEFAULT_FOV;
+  const ratio = Math.tan((aimFov * Math.PI) / 360) / Math.tan((baseFov * Math.PI) / 360);
+  return Math.max(0.05, Math.min(1, ratio));
+}
 function clearVictoryBanner() { document.getElementById("victoryBanner")?.remove(); }
 function hideKillNotice() { game.killNoticeTimer = 0; killNotice.classList.add("hidden"); killNotice.replaceChildren(); killNotice.dataset.victim = ""; killNotice.dataset.detailed = "0"; }
 function resultOverlayVisible() { return game.phase === "result"; }

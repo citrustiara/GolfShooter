@@ -59,6 +59,9 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
     if (targetGroup === world.weapon) {
       world.weaponTip = tip;
     }
+    if (targetGroup === world.weapon || targetGroup === world.meleeWeapon) {
+      targetGroup.traverse((child) => { child.frustumCulled = false; });
+    }
     return;
   }
 
@@ -96,9 +99,13 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
   const muzzle = cfg.muzzle || { x: 0, y: 0.08, z: -1.0 };
   tip.position.set(muzzle.x, muzzle.y, muzzle.z);
   targetGroup.add(tip);
-  
+
   if (targetGroup === world.weapon) {
     world.weaponTip = tip;
+  }
+  // First-person view models hug the near plane; never frustum-cull them.
+  if (targetGroup === world.weapon || targetGroup === world.meleeWeapon) {
+    targetGroup.traverse((child) => { child.frustumCulled = false; });
   }
 }
 

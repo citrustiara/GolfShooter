@@ -59,11 +59,15 @@
   "boxes": {
     "$include": [
       "overpass-compound/boxes-01.json",
-      "overpass-compound/boxes-02.json"
+      "overpass-compound/boxes-02.json",
+      "overpass-compound/boxes-03.json"
     ]
   },
   "platforms": [],
-  "ramps": [],
+  "ramps": [
+    { "name": "plaza-tower-a-ramp", "x": 3.5, "y": 0, "z": 10, "width": 3, "length": 16, "height": 8.5, "rot": 1.571, "color": 5995635 },
+    { "name": "plaza-tower-b-ramp", "x": -14, "y": 0, "z": 0.5, "width": 3, "length": 16, "height": 8.5, "rot": 3.14159, "color": 5995635 }
+  ],
   "collision": [],
   "decor": {
     "$include": [

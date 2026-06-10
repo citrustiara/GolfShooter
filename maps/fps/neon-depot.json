@@ -12,12 +12,20 @@
   },
   "spawnPoints": [
     {
-      "x": -66,
+      "x": -79,
       "z": 0
     },
     {
-      "x": 66,
+      "x": 79,
       "z": 0
+    },
+    {
+      "x": -40,
+      "z": 30
+    },
+    {
+      "x": 40,
+      "z": -30
     }
   ],
   "floors": [
@@ -35,7 +43,8 @@
   "boxes": {
     "$include": [
       "neon-depot/boxes-01.json",
-      "neon-depot/boxes-02.json"
+      "neon-depot/boxes-02.json",
+      "neon-depot/boxes-03.json"
     ]
   },
   "platforms": [
@@ -132,7 +141,13 @@
       "height": 4.2,
       "rot": -1.571,
       "color": 4037221
-    }
+    },
+    { "name": "west-warehouse-mezz-ramp", "x": -48, "y": 0, "z": -0.5, "width": 2.6, "length": 10, "height": 3.4, "rot": 0, "color": 2759455 },
+    { "name": "east-warehouse-mezz-ramp", "x": 48, "y": 0, "z": 0.5, "width": 2.6, "length": 10, "height": 3.4, "rot": 3.14159, "color": 2759455 },
+    { "name": "west-warehouse-roof-ramp", "x": -58, "y": 0, "z": -17, "width": 3.2, "length": 14, "height": 6.7, "rot": 0, "color": 1778987 },
+    { "name": "east-warehouse-roof-ramp", "x": 58, "y": 0, "z": 17, "width": 3.2, "length": 14, "height": 6.7, "rot": 3.14159, "color": 1778987 },
+    { "name": "west-tower-ramp", "x": -80, "y": 0, "z": 13, "width": 2.8, "length": 18, "height": 9.5, "rot": 0, "color": 1718858 },
+    { "name": "east-tower-ramp", "x": 80, "y": 0, "z": -13, "width": 2.8, "length": 18, "height": 9.5, "rot": 3.14159, "color": 1718858 }
   ],
   "collision": [],
   "decor": [],

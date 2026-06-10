@@ -1,0 +1,18 @@
+[
+  { "name": "gantry-east-deck", "x": 45, "y": 7, "z": 0, "sx": 3, "sy": 0.5, "sz": 31, "color": 5943551, "isPlatform": true },
+  { "name": "gantry-east-tower-n", "x": 45, "y": 0, "z": 13, "sx": 2.5, "sy": 7, "sz": 2.5, "color": 4878732, "isPlatform": false },
+  { "name": "gantry-east-tower-s", "x": 45, "y": 0, "z": -13, "sx": 2.5, "sy": 7, "sz": 2.5, "color": 4878732, "isPlatform": false },
+  { "name": "gantry-east-rail-w", "x": 43.7, "y": 7.5, "z": 0, "sx": 0.3, "sy": 0.75, "sz": 31, "color": 10414335, "isPlatform": false },
+  { "name": "gantry-east-rail-e", "x": 46.3, "y": 7.5, "z": 5.5, "sx": 0.3, "sy": 0.75, "sz": 20, "color": 10414335, "isPlatform": false },
+
+  { "name": "gantry-west-deck", "x": -45, "y": 7, "z": 0, "sx": 3, "sy": 0.5, "sz": 31, "color": 16740193, "isPlatform": true },
+  { "name": "gantry-west-tower-n", "x": -45, "y": 0, "z": 13, "sx": 2.5, "sy": 7, "sz": 2.5, "color": 4878732, "isPlatform": false },
+  { "name": "gantry-west-tower-s", "x": -45, "y": 0, "z": -13, "sx": 2.5, "sy": 7, "sz": 2.5, "color": 4878732, "isPlatform": false },
+  { "name": "gantry-west-rail-e", "x": -43.7, "y": 7.5, "z": 0, "sx": 0.3, "sy": 0.75, "sz": 31, "color": 10414335, "isPlatform": false },
+  { "name": "gantry-west-rail-w", "x": -46.3, "y": 7.5, "z": -5.5, "sx": 0.3, "sy": 0.75, "sz": 20, "color": 10414335, "isPlatform": false },
+
+  { "name": "side-nest-north", "x": 10, "y": 0, "z": 14, "sx": 6, "sy": 3.2, "sz": 4, "color": 2503229, "isPlatform": true },
+  { "name": "side-nest-north-rail", "x": 10, "y": 3.2, "z": 12.2, "sx": 6, "sy": 0.8, "sz": 0.35, "color": 10414335, "isPlatform": false },
+  { "name": "side-nest-south", "x": -10, "y": 0, "z": -14, "sx": 6, "sy": 3.2, "sz": 4, "color": 2503229, "isPlatform": true },
+  { "name": "side-nest-south-rail", "x": -10, "y": 3.2, "z": -12.2, "sx": 6, "sy": 0.8, "sz": 0.35, "color": 10414335, "isPlatform": false }
+]

@@ -22,10 +22,13 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   let matchOver = reason === "strokes";
   let matchWinner = winner;
 
+  // "Rounds per map" is a best-of-X setting: the map ends as soon as one
+  // player has more round wins than anyone could still catch up to.
+  const roundWinsNeeded = Math.floor(rules.roundsPerMap / 2) + 1;
   if (reason === "deathmatch" && !alreadyRecorded) {
-    game.fpsKillWins[winner]++;
+    if (Number.isInteger(winner) && winner >= 0 && winner < game.fpsKillWins.length) game.fpsKillWins[winner]++;
     const playedRounds = game.fpsKillWins.reduce((sum, wins) => sum + wins, 0);
-    mapOver = playedRounds >= rules.roundsPerMap;
+    mapOver = playedRounds >= rules.roundsPerMap || Math.max(...game.fpsKillWins) >= roundWinsNeeded;
     if (mapOver) {
       const mapWinner = scoreLeader(game.fpsKillWins);
       mapTied = mapWinner === -1;
@@ -42,7 +45,9 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
       game.fpsMatchWinner = matchOver ? matchWinner : null;
     }
   } else if (reason === "deathmatch") {
-    mapOver = game.fpsLastMapOver || game.fpsKillWins.reduce((sum, wins) => sum + wins, 0) >= rules.roundsPerMap;
+    mapOver = game.fpsLastMapOver
+      || game.fpsKillWins.reduce((sum, wins) => sum + wins, 0) >= rules.roundsPerMap
+      || Math.max(...game.fpsKillWins) >= roundWinsNeeded;
     mapTied = Boolean(game.fpsLastMapTied);
     matchOver = game.fpsMatchOver;
     matchWinner = game.fpsMatchWinner ?? winner;
@@ -66,7 +71,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   const mapWinner = mapOver ? scoreLeader(game.fpsKillWins) : null;
   const localWonMap = mapWinner === game.localIndex;
   const toast = reason === "deathmatch" && !matchOver
-    ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (localWonRound ? "ROUND WON" : "ROUND LOST"))
+    ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
   showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
   if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() });

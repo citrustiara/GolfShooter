@@ -74,6 +74,23 @@ function updateFps(dt, now) {
     updateRadarMarker();
   }
   updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt);
+  // Round-end watchdog: if every kill/death message path failed (dropped
+  // packet, race with phase changes), a round with <=1 survivors must still
+  // end. The short grace period lets the normal paths win first.
+  if (game.phase === "fps" && game.countdown <= 0) {
+    const aliveNow = aliveFpsPlayerIndexes();
+    if (aliveNow.length <= 1 && fps.players.length >= 2) {
+      game.roundEndGrace = (game.roundEndGrace || 0) + dt;
+      if (game.roundEndGrace > 0.6) {
+        game.roundEndGrace = 0;
+        startVictoryLap(aliveNow.length === 1 ? aliveNow[0] : -1, "deathmatch");
+      }
+    } else {
+      game.roundEndGrace = 0;
+    }
+  } else {
+    game.roundEndGrace = 0;
+  }
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
   if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon }); }
   updateHud();
@@ -166,21 +183,23 @@ function updateWeaponModel(dt, p) {
     const t = game.reloadTimer / total;
     const reloadFactor = Math.sin(t * Math.PI);
     
-    // Dynamic drop amount to prevent clipping through floor
+    // Dynamic drop amount to prevent clipping through floor. Only surfaces at
+    // or below eye height count as ground — a platform overhead is a ceiling,
+    // and treating it as the floor used to teleport the weapon above it.
     let dropAmount = 0.75;
     let groundY = (world.arenaFloorCollision !== false && world.arenaFloors.length > 0) ? 0.0 : -60;
     for (const plat of world.platforms) {
       const b = new THREE.Box3().setFromObject(plat);
-      if (camera.position.x > b.min.x && camera.position.x < b.max.x && camera.position.z > b.min.z && camera.position.z < b.max.z) {
+      if (b.max.y <= camera.position.y && camera.position.x > b.min.x && camera.position.x < b.max.x && camera.position.z > b.min.z && camera.position.z < b.max.z) {
         groundY = Math.max(groundY, b.max.y);
       }
     }
     for (const ramp of world.ramps) {
       const y = rampSurfaceY(ramp, camera.position, 0);
-      if (y !== null) groundY = Math.max(groundY, y);
+      if (y !== null && y <= camera.position.y) groundY = Math.max(groundY, y);
     }
     const meshY = meshSurfaceYAtPoint(world.meshColliders, camera.position, 0.12);
-    if (meshY !== null) groundY = Math.max(groundY, meshY);
+    if (meshY !== null && meshY <= camera.position.y) groundY = Math.max(groundY, meshY);
     const minWeaponY = groundY + 0.18;
     const weaponYWithoutAnim = camera.position.y + offset.y;
     const maxAllowableDrop = weaponYWithoutAnim - minWeaponY;
@@ -209,20 +228,22 @@ function updateWeaponModel(dt, p) {
 
   weapon.position.copy(camera.position).add(offset).add(up.clone().multiplyScalar(animY));
 
-  // Apply ground safety clamp for normal movement
+  // Apply ground safety clamp for normal movement. Ignore surfaces above the
+  // camera: standing under a platform/ceiling must not clamp the weapon up
+  // through it (that made the view model disappear entirely).
   let groundY = (world.arenaFloorCollision !== false && world.arenaFloors.length > 0) ? 0.0 : -60;
   for (const plat of world.platforms) {
     const b = new THREE.Box3().setFromObject(plat);
-    if (weapon.position.x > b.min.x && weapon.position.x < b.max.x && weapon.position.z > b.min.z && weapon.position.z < b.max.z) {
+    if (b.max.y <= camera.position.y && weapon.position.x > b.min.x && weapon.position.x < b.max.x && weapon.position.z > b.min.z && weapon.position.z < b.max.z) {
       groundY = Math.max(groundY, b.max.y);
     }
   }
   for (const ramp of world.ramps) {
     const y = rampSurfaceY(ramp, weapon.position, 0);
-    if (y !== null) groundY = Math.max(groundY, y);
+    if (y !== null && y <= camera.position.y) groundY = Math.max(groundY, y);
   }
   const meshY = meshSurfaceYAtPoint(world.meshColliders, weapon.position, 0.12);
-  if (meshY !== null) groundY = Math.max(groundY, meshY);
+  if (meshY !== null && meshY <= camera.position.y) groundY = Math.max(groundY, meshY);
   const minWeaponY = groundY + 0.18;
   if (weapon.position.y < minWeaponY) {
     weapon.position.y = minWeaponY;

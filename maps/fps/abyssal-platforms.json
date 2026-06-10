@@ -5,80 +5,78 @@
   "sky": 527380,
   "fog": 527380,
   "fogNear": 60,
-  "fogFar": 160,
-  "bounds": {
-    "x": 60,
-    "z": 60
-  },
+  "fogFar": 170,
+  "bounds": { "x": 50, "z": 50 },
   "floors": [],
   "spawnPoints": [
-    { "x": 25, "y": 16.2, "z": 0 },
-    { "x": 7.73, "y": 16.2, "z": 23.78 },
-    { "x": -20.23, "y": 16.2, "z": 14.69 },
-    { "x": -20.23, "y": 16.2, "z": -14.69 },
-    { "x": 7.73, "y": 16.2, "z": -23.78 }
+    { "x": 28, "y": 16.2, "z": 0 },
+    { "x": -28, "y": 16.2, "z": 0 },
+    { "x": 0, "y": 16.2, "z": 28 },
+    { "x": 0, "y": 16.2, "z": -28 },
+    { "x": 23, "y": 12.2, "z": 23 },
+    { "x": -23, "y": 12.2, "z": -23 },
+    { "x": -23, "y": 12.2, "z": 23 },
+    { "x": 23, "y": 12.2, "z": -23 }
   ],
   "boxes": [
-    {
-      "x": 0,
-      "y": 15.0,
-      "z": 0,
-      "sx": 12,
-      "sy": 1.0,
-      "sz": 12,
-      "color": 2765381,
-      "isPlatform": true
-    },
-    {
-      "x": 25,
-      "y": 15.0,
-      "z": 0,
-      "sx": 5,
-      "sy": 1.0,
-      "sz": 5,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 7.73,
-      "y": 15.0,
-      "z": 23.78,
-      "sx": 5,
-      "sy": 1.0,
-      "sz": 5,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": -20.23,
-      "y": 15.0,
-      "z": 14.69,
-      "sx": 5,
-      "sy": 1.0,
-      "sz": 5,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": -20.23,
-      "y": 15.0,
-      "z": -14.69,
-      "sx": 5,
-      "sy": 1.0,
-      "sz": 5,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 7.73,
-      "y": 15.0,
-      "z": -23.78,
-      "sx": 5,
-      "sy": 1.0,
-      "sz": 5,
-      "color": 4150400,
-      "isPlatform": true
-    }
+    { "name": "hub", "x": 0, "y": 15, "z": 0, "sx": 18, "sy": 1, "sz": 18, "color": 2765381, "isPlatform": true },
+    { "name": "hub-tower", "x": 0, "y": 16, "z": 0, "sx": 5, "sy": 5, "sz": 5, "color": 1925197, "isPlatform": true },
+    { "name": "hub-tower-top", "x": 0, "y": 21, "z": 0, "sx": 8.5, "sy": 0.6, "sz": 8.5, "color": 4150400, "isPlatform": true },
+    { "name": "hub-crate-a", "x": -6.5, "y": 16, "z": 4, "sx": 1.8, "sy": 1.4, "sz": 1.8, "color": 4937550, "isPlatform": true },
+    { "name": "hub-crate-b", "x": 6, "y": 16, "z": -5.5, "sx": 1.8, "sy": 1.8, "sz": 1.8, "color": 4937550, "isPlatform": true },
+    { "name": "hub-wall-n", "x": 4.5, "y": 16, "z": 7.6, "sx": 6, "sy": 1.6, "sz": 0.7, "color": 3361970, "isPlatform": false },
+    { "name": "hub-wall-s", "x": -4.5, "y": 16, "z": -7.6, "sx": 6, "sy": 1.6, "sz": 0.7, "color": 3361970, "isPlatform": false },
+
+    { "name": "pad-east", "x": 28, "y": 15, "z": 0, "sx": 9, "sy": 1, "sz": 9, "color": 4150400, "isPlatform": true },
+    { "name": "pad-west", "x": -28, "y": 15, "z": 0, "sx": 9, "sy": 1, "sz": 9, "color": 4150400, "isPlatform": true },
+    { "name": "pad-north", "x": 0, "y": 15, "z": 28, "sx": 9, "sy": 1, "sz": 9, "color": 4150400, "isPlatform": true },
+    { "name": "pad-south", "x": 0, "y": 15, "z": -28, "sx": 9, "sy": 1, "sz": 9, "color": 4150400, "isPlatform": true },
+    { "name": "pad-east-cover", "x": 28, "y": 16, "z": 2.8, "sx": 3, "sy": 1.3, "sz": 0.7, "color": 3361970, "isPlatform": false },
+    { "name": "pad-west-cover", "x": -28, "y": 16, "z": -2.8, "sx": 3, "sy": 1.3, "sz": 0.7, "color": 3361970, "isPlatform": false },
+    { "name": "pad-north-cover", "x": 2.8, "y": 16, "z": 28, "sx": 0.7, "sy": 1.3, "sz": 3, "color": 3361970, "isPlatform": false },
+    { "name": "pad-south-cover", "x": -2.8, "y": 16, "z": -28, "sx": 0.7, "sy": 1.3, "sz": 3, "color": 3361970, "isPlatform": false },
+
+    { "name": "bridge-east", "x": 16.25, "y": 15.2, "z": 0, "sx": 14.5, "sy": 0.8, "sz": 3.2, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-west", "x": -16.25, "y": 15.2, "z": 0, "sx": 14.5, "sy": 0.8, "sz": 3.2, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-north", "x": 0, "y": 15.2, "z": 16.25, "sx": 3.2, "sy": 0.8, "sz": 14.5, "color": 2046820, "isPlatform": true },
+    { "name": "bridge-south", "x": 0, "y": 15.2, "z": -16.25, "sx": 3.2, "sy": 0.8, "sz": 14.5, "color": 2046820, "isPlatform": true },
+
+    { "name": "corner-ne", "x": 23, "y": 11, "z": 23, "sx": 8, "sy": 1, "sz": 8, "color": 2772050, "isPlatform": true },
+    { "name": "corner-sw", "x": -23, "y": 11, "z": -23, "sx": 8, "sy": 1, "sz": 8, "color": 2772050, "isPlatform": true },
+    { "name": "corner-nw", "x": -23, "y": 11, "z": 23, "sx": 8, "sy": 1, "sz": 8, "color": 2772050, "isPlatform": true },
+    { "name": "corner-se", "x": 23, "y": 11, "z": -23, "sx": 8, "sy": 1, "sz": 8, "color": 2772050, "isPlatform": true },
+    { "name": "corner-ne-crate", "x": 24.6, "y": 12, "z": 21.4, "sx": 1.6, "sy": 1.2, "sz": 1.6, "color": 4937550, "isPlatform": true },
+    { "name": "corner-sw-crate", "x": -24.6, "y": 12, "z": -21.4, "sx": 1.6, "sy": 1.2, "sz": 1.6, "color": 4937550, "isPlatform": true },
+
+    { "name": "under-hub-vault", "x": 0, "y": 8, "z": 0, "sx": 10, "sy": 1, "sz": 10, "color": 1925197, "isPlatform": true },
+    { "name": "under-pillar", "x": 0, "y": 9, "z": 0, "sx": 2.2, "sy": 6, "sz": 2.2, "color": 1383737, "isPlatform": false },
+
+    { "name": "perch-east", "x": 42, "y": 18, "z": 0, "sx": 6, "sy": 1, "sz": 6, "color": 5460856, "isPlatform": true },
+    { "name": "perch-west", "x": -42, "y": 18, "z": 0, "sx": 6, "sy": 1, "sz": 6, "color": 5460856, "isPlatform": true },
+    { "name": "perch-east-rail", "x": 42, "y": 19, "z": -2.7, "sx": 5.6, "sy": 0.9, "sz": 0.5, "color": 3361970, "isPlatform": false },
+    { "name": "perch-west-rail", "x": -42, "y": 19, "z": 2.7, "sx": 5.6, "sy": 0.9, "sz": 0.5, "color": 3361970, "isPlatform": false }
+  ],
+  "ramps": [
+    { "name": "hub-tower-ramp", "x": -4.6, "y": 16, "z": -3.4, "width": 2.6, "length": 6.4, "height": 5, "rot": 1.571, "color": 4150400 },
+    { "name": "corner-ne-ramp", "x": 25.1, "y": 12, "z": 14.9, "width": 2.8, "length": 8.2, "height": 4, "rot": 3.142, "color": 2965876 },
+    { "name": "corner-sw-ramp", "x": -25.1, "y": 12, "z": -14.9, "width": 2.8, "length": 8.2, "height": 4, "rot": 0, "color": 2965876 },
+    { "name": "corner-nw-ramp", "x": -14.9, "y": 12, "z": 25.1, "width": 2.8, "length": 8.2, "height": 4, "rot": -1.571, "color": 2965876 },
+    { "name": "corner-se-ramp", "x": 14.9, "y": 12, "z": -25.1, "width": 2.8, "length": 8.2, "height": 4, "rot": 1.571, "color": 2965876 },
+    { "name": "perch-east-ramp", "x": 36.4, "y": 16, "z": 0, "width": 2.8, "length": 6.6, "height": 2, "rot": -1.571, "color": 5460856 },
+    { "name": "perch-west-ramp", "x": -36.4, "y": 16, "z": 0, "width": 2.8, "length": 6.6, "height": 2, "rot": 1.571, "color": 5460856 },
+    { "name": "vault-ramp-ne", "x": 6.2, "y": 9, "z": 6.2, "width": 2.6, "length": 9, "height": 6.2, "rot": -2.356, "color": 1925197 }
+  ],
+  "decor": [
+    { "x": 0, "y": 21.6, "z": 0, "sx": 0.4, "sy": 3.2, "sz": 0.4, "color": 7340031 },
+    { "x": 0, "y": 24.6, "z": 0, "sx": 1.6, "sy": 0.3, "sz": 0.3, "color": 7340031 },
+    { "x": 28, "y": 14.4, "z": 0, "sx": 9.6, "sy": 0.4, "sz": 9.6, "color": 1383737 },
+    { "x": -28, "y": 14.4, "z": 0, "sx": 9.6, "sy": 0.4, "sz": 9.6, "color": 1383737 },
+    { "x": 0, "y": 14.4, "z": 28, "sx": 9.6, "sy": 0.4, "sz": 9.6, "color": 1383737 },
+    { "x": 0, "y": 14.4, "z": -28, "sx": 9.6, "sy": 0.4, "sz": 9.6, "color": 1383737 },
+    { "x": 16.25, "y": 15.1, "z": 1.8, "sx": 14.5, "sy": 0.12, "sz": 0.2, "color": 7340031 },
+    { "x": 16.25, "y": 15.1, "z": -1.8, "sx": 14.5, "sy": 0.12, "sz": 0.2, "color": 7340031 },
+    { "x": -16.25, "y": 15.1, "z": 1.8, "sx": 14.5, "sy": 0.12, "sz": 0.2, "color": 7340031 },
+    { "x": -16.25, "y": 15.1, "z": -1.8, "sx": 14.5, "sy": 0.12, "sz": 0.2, "color": 7340031 }
   ],
   "config": {
     "hp": 100,

@@ -213,7 +213,7 @@
     "bouncer": {
       "label": "Ricochet",
       "ammo": 4,
-      "damage": 85,
+      "damage": 180,
       "crit": 1,
       "reload": 2.1,
       "fireDelay": 620,

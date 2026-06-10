@@ -1,22 +1,20 @@
 {
   "label": "Sperm Shooter",
-  "muzzle": { "x": 0, "y": 0.04, "z": -0.62 },
+  "muzzle": { "x": 0, "y": 0.05, "z": -0.7 },
   "parts": [
-    { "name": "headMain", "type": "sphere", "x": 0, "y": 0.04, "z": -0.38, "sx": 0.13, "color": 16776693 },
-    { "name": "headTaper", "type": "cylinder", "x": 0, "y": 0.04, "z": -0.52, "sx": 0.04, "sy": 0.2, "sz": 0.115, "rotX": 1.571, "color": 16776693 },
-    { "name": "nozzleTip", "type": "sphere", "x": 0, "y": 0.04, "z": -0.6, "sx": 0.045, "color": 14279402 },
-    { "name": "midBody", "type": "cylinder", "x": 0, "y": 0.03, "z": -0.14, "sx": 0.105, "sy": 0.32, "sz": 0.08, "rotX": 1.571, "color": 16776693 },
-    { "name": "neckRing", "type": "cylinder", "x": 0, "y": 0.03, "z": 0.04, "sx": 0.075, "sy": 0.05, "sz": 0.075, "rotX": 1.571, "color": 14279402 },
-    { "name": "tailSegA", "type": "cylinder", "x": 0, "y": 0.05, "z": 0.16, "sx": 0.055, "sy": 0.18, "sz": 0.065, "rotX": 1.471, "color": 16776693 },
-    { "name": "tailSegB", "type": "cylinder", "x": 0, "y": 0.1, "z": 0.32, "sx": 0.04, "sy": 0.16, "sz": 0.05, "rotX": 1.321, "color": 16776693 },
-    { "name": "tailSegC", "type": "cylinder", "x": 0.02, "y": 0.16, "z": 0.45, "sx": 0.026, "sy": 0.14, "sz": 0.036, "rotX": 1.171, "rotY": 0.2, "color": 14279402 },
-    { "name": "tailTip", "type": "sphere", "x": 0.045, "y": 0.21, "z": 0.53, "sx": 0.024, "color": 14279402 },
-    { "name": "eyeL", "type": "sphere", "x": -0.075, "y": 0.09, "z": -0.42, "sx": 0.032, "color": 1316893 },
-    { "name": "eyeR", "type": "sphere", "x": 0.075, "y": 0.09, "z": -0.42, "sx": 0.032, "color": 1316893 },
-    { "name": "eyeShineL", "type": "sphere", "x": -0.085, "y": 0.1, "z": -0.44, "sx": 0.012, "color": 16776693 },
-    { "name": "eyeShineR", "type": "sphere", "x": 0.065, "y": 0.1, "z": -0.44, "sx": 0.012, "color": 16776693 },
-    { "name": "grip", "type": "box", "x": 0, "y": -0.13, "z": -0.05, "sx": 0.07, "sy": 0.16, "sz": 0.075, "rotX": -0.28, "color": 2216191 },
-    { "name": "gripBand", "type": "box", "x": 0, "y": -0.07, "z": -0.06, "sx": 0.075, "sy": 0.03, "sz": 0.08, "rotX": -0.28, "color": 16727717 },
-    { "name": "trigger", "type": "box", "x": 0, "y": -0.05, "z": -0.12, "sx": 0.014, "sy": 0.04, "sz": 0.014, "rotX": -0.15, "color": 1316893 }
+    { "name": "ballL", "type": "sphere", "x": -0.08, "y": -0.06, "z": 0.16, "sx": 0.095, "color": 16776693 },
+    { "name": "ballR", "type": "sphere", "x": 0.08, "y": -0.06, "z": 0.16, "sx": 0.095, "color": 16776693 },
+    { "name": "sackFold", "type": "sphere", "x": 0, "y": -0.08, "z": 0.18, "sx": 0.075, "color": 16773094 },
+    { "name": "shaft", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.14, "sx": 0.078, "sy": 0.64, "sz": 0.07, "rotX": 1.571, "color": 16776693 },
+    { "name": "shaftRoot", "type": "sphere", "x": 0, "y": 0.05, "z": 0.16, "sx": 0.082, "color": 16776693 },
+    { "name": "veinTop", "type": "cylinder", "x": 0, "y": 0.115, "z": -0.12, "sx": 0.016, "sy": 0.52, "sz": 0.014, "rotX": 1.571, "color": 16773094 },
+    { "name": "veinSide", "type": "cylinder", "x": -0.065, "y": 0.06, "z": -0.08, "sx": 0.012, "sy": 0.42, "sz": 0.011, "rotX": 1.551, "rotY": 0.08, "color": 16773094 },
+    { "name": "glansRidge", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.48, "sx": 0.072, "sy": 0.045, "sz": 0.09, "rotX": 1.571, "color": 16767439 },
+    { "name": "glansBulb", "type": "sphere", "x": 0, "y": 0.05, "z": -0.55, "sx": 0.088, "color": 16767439 },
+    { "name": "glansTaper", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.63, "sx": 0.082, "sy": 0.13, "sz": 0.03, "rotX": 1.571, "color": 16767439 },
+    { "name": "meatus", "type": "sphere", "x": 0, "y": 0.05, "z": -0.685, "sx": 0.02, "color": 1316893 },
+    { "name": "grip", "type": "box", "x": 0, "y": -0.16, "z": -0.02, "sx": 0.07, "sy": 0.17, "sz": 0.075, "rotX": -0.28, "color": 2216191 },
+    { "name": "gripBand", "type": "box", "x": 0, "y": -0.09, "z": -0.03, "sx": 0.075, "sy": 0.03, "sz": 0.08, "rotX": -0.28, "color": 16727717 },
+    { "name": "trigger", "type": "box", "x": 0, "y": -0.07, "z": -0.1, "sx": 0.014, "sy": 0.04, "sz": 0.014, "rotX": -0.15, "color": 1316893 }
   ]
 }

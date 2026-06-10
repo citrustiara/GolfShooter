@@ -1,0 +1,25 @@
+[
+  { "name": "plaza-tower-a", "x": 14, "y": 0, "z": 10, "sx": 5, "sy": 8, "sz": 5, "color": 4804955, "isPlatform": false },
+  { "name": "plaza-tower-a-top", "x": 14, "y": 8, "z": 10, "sx": 7, "sy": 0.5, "sz": 7, "color": 6910843, "isPlatform": true },
+  { "name": "plaza-tower-a-rail-n", "x": 14, "y": 8.5, "z": 13.3, "sx": 6.6, "sy": 0.8, "sz": 0.35, "color": 10266541, "isPlatform": false },
+  { "name": "plaza-tower-a-rail-e", "x": 17.3, "y": 8.5, "z": 10, "sx": 0.35, "sy": 0.8, "sz": 6.6, "color": 10266541, "isPlatform": false },
+
+  { "name": "plaza-tower-b", "x": -14, "y": 0, "z": -10, "sx": 5, "sy": 8, "sz": 5, "color": 4804955, "isPlatform": false },
+  { "name": "plaza-tower-b-top", "x": -14, "y": 8, "z": -10, "sx": 7, "sy": 0.5, "sz": 7, "color": 6910843, "isPlatform": true },
+  { "name": "plaza-tower-b-rail-s", "x": -14, "y": 8.5, "z": -13.3, "sx": 6.6, "sy": 0.8, "sz": 0.35, "color": 10266541, "isPlatform": false },
+  { "name": "plaza-tower-b-rail-w", "x": -17.3, "y": 8.5, "z": -10, "sx": 0.35, "sy": 0.8, "sz": 6.6, "color": 10266541, "isPlatform": false },
+
+  { "name": "skybridge-a", "x": 14, "y": 8, "z": -2.05, "sx": 3.4, "sy": 0.5, "sz": 19.1, "color": 5995635, "isPlatform": true },
+  { "name": "skybridge-b", "x": 1.9, "y": 8, "z": -10, "sx": 27, "sy": 0.5, "sz": 3.4, "color": 5995635, "isPlatform": true },
+  { "name": "skybridge-a-rail-e", "x": 15.55, "y": 8.5, "z": -2.05, "sx": 0.3, "sy": 0.75, "sz": 19.1, "color": 10266541, "isPlatform": false },
+  { "name": "skybridge-a-rail-w", "x": 12.45, "y": 8.5, "z": 0, "sx": 0.3, "sy": 0.75, "sz": 15, "color": 10266541, "isPlatform": false },
+  { "name": "skybridge-b-rail-n", "x": 0.4, "y": 8.5, "z": -8.45, "sx": 24, "sy": 0.75, "sz": 0.3, "color": 10266541, "isPlatform": false },
+  { "name": "skybridge-b-rail-s", "x": 1.9, "y": 8.5, "z": -11.55, "sx": 27, "sy": 0.75, "sz": 0.3, "color": 10266541, "isPlatform": false },
+  { "name": "skybridge-b-pillar", "x": 1.9, "y": 0, "z": -10, "sx": 1.6, "sy": 8, "sz": 1.6, "color": 4804955, "isPlatform": false },
+
+  { "name": "plaza-crate-a", "x": -12, "y": 0, "z": 20, "sx": 2.4, "sy": 1.8, "sz": 2.4, "color": 10266541, "isPlatform": true },
+  { "name": "plaza-crate-b", "x": 20, "y": 0, "z": -18, "sx": 2.4, "sy": 1.8, "sz": 2.4, "color": 11629603, "isPlatform": true },
+  { "name": "plaza-crate-c", "x": 7, "y": 0, "z": -16, "sx": 1.8, "sy": 1.3, "sz": 1.8, "color": 5212620, "isPlatform": true },
+  { "name": "plaza-planter-a", "x": -6, "y": 0, "z": 14, "sx": 5, "sy": 1.1, "sz": 2, "color": 4623185, "isPlatform": true },
+  { "name": "plaza-planter-b", "x": -20, "y": 0, "z": 4, "sx": 2, "sy": 1.1, "sz": 5, "color": 4623185, "isPlatform": true }
+]
