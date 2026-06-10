@@ -210,6 +210,17 @@
       "moveScale": 0.76,
       "recoil": 0.7
     },
+    "bouncer": {
+      "label": "Ricochet",
+      "ammo": 4,
+      "damage": 85,
+      "crit": 1,
+      "reload": 2.1,
+      "fireDelay": 620,
+      "projectile": "bouncer",
+      "moveScale": 0.9,
+      "recoil": 0.5
+    },
     "tacticalSniper": {
       "label": "Tactical Sniper",
       "ammo": 5,
@@ -235,7 +246,8 @@
     "desertEagle",
     "ak47",
     "drumShotgun",
-    "tacticalSniper"
+    "tacticalSniper",
+    "bouncer"
   ],
   "randomTournamentWeapons": [
     "heavySniper",
@@ -251,6 +263,7 @@
     "desertEagle",
     "ak47",
     "drumShotgun",
-    "tacticalSniper"
+    "tacticalSniper",
+    "bouncer"
   ]
 }

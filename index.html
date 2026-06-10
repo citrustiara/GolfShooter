@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
-  <link rel="stylesheet" href="css/style.css?v=2" />
+  <link rel="stylesheet" href="css/style.css?v=3" />
   <script type="importmap">
     {
       "imports": {
@@ -16,6 +16,7 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <canvas id="menuBg" aria-hidden="true"></canvas>
   <div class="overlay" id="overlay">
     <div class="topbar">
       <div class="hud hidden" id="hud">
@@ -91,7 +92,14 @@
     </div>
 
     <div class="menu" id="menu">
-      <h1>Golf Duel</h1>
+      <div class="logo" aria-label="Golf Duel">
+        <div class="logo-stack">
+          <span class="logo-word logo-golf">GOLF</span>
+          <span class="logo-word logo-duel">DUEL</span>
+          <span class="logo-burst" aria-hidden="true">9MM<br>PAR</span>
+        </div>
+        <span class="logo-tag">SHOOT FIRST &middot; PUTT LATER</span>
+      </div>
 
       <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="room phrase" />
       
@@ -116,9 +124,9 @@
       <h1>Match Lobby</h1>
       <p id="lobbyStatus">Connected! Choose a mode to start.</p>
       
-      <div id="practiceMapOptions" class="hidden" style="margin-bottom: 1rem; text-align: left; display: flex; flex-direction: column; gap: 1rem;">
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem;">
-          <label style="display: flex; flex-direction: column; gap: 0.5rem; font-weight: bold; font-size: 0.9rem;">
+      <div id="practiceMapOptions" class="hidden practice-options">
+        <div class="menu-block">
+          <label class="menu-block-label">
             Players:
             <select id="playerCountSelect">
               <option value="2">2 Players</option>
@@ -130,8 +138,8 @@
           </label>
         </div>
 
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem;">
-          <label style="display: flex; flex-direction: column; gap: 0.5rem; font-weight: bold; font-size: 0.9rem;">
+        <div class="menu-block">
+          <label class="menu-block-label">
             Golf Map:
             <select id="golfMapSelect">
               <option value="">Full Tournament (All Maps)</option>
@@ -160,10 +168,10 @@
           <div id="practiceMapList" class="practice-map-list"></div>
         </div>
 
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem;">
-          <label style="display: flex; flex-direction: column; gap: 0.5rem; font-weight: bold; font-size: 0.9rem;">
+        <div class="menu-block">
+          <label class="menu-block-label">
             Upload Custom Map:
-            <input type="file" id="mapUploadInput" accept=".json,.glb,.gltf" style="font-size: 0.9rem; padding: 0.5rem;" />
+            <input type="file" id="mapUploadInput" accept=".json,.glb,.gltf" />
           </label>
         </div>
       </div>
@@ -228,6 +236,12 @@
           <div class="weapon-stat">Damage: 15 (30 Crit)</div>
           <div class="weapon-stat">Ammo: 30 Rounds</div>
           <div class="weapon-stat">Type: Full-Auto</div>
+        </div>
+        <div class="weapon-card" data-weapon="bouncer">
+          <h3>RICOCHET</h3>
+          <div class="weapon-stat">Damage: 85 Splash</div>
+          <div class="weapon-stat">Ammo: 4 Orbs</div>
+          <div class="weapon-stat">Type: Bouncing Projectile</div>
         </div>
       </div>
     </div>

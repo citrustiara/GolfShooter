@@ -1,94 +1,22 @@
 {
   "label": "Sperm Shooter",
+  "muzzle": { "x": 0, "y": 0.04, "z": -0.62 },
   "parts": [
-    {
-      "name": "shaft",
-      "type": "cylinder",
-      "x": 0,
-      "y": 0.05,
-      "z": -0.22,
-      "sx": 0.06,
-      "sy": 0.45,
-      "sz": 0.06,
-      "rotX": 1.571,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 16774885
-    },
-    {
-      "name": "tip",
-      "type": "sphere",
-      "x": 0,
-      "y": 0.05,
-      "z": -0.45,
-      "sx": 0.07,
-      "sy": 0.07,
-      "sz": 0.07,
-      "rotX": 0,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 16744608
-    },
-    {
-      "name": "ballLeft",
-      "type": "sphere",
-      "x": -0.07,
-      "y": -0.02,
-      "z": 0.02,
-      "sx": 0.085,
-      "sy": 0.085,
-      "sz": 0.085,
-      "rotX": 0,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 16774885
-    },
-    {
-      "name": "ballRight",
-      "type": "sphere",
-      "x": 0.07,
-      "y": -0.02,
-      "z": 0.02,
-      "sx": 0.085,
-      "sy": 0.085,
-      "sz": 0.085,
-      "rotX": 0,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 16774885
-    },
-    {
-      "name": "triggerGuard",
-      "type": "box",
-      "x": 0,
-      "y": -0.04,
-      "z": -0.05,
-      "sx": 0.025,
-      "sy": 0.05,
-      "sz": 0.08,
-      "rotX": 0,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 4210752
-    },
-    {
-      "name": "trigger",
-      "type": "box",
-      "x": 0,
-      "y": -0.03,
-      "z": -0.04,
-      "sx": 0.01,
-      "sy": 0.035,
-      "sz": 0.012,
-      "rotX": -0.1,
-      "rotY": 0,
-      "rotZ": 0,
-      "color": 16744608
-    }
-  ],
-  "muzzle": {
-    "x": 0,
-    "y": 0.05,
-    "z": -0.52
-  }
+    { "name": "headMain", "type": "sphere", "x": 0, "y": 0.04, "z": -0.38, "sx": 0.13, "color": 16776693 },
+    { "name": "headTaper", "type": "cylinder", "x": 0, "y": 0.04, "z": -0.52, "sx": 0.04, "sy": 0.2, "sz": 0.115, "rotX": 1.571, "color": 16776693 },
+    { "name": "nozzleTip", "type": "sphere", "x": 0, "y": 0.04, "z": -0.6, "sx": 0.045, "color": 14279402 },
+    { "name": "midBody", "type": "cylinder", "x": 0, "y": 0.03, "z": -0.14, "sx": 0.105, "sy": 0.32, "sz": 0.08, "rotX": 1.571, "color": 16776693 },
+    { "name": "neckRing", "type": "cylinder", "x": 0, "y": 0.03, "z": 0.04, "sx": 0.075, "sy": 0.05, "sz": 0.075, "rotX": 1.571, "color": 14279402 },
+    { "name": "tailSegA", "type": "cylinder", "x": 0, "y": 0.05, "z": 0.16, "sx": 0.055, "sy": 0.18, "sz": 0.065, "rotX": 1.471, "color": 16776693 },
+    { "name": "tailSegB", "type": "cylinder", "x": 0, "y": 0.1, "z": 0.32, "sx": 0.04, "sy": 0.16, "sz": 0.05, "rotX": 1.321, "color": 16776693 },
+    { "name": "tailSegC", "type": "cylinder", "x": 0.02, "y": 0.16, "z": 0.45, "sx": 0.026, "sy": 0.14, "sz": 0.036, "rotX": 1.171, "rotY": 0.2, "color": 14279402 },
+    { "name": "tailTip", "type": "sphere", "x": 0.045, "y": 0.21, "z": 0.53, "sx": 0.024, "color": 14279402 },
+    { "name": "eyeL", "type": "sphere", "x": -0.075, "y": 0.09, "z": -0.42, "sx": 0.032, "color": 1316893 },
+    { "name": "eyeR", "type": "sphere", "x": 0.075, "y": 0.09, "z": -0.42, "sx": 0.032, "color": 1316893 },
+    { "name": "eyeShineL", "type": "sphere", "x": -0.085, "y": 0.1, "z": -0.44, "sx": 0.012, "color": 16776693 },
+    { "name": "eyeShineR", "type": "sphere", "x": 0.065, "y": 0.1, "z": -0.44, "sx": 0.012, "color": 16776693 },
+    { "name": "grip", "type": "box", "x": 0, "y": -0.13, "z": -0.05, "sx": 0.07, "sy": 0.16, "sz": 0.075, "rotX": -0.28, "color": 2216191 },
+    { "name": "gripBand", "type": "box", "x": 0, "y": -0.07, "z": -0.06, "sx": 0.075, "sy": 0.03, "sz": 0.08, "rotX": -0.28, "color": 16727717 },
+    { "name": "trigger", "type": "box", "x": 0, "y": -0.05, "z": -0.12, "sx": 0.014, "sy": 0.04, "sz": 0.014, "rotX": -0.15, "color": 1316893 }
+  ]
 }

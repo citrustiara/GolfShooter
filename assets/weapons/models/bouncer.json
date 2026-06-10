@@ -1,0 +1,25 @@
+{
+  "label": "Ricochet",
+  "muzzle": { "x": 0, "y": 0.05, "z": -0.85 },
+  "parts": [
+    { "name": "chassis", "type": "box", "x": 0, "y": 0.0, "z": 0.05, "sx": 0.11, "sy": 0.13, "sz": 0.55, "color": 1053722 },
+    { "name": "spine", "type": "box", "x": 0, "y": 0.09, "z": 0.0, "sx": 0.07, "sy": 0.05, "sz": 0.6, "color": 2304562 },
+    { "name": "chargeCellL", "type": "box", "x": -0.06, "y": 0.0, "z": 0.05, "sx": 0.01, "sy": 0.07, "sz": 0.4, "color": 7074168 },
+    { "name": "chargeCellR", "type": "box", "x": 0.06, "y": 0.0, "z": 0.05, "sx": 0.01, "sy": 0.07, "sz": 0.4, "color": 7074168 },
+    { "name": "chamberOrb", "type": "sphere", "x": 0, "y": 0.02, "z": -0.18, "sx": 0.06, "color": 7074168 },
+    { "name": "chamberHousing", "type": "cylinder", "x": 0, "y": 0.02, "z": -0.18, "sx": 0.08, "sy": 0.1, "sz": 0.08, "rotX": 1.571, "color": 2765371 },
+    { "name": "launchRail", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.5, "sx": 0.045, "sy": 0.5, "sz": 0.055, "rotX": 1.571, "color": 2304562 },
+    { "name": "accelRingFront", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.72, "sx": 0.075, "sy": 0.04, "sz": 0.075, "rotX": 1.571, "color": 7074168 },
+    { "name": "accelRingMid", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.55, "sx": 0.068, "sy": 0.035, "sz": 0.068, "rotX": 1.571, "color": 12121154 },
+    { "name": "accelRingRear", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.38, "sx": 0.062, "sy": 0.035, "sz": 0.062, "rotX": 1.571, "color": 7074168 },
+    { "name": "muzzleRing", "type": "cylinder", "x": 0, "y": 0.05, "z": -0.8, "sx": 0.085, "sy": 0.03, "sz": 0.085, "rotX": 1.571, "color": 16776693 },
+    { "name": "deflectorFinTop", "type": "box", "x": 0, "y": 0.15, "z": -0.6, "sx": 0.014, "sy": 0.08, "sz": 0.18, "rotX": 0.35, "color": 7074168 },
+    { "name": "deflectorFinL", "type": "box", "x": -0.09, "y": 0.05, "z": -0.6, "sx": 0.06, "sy": 0.014, "sz": 0.16, "rotY": -0.35, "color": 7074168 },
+    { "name": "deflectorFinR", "type": "box", "x": 0.09, "y": 0.05, "z": -0.6, "sx": 0.06, "sy": 0.014, "sz": 0.16, "rotY": 0.35, "color": 7074168 },
+    { "name": "sight", "type": "box", "x": 0, "y": 0.15, "z": 0.1, "sx": 0.05, "sy": 0.055, "sz": 0.012, "color": 10414335 },
+    { "name": "stockPad", "type": "box", "x": 0, "y": -0.01, "z": 0.36, "sx": 0.095, "sy": 0.18, "sz": 0.05, "color": 1316893 },
+    { "name": "grip", "type": "box", "x": 0, "y": -0.13, "z": 0.18, "sx": 0.072, "sy": 0.17, "sz": 0.075, "rotX": -0.3, "color": 1316893 },
+    { "name": "foregrip", "type": "box", "x": 0, "y": -0.1, "z": -0.3, "sx": 0.06, "sy": 0.12, "sz": 0.06, "rotX": 0.18, "color": 2765371 },
+    { "name": "trigger", "type": "box", "x": 0, "y": -0.06, "z": 0.09, "sx": 0.014, "sy": 0.04, "sz": 0.014, "rotX": -0.15, "color": 11862015 }
+  ]
+}

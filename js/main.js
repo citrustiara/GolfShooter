@@ -12,6 +12,7 @@ await import("./app/hud-weapons.js");
 await import("./app/fps-network-state.js");
 await import("./app/input-events.js");
 await import("./app/notices-content.js");
+await import("./app/menu-bg.js");
 
 const app = globalThis;
 

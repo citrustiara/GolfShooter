@@ -19,14 +19,23 @@ function updateGrenades(dt) {
     g.timer -= dt;
     
     const detonatesOnContact = g.kind === "rocket" || g.kind === "grenadeLauncher";
+    const isBouncer = g.kind === "bouncer";
     let hitObstacle = false;
     if (detonatesOnContact) {
       hitObstacle = projectileHitObstacle(g);
     } else {
+      const speedBefore = isBouncer ? g.vel.length() : 0;
       for (const obs of world.obstacles) {
-        if (collideGrenadeWithObstacle(g, obs, 0.22)) hitObstacle = true;
+        if (collideGrenadeWithObstacle(g, obs, isBouncer ? 0.3 : 0.22)) hitObstacle = true;
       }
-      if (collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, 0.22, 0.4, 0.8)) hitObstacle = true;
+      if (collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, isBouncer ? 0.3 : 0.22, isBouncer ? 0.98 : 0.4, isBouncer ? 0.99 : 0.8)) hitObstacle = true;
+      if (isBouncer && hitObstacle) {
+        // Wall reflection keeps the orb at full speed so it ping-pongs around
+        // the arena instead of dying against the first wall.
+        if (g.vel.lengthSq() > 0.001) g.vel.setLength(speedBefore);
+        g.bounces = (g.bounces || 0) + 1;
+        playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
+      }
     }
     
     const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
@@ -56,14 +65,21 @@ function updateGrenades(dt) {
     }
     
     if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") {
-      g.mesh.position.y = bestFloorY + 0.22;
-      g.vel.y *= -0.4;
-      g.vel.x *= 0.8;
-      g.vel.z *= 0.8;
+      g.mesh.position.y = bestFloorY + (isBouncer ? 0.3 : 0.22);
+      if (isBouncer) {
+        g.vel.y = Math.abs(g.vel.y);
+        g.bounces = (g.bounces || 0) + 1;
+        playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
+      } else {
+        g.vel.y *= -0.4;
+        g.vel.x *= 0.8;
+        g.vel.z *= 0.8;
+      }
     }
-    
+
+    const bouncerSpent = isBouncer && (g.bounces || 0) >= (g.maxBounces || 6);
     const superchargedImpact = g.isSupercharged && g.kind === "grenade" && (hitObstacle || hitGround || hitPlayer);
-    if (outOfArena || (hitObstacle && detonatesOnContact) || hitPlayer || (hitGround && detonatesOnContact) || superchargedImpact || g.timer <= 0 || g.mesh.position.y < -8) {
+    if (outOfArena || (hitObstacle && detonatesOnContact) || hitPlayer || (hitGround && detonatesOnContact) || superchargedImpact || bouncerSpent || g.timer <= 0 || g.mesh.position.y < -8) {
       if (g.kind === "smoke") {
         if (g.mesh.position.y >= -8) {
           if (g.localAuthority) deploySmokeGrenade(g);
@@ -87,6 +103,16 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
     shell.position.y = -0.68; // Align cylinder top at base of nose cone
     group.add(shell, nose);
     group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vel.clone().normalize());
+  } else if (options.kind === "bouncer") {
+    // Glowing energy orb with gyro rings — reads clearly while ping-ponging.
+    const orbMat = new THREE.MeshStandardMaterial({ color: 0x1c3a24, roughness: 0.3, metalness: 0.4, emissive: 0x6bf178, emissiveIntensity: 1.2 });
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), orbMat);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xb9ffc2 });
+    const ringA = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.022, 6, 22), ringMat);
+    const ringB = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.022, 6, 22), ringMat);
+    ringB.rotation.x = Math.PI / 2;
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), new THREE.MeshBasicMaterial({ color: 0x6bf178, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+    group.add(orb, ringA, ringB, halo);
   } else if (options.kind === "smoke") {
     const smokeBodyMat = new THREE.MeshStandardMaterial({ color: 0xb5bcc0, roughness: 0.64, metalness: 0.28 });
     const capMat = new THREE.MeshStandardMaterial({ color: 0x5f666a, roughness: 0.58, metalness: 0.38 });
@@ -113,7 +139,8 @@ function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
   group.position.copy(pos);
   group.traverse((child) => { if (child.isMesh) child.castShadow = true; });
   world.arenaRoot.add(group);
-  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged) });
+  const isBouncerKind = options.kind === "bouncer";
+  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged), bounces: 0, maxBounces: options.maxBounces || 6, bounciness: isBouncerKind ? 0.98 : undefined, tangentKeep: isBouncerKind ? 0.99 : undefined });
 }
 function startThrowAnimation(kind = "grenade") {
   game.throwTimer = 0.36;
@@ -174,8 +201,8 @@ function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.
 function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
 function projectileHitPlayer(g) {
   const superchargedGrenade = g.kind === "grenade" && g.isSupercharged;
-  if (g.kind !== "rocket" && g.kind !== "grenadeLauncher" && !superchargedGrenade) return false;
-  const radius = superchargedGrenade ? 0.62 : (g.kind === "grenadeLauncher" ? 0.86 : 0.95);
+  if (g.kind !== "rocket" && g.kind !== "grenadeLauncher" && g.kind !== "bouncer" && !superchargedGrenade) return false;
+  const radius = superchargedGrenade ? 0.62 : (g.kind === "bouncer" ? 0.8 : (g.kind === "grenadeLauncher" ? 0.86 : 0.95));
   return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius);
 }
 function explodeGrenade(g) {
@@ -374,11 +401,16 @@ function firstPersonProjectileOrigin(direction) {
 }
 function fireProjectileWeapon(cfg) {
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
-  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : "grenade"); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
+  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : (cfg.projectile === "bouncer" ? "bouncerShot" : "grenade")); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
   const shooter = fps.players[game.localIndex];
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
   const origin = firstPersonProjectileOrigin(dir);
-  if (cfg.projectile === "rocket") {
+  if (cfg.projectile === "bouncer") {
+    const vel = dir.clone().multiplyScalar(44);
+    const options = { kind: "bouncer", weapon: game.primaryWeapon, timer: 6, gravity: 0, damageMultiplier: 0.62, radiusMultiplier: 0.52 };
+    spawnGrenade(origin, vel, true, game.localIndex, options);
+    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
+  } else if (cfg.projectile === "rocket") {
     const vel = dir.clone().multiplyScalar(58).add(shooter.vel.clone().multiplyScalar(0.25));
     spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
     send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
@@ -400,7 +432,7 @@ function playerBodyHitCenter(player) {
 }
 function fireMelee() {
   if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
-  const now = performance.now(); if (now - game.lastShotAt < 250) return; game.lastShotAt = now; game.meleeSwingTimer = 0.25; playSound("melee");
+  const now = performance.now(); if (now - game.lastShotAt < 320) return; game.lastShotAt = now; game.meleeSwingTimer = 0.32; playSound("melee");
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
   let hit = false, hs = false, targetIndex = null, targetDist = Infinity;
@@ -414,6 +446,25 @@ function fireMelee() {
 }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
 function rayHitsPlayer(origin, direction, player) { const hC = playerHeadHitCenter(player), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = playerBodyHitCenter(player), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
+const TRACER_STYLES = {
+  default: { core: 0xfff6d8, glow: 0xffb347, width: 1.0 },
+  pistol: { core: 0xfff6d8, glow: 0xffc266, width: 0.9 },
+  desertEagle: { core: 0xfff1c0, glow: 0xff8a00, width: 1.25 },
+  rifle: { core: 0xe8fbff, glow: 0x4df3ff, width: 0.85 },
+  ak47: { core: 0xfff0d0, glow: 0xff9540, width: 1.0 },
+  minigun: { core: 0xfff4da, glow: 0xffd166, width: 0.7 },
+  sniper: { core: 0xfffbe8, glow: 0xffe45c, width: 1.7 },
+  heavySniper: { core: 0xffffff, glow: 0xff5c5c, width: 2.1 },
+  tacticalSniper: { core: 0xeafcff, glow: 0x7ce7ff, width: 1.45 },
+  shotgun: { core: 0xffe9cc, glow: 0xff8a4d, width: 0.65 },
+  drumShotgun: { core: 0xffe9cc, glow: 0xff8a4d, width: 0.65 },
+  laser: { core: 0xffffff, glow: 0xff3ea5, width: 1.1 },
+  bouncer: { core: 0xeaffe9, glow: 0x6bf178, width: 1.2 },
+  spermShooter: { core: 0xffffff, glow: 0xfff9e6, width: 0.9 },
+  heavySpermShooter: { core: 0xffffff, glow: 0xfff3c4, width: 1.15 },
+  heaviestSpermShooter: { core: 0xffffff, glow: 0xffeda0, width: 1.45 }
+};
+
 function drawLaser(origin, direction, length, hit, isRemote = false, weaponType = "pistol") {
   const start = new THREE.Vector3();
   if (!isRemote && world.weaponTip) {
@@ -424,25 +475,126 @@ function drawLaser(origin, direction, length, hit, isRemote = false, weaponType 
   } else {
     start.copy(origin);
   }
-  const end = origin.clone().addScaledVector(direction.clone().normalize(), length), mid = start.clone().add(end).multiplyScalar(0.5), isSniper = weaponType === "sniper";
-  const isSperm = weaponType === "spermShooter" || weaponType === "heavySpermShooter" || weaponType === "heaviestSpermShooter";
-  const r = (isSniper || weaponType === "heavySniper") ? (hit ? 0.07 : 0.052) : (hit ? 0.034 : 0.024), ttl = FPS_LASER_TTL, geometry = new THREE.CylinderGeometry(r, r, start.distanceTo(end), 8, 1, true);
-  const material = new THREE.MeshBasicMaterial({ color: hit ? 0xff3366 : (isSniper ? 0xfff0a6 : (isSperm ? 0xfff9e6 : 0x4df3ff)), transparent: true, opacity: isSniper ? 0.96 : (hit ? 0.9 : 0.78), blending: THREE.AdditiveBlending, depthWrite: false });
-  const beam = new THREE.Mesh(geometry, material); beam.position.copy(mid); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
-  const glow = new THREE.Mesh(new THREE.CylinderGeometry(r * 3.2, r * 3.2, start.distanceTo(end), 10, 1, true), new THREE.MeshBasicMaterial({ color: material.color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
-  glow.position.copy(mid); glow.quaternion.copy(beam.quaternion);
-  const group = new THREE.Group(); group.add(glow, beam); world.arenaRoot.add(group); world.lasers.push({ beam: group, ttl, maxTtl: ttl });
+  const style = TRACER_STYLES[weaponType] || TRACER_STYLES.default;
+  const end = origin.clone().addScaledVector(direction.clone().normalize(), length);
+  const dist = Math.max(0.1, start.distanceTo(end));
+  const mid = start.clone().add(end).multiplyScalar(0.5);
+  const aim = end.clone().sub(start).normalize();
+  const ttl = FPS_LASER_TTL;
+  const group = new THREE.Group();
+
+  // Tapered hot core: thick at the muzzle, narrowing toward the impact point.
+  const coreR = 0.026 * style.width;
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(coreR * 0.45, coreR, dist, 6, 1, true),
+    new THREE.MeshBasicMaterial({ color: style.core, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  core.position.copy(mid);
+  core.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim);
+
+  const glow = new THREE.Mesh(
+    new THREE.CylinderGeometry(coreR * 1.4, coreR * 3.4, dist, 8, 1, true),
+    new THREE.MeshBasicMaterial({ color: style.glow, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  glow.position.copy(mid);
+  glow.quaternion.copy(core.quaternion);
+
+  // Muzzle flash puff at the start of the trace.
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.085 * style.width, 8, 6),
+    new THREE.MeshBasicMaterial({ color: style.core, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  flash.position.copy(start).addScaledVector(aim, 0.06);
+  flash.scale.set(1, 1, 1.8);
+  flash.quaternion.copy(core.quaternion);
+
+  group.add(glow, core, flash);
+
+  // Impact spark where the shot connected with something.
+  if (hit) {
+    const spark = new THREE.Mesh(
+      new THREE.SphereGeometry(0.14 * style.width, 8, 6),
+      new THREE.MeshBasicMaterial({ color: hit ? 0xff5c5c : style.glow, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    spark.position.copy(end);
+    group.add(spark);
+    const ringGeo = new THREE.TorusGeometry(0.2 * style.width, 0.03, 6, 14);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: style.glow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
+    ring.position.copy(end);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), aim);
+    group.add(ring);
+  }
+
+  world.arenaRoot.add(group);
+  world.lasers.push({ beam: group, ttl, maxTtl: ttl, isTracer: true });
 }
 function drawMeleeSwipe(origin, direction) {
-  const swipeGroup = new THREE.Group(), right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3().crossVectors(right, direction).normalize(), radius = 1.8, segments = 6, points = [];
-  for (let i = 0; i <= segments; i++) { const theta = -Math.PI / 3 + (i / segments) * (2 * Math.PI / 3); points.push(origin.clone().add(right.clone().multiplyScalar(Math.sin(theta) * radius)).add(direction.clone().multiplyScalar(Math.cos(theta) * radius)).add(up.clone().multiplyScalar(Math.sin(theta * 0.5) * 0.35))); }
-  for (let i = 0; i < points.length - 1; i++) { const p1 = points[i], p2 = points[i + 1], mid = p1.clone().add(p2).multiplyScalar(0.5); const geom = new THREE.CylinderGeometry(0.04, 0.04, p1.distanceTo(p2), 6); const mat = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }); const mesh = new THREE.Mesh(geom, mat); mesh.position.copy(mid); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize()); swipeGroup.add(mesh); }
-  world.arenaRoot.add(swipeGroup); world.lasers.push({ beam: swipeGroup, ttl: 0.15, maxTtl: 0.15, isSwipe: true });
+  // Diagonal crescent that mirrors the new club swing: thick golden core in the
+  // middle of the arc, thinning to embers at both tips, slanted top-right to
+  // bottom-left across the view.
+  const swipeGroup = new THREE.Group();
+  const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, direction).normalize();
+  const radius = 1.9, segments = 10, points = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const theta = -Math.PI * 0.42 + t * Math.PI * 0.84;
+    points.push(origin.clone()
+      .add(right.clone().multiplyScalar(Math.sin(theta) * radius))
+      .add(direction.clone().multiplyScalar(Math.cos(theta) * radius))
+      .add(up.clone().multiplyScalar(0.55 - t * 1.1)));
+  }
+  for (let i = 0; i < points.length - 1; i++) {
+    const t = (i + 0.5) / segments;
+    const thickness = 0.025 + Math.sin(t * Math.PI) * 0.085;
+    const p1 = points[i], p2 = points[i + 1], mid = p1.clone().add(p2).multiplyScalar(0.5);
+    const geom = new THREE.CylinderGeometry(thickness, thickness, p1.distanceTo(p2) * 1.08, 6);
+    const mat = new THREE.MeshBasicMaterial({
+      color: t > 0.25 && t < 0.75 ? 0xfff3c4 : 0xffb347,
+      transparent: true,
+      opacity: 0.5 + Math.sin(t * Math.PI) * 0.45,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
+    swipeGroup.add(mesh);
+  }
+  world.arenaRoot.add(swipeGroup);
+  world.lasers.push({ beam: swipeGroup, ttl: 0.18, maxTtl: 0.18, isSwipe: true });
 }
-function updateLasers(dt) { for (let i = world.lasers.length - 1; i >= 0; i--) { const l = world.lasers[i]; l.ttl -= dt; const opacity = Math.max(0, l.ttl / l.maxTtl); if (l.beam.isGroup) l.beam.children.forEach(c => { if (c.material) c.material.opacity = opacity; }); else l.beam.material.opacity = opacity; if (l.ttl <= 0) { world.arenaRoot.remove(l.beam); world.lasers.splice(i, 1); } } }
+function updateLasers(dt) {
+  for (let i = world.lasers.length - 1; i >= 0; i--) {
+    const l = world.lasers[i];
+    l.ttl -= dt;
+    const life = Math.max(0, l.ttl / l.maxTtl);
+    const fade = life * life;
+    if (l.beam.isGroup) {
+      l.beam.children.forEach(c => {
+        if (!c.material) return;
+        c.material.opacity = (c.userData.baseOpacity ??= c.material.opacity) * fade;
+        // Tracers thin out as they fade so they read as a streak, not a beam.
+        if (l.isTracer && c.geometry?.type === "CylinderGeometry") {
+          c.scale.x = c.scale.z = 0.35 + life * 0.65;
+        } else if (l.isTracer && c.geometry?.type !== "CylinderGeometry") {
+          const grow = 1 + (1 - life) * 1.6;
+          c.scale.setScalar(grow);
+        }
+      });
+    } else {
+      l.beam.material.opacity = fade;
+    }
+    if (l.ttl <= 0) {
+      world.arenaRoot.remove(l.beam);
+      l.beam.traverse?.((child) => { if (child.isMesh) { child.geometry?.dispose?.(); child.material?.dispose?.(); } });
+      world.lasers.splice(i, 1);
+    }
+  }
+}
 function showHitMarker(hs = false) { hitMarker.classList.toggle("headshot", hs); hitMarker.classList.remove("active"); void hitMarker.offsetWidth; hitMarker.classList.add("active"); clearTimeout(hitMarkerTimeout); hitMarkerTimeout = window.setTimeout(() => hitMarker.classList.remove("active", "headshot"), hs ? 190 : 145); }
 function showDamageDealt(amt, worldPos, hs = false) { const pop = document.createElement("div"); pop.className = "damage-pop" + (hs ? " headshot" : ""); pop.textContent = `${Math.max(0, Math.round(Number(amt) || 0))}`; damageLayer.appendChild(pop); const now = performance.now(); if (now - lastDamageSoundAt > 45) { playSound("damage"); lastDamageSoundAt = now; } activeDamagePops.push({ element: pop, pos: worldPos.clone(), timer: 0.84, maxTimer: 0.84, headshot: hs }); }
-function updateDamagePops(dt) { for (let i = activeDamagePops.length - 1; i >= 0; i--) { const p = activeDamagePops[i]; p.timer -= dt; if (p.timer <= 0) { p.element.remove(); activeDamagePops.splice(i, 1); } else { const off = p.pos.clone().add(new THREE.Vector3(0, (1.0 - p.timer / p.maxTimer) * 0.8, 0)), screen = toScreen(off); p.element.style.left = `${screen.x}px`; p.element.style.top = `${screen.y}px`; p.element.style.opacity = `${p.timer / p.maxTimer}`; p.element.style.transform = `translate(-50%, -50%) scale(${(p.headshot ? 1.2 : 1.0) + (1.0 - p.timer / p.maxTimer) * 0.35})`; } } }
+function updateDamagePops(dt) { for (let i = activeDamagePops.length - 1; i >= 0; i--) { const p = activeDamagePops[i]; p.timer -= dt; if (p.timer <= 0) { p.element.remove(); activeDamagePops.splice(i, 1); } else { const off = p.pos.clone().add(new THREE.Vector3(0, (1.0 - p.timer / p.maxTimer) * 0.8, 0)), screen = toScreen(off); p.element.style.left = `${screen.x}px`; p.element.style.top = `${screen.y}px`; p.element.style.opacity = `${p.timer / p.maxTimer}`; p.element.style.transform = `translate(-50%, -50%) rotate(${p.headshot ? 4 : -4}deg) scale(${(p.headshot ? 1.2 : 1.0) + (1.0 - p.timer / p.maxTimer) * 0.35})`; } } }
 function thirdPersonWeaponScale(weaponId) {
   const cfg = weaponConfig(weaponId);
   if (weaponId === "melee") return 0.58;

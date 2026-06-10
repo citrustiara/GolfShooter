@@ -38,8 +38,8 @@ function updateFps(dt, now) {
       progress.classList.remove("hidden");
       bar.style.width = "100%";
       bar.style.transform = `scaleX(${pct / 100})`;
-      bar.style.background = "#5ab0ff";
-      bar.style.boxShadow = "0 0 8px rgba(90, 176, 255, 0.9)";
+      bar.style.background = "#21d0ff";
+      bar.style.boxShadow = "none";
     }
     if (game.reloadTimer <= 0) {
       game.reloading = false;
@@ -56,8 +56,8 @@ function updateFps(dt, now) {
       progress.classList.remove("hidden");
       bar.style.width = "100%";
       bar.style.transform = `scaleX(${pct / 100})`;
-      bar.style.background = "#00ffcc";
-      bar.style.boxShadow = "0 0 8px rgba(0, 255, 204, 0.9)";
+      bar.style.background = "#6bf178";
+      bar.style.boxShadow = "none";
     }
   } else {
     if (progress) progress.classList.add("hidden");
@@ -108,7 +108,13 @@ function updateWeaponModel(dt, p) {
     cfg = game.activeWeapon === "gun" ? weaponConfig(game.primaryWeapon) : weaponConfig("melee");
   }
 
-  const camDir = directionFromAngles(p.yaw, p.pitch), viewDir = directionFromAngles(p.yaw, 0), right = new THREE.Vector3().crossVectors(viewDir, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3(0, 1, 0);
+  // Full camera-space basis: the weapon offset is applied along the camera's own
+  // right/up/forward axes so it stays glued to the same screen position at any
+  // pitch. (The old mix of camera-forward with world-up pushed the weapon into
+  // the face when looking up and far away when looking down.)
+  const camDir = directionFromAngles(p.yaw, p.pitch);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
   const speed = p.vel.length(), bob = Math.sin(performance.now() * 0.008) * speed * 0.005, swayX = Math.sin(performance.now() * 0.004) * 0.005;
   
   if (isRadarActive) {
@@ -183,9 +189,22 @@ function updateWeaponModel(dt, p) {
     }
     
     animY = -reloadFactor * dropAmount;
-  } else if (!isRadarActive && game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
-    const progress = (0.25 - game.meleeSwingTimer) / 0.25;
-    animY = -Math.sin(progress * Math.PI) * 1.5;
+  }
+  // Golf-club slash: quick wind-up over the right shoulder, then a diagonal
+  // strike across the view with a forward lunge, easing back to rest.
+  let meleeSwing = 0;
+  if (!isRadarActive && game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
+    const swingDuration = 0.32;
+    const progress = Math.max(0, Math.min(1, (swingDuration - game.meleeSwingTimer) / swingDuration));
+    meleeSwing = progress;
+    const windup = Math.min(1, progress / 0.28);
+    const strike = progress <= 0.28 ? 0 : Math.min(1, (progress - 0.28) / 0.42);
+    const recover = progress <= 0.7 ? 0 : (progress - 0.7) / 0.3;
+    const arc = Math.sin(strike * Math.PI * 0.5);
+    offset
+      .add(right.clone().multiplyScalar(windup * 0.34 - arc * 0.62))
+      .add(up.clone().multiplyScalar(windup * 0.3 - arc * 0.5 + recover * 0.2))
+      .add(camDir.clone().multiplyScalar(arc * 0.42 - windup * 0.1));
   }
 
   weapon.position.copy(camera.position).add(offset).add(up.clone().multiplyScalar(animY));
@@ -213,6 +232,14 @@ function updateWeaponModel(dt, p) {
   weapon.quaternion.copy(camera.quaternion);
   if (isRadarActive) {
     weapon.rotateX(0.5);
+  } else if (meleeSwing > 0) {
+    const windup = Math.min(1, meleeSwing / 0.28);
+    const strike = meleeSwing <= 0.28 ? 0 : Math.min(1, (meleeSwing - 0.28) / 0.42);
+    const arc = Math.sin(strike * Math.PI * 0.5);
+    const settle = meleeSwing <= 0.7 ? 1 : 1 - (meleeSwing - 0.7) / 0.3;
+    weapon.rotateZ((windup * 0.55 - arc * 1.85) * settle);
+    weapon.rotateX((-windup * 0.5 + arc * 1.15) * settle);
+    weapon.rotateY((windup * 0.25 - arc * 0.45) * settle);
   } else if (throwArc > 0) {
     weapon.rotateX(-0.55 * throwArc);
     weapon.rotateZ(0.35 * throwArc);

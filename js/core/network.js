@@ -396,7 +396,7 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "fpsGrenadeThrow") {
-    playSound(message.kind === "smoke" ? "smoke" : "grenade");
+    playSound(message.kind === "smoke" ? "smoke" : (message.kind === "bouncer" ? "bouncerShot" : (message.kind === "rocket" ? "rocket" : "grenade")));
     networkLinks.spawnGrenade(
       new THREE.Vector3(message.x, message.y, message.z),
       new THREE.Vector3(message.vx, message.vy, message.vz),

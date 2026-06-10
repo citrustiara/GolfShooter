@@ -46,14 +46,24 @@ void main() {
   vec3 raw = clamp((source - 0.5) * contrast + 0.5 + brightness, 0.0, 1.0);
   float center = luma(raw);
 
-  float left = luma(sampleScene(vUv + vec2(-texel.x, 0.0)));
-  float right = luma(sampleScene(vUv + vec2(texel.x, 0.0)));
-  float up = luma(sampleScene(vUv + vec2(0.0, texel.y)));
-  float down = luma(sampleScene(vUv + vec2(0.0, -texel.y)));
-  float diagA = luma(sampleScene(vUv + texel * vec2(1.0, 1.0)));
-  float diagB = luma(sampleScene(vUv + texel * vec2(-1.0, -1.0)));
-  float edge = abs(left - right) + abs(up - down) + abs(diagA - diagB) * 0.55;
-  edge = smoothstep(0.055, 0.265, edge * 2.55) * inkStrength;
+  // Thick two-ring ink pass: sample at 1px and 2px so silhouettes read as
+  // bold cartoon outlines instead of faint hairlines.
+  vec2 t1 = texel;
+  vec2 t2 = texel * 2.0;
+  float left = luma(sampleScene(vUv + vec2(-t1.x, 0.0)));
+  float right = luma(sampleScene(vUv + vec2(t1.x, 0.0)));
+  float up = luma(sampleScene(vUv + vec2(0.0, t1.y)));
+  float down = luma(sampleScene(vUv + vec2(0.0, -t1.y)));
+  float diagA = luma(sampleScene(vUv + t1 * vec2(1.0, 1.0)));
+  float diagB = luma(sampleScene(vUv + t1 * vec2(-1.0, -1.0)));
+  float left2 = luma(sampleScene(vUv + vec2(-t2.x, 0.0)));
+  float right2 = luma(sampleScene(vUv + vec2(t2.x, 0.0)));
+  float up2 = luma(sampleScene(vUv + vec2(0.0, t2.y)));
+  float down2 = luma(sampleScene(vUv + vec2(0.0, -t2.y)));
+  float edgeNear = abs(left - right) + abs(up - down) + abs(diagA - diagB) * 0.55;
+  float edgeWide = abs(left2 - right2) + abs(up2 - down2);
+  float edge = max(edgeNear * 2.85, edgeWide * 2.1);
+  edge = smoothstep(0.028, 0.165, edge) * inkStrength;
 
   float steps = max(2.0, colorSteps);
   vec3 boosted = clamp(raw * 1.34 + 0.10, 0.0, 1.0);
@@ -78,7 +88,7 @@ void main() {
 
   float shadowLift = (1.0 - smoothstep(0.12, 0.44, center)) * (1.0 - clamp(edge * 1.35, 0.0, 1.0)) * (1.0 - monoMix);
   comic = mix(comic, max(comic, vec3(0.28)), shadowLift * 0.48);
-  comic *= 1.0 - edge * (0.64 + monoMix * 0.12);
+  comic *= 1.0 - edge * (0.86 + monoMix * 0.10);
 
   float vignette = 1.0 - smoothstep(0.34, 0.82, distance(vUv, vec2(0.5))) * (0.035 + monoMix * 0.035);
   comic *= vignette;

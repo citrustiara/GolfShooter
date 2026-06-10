@@ -4,23 +4,33 @@ function showMenuScene() {
   world.golfRoot.visible = true; world.arenaRoot.visible = false; camera.position.set(-28, 12, 28); camera.lookAt(0, 0, 0); camera.fov = 62; camera.updateProjectionMatrix();
 }
 
-const weaponOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x050607, side: THREE.BackSide, depthWrite: false });
+// Sticker-style double rim: a bold white halo hugging the weapon with a black
+// contour just outside it, so weapons stay readable against any terrain color.
+const weaponOutlineWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xfffdf5, side: THREE.BackSide, depthWrite: false });
+const weaponOutlineInkMaterial = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, side: THREE.BackSide, depthWrite: false });
 
-function addWeaponOutlineForMesh(mesh, scale = 1.055) {
-  if (!mesh?.isMesh || mesh.userData?.isWeaponOutline || !mesh.geometry || !mesh.parent) return;
-  const outline = new THREE.Mesh(mesh.geometry, weaponOutlineMaterial);
+function makeOutlineHull(mesh, material, scale, orderShift) {
+  const outline = new THREE.Mesh(mesh.geometry, material);
   outline.name = "weaponComicOutline";
   outline.userData.isWeaponOutline = true;
   outline.position.copy(mesh.position);
   outline.rotation.copy(mesh.rotation);
   outline.quaternion.copy(mesh.quaternion);
   outline.scale.copy(mesh.scale).multiplyScalar(scale);
-  outline.renderOrder = (mesh.renderOrder || 0) - 1;
+  outline.renderOrder = (mesh.renderOrder || 0) - orderShift;
   outline.frustumCulled = mesh.frustumCulled;
-  mesh.parent.add(outline);
+  return outline;
 }
 
-function addWeaponOutlines(root, scale = 1.055) {
+function addWeaponOutlineForMesh(mesh, scale = 1.07) {
+  if (!mesh?.isMesh || mesh.userData?.isWeaponOutline || !mesh.geometry || !mesh.parent) return;
+  const whiteHull = makeOutlineHull(mesh, weaponOutlineWhiteMaterial, scale, 1);
+  const inkHull = makeOutlineHull(mesh, weaponOutlineInkMaterial, scale * 1.045 + 0.012, 2);
+  mesh.parent.add(inkHull);
+  mesh.parent.add(whiteHull);
+}
+
+function addWeaponOutlines(root, scale = 1.07) {
   const meshes = [];
   root.traverse((child) => {
     if (child.isMesh && !child.userData?.isWeaponOutline) meshes.push(child);
@@ -39,7 +49,7 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
   if (cfg.glbModel) {
     const clone = cfg.glbModel.clone();
     targetGroup.add(clone);
-    addWeaponOutlines(clone, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.075 : 1.055);
+    addWeaponOutlines(clone, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.09 : 1.065);
     
     const tip = new THREE.Group();
     const muzzle = cfg.muzzle || { x: 0, y: 0.08, z: -1.0 };
@@ -79,7 +89,7 @@ function rebuildWeaponMesh(weaponId, targetGroup) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     targetGroup.add(mesh);
-    addWeaponOutlineForMesh(mesh, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.075 : 1.055);
+    addWeaponOutlineForMesh(mesh, targetGroup === world.weapon || targetGroup === world.meleeWeapon ? 1.09 : 1.065);
   });
 
   const tip = new THREE.Group();

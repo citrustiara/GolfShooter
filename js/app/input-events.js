@@ -127,7 +127,7 @@ function animate(now = performance.now()) {
   const monoAmount = radarMono ? 1 : comicMono;
   renderScene(now * 0.001, {
     grayscale: monoAmount,
-    inkStrength: radarMono ? 1.12 : 0.70 + comicMono * 0.26,
+    inkStrength: radarMono ? 1.18 : 0.92 + comicMono * 0.2,
     colorSteps: radarMono ? 2 : (comicMono > 0.01 ? 4 : 5),
     contrast: radarMono ? 1.85 : 1.18 + comicMono * 0.18,
     brightness: radarMono ? 0.08 : 0.06,

@@ -427,7 +427,7 @@ function collideGrenadeWithObstacle(g, obs, radius) {
     if (dot < 0) {
       const normalVel = normal.clone().multiplyScalar(dot);
       const tangentVel = g.vel.clone().sub(normalVel);
-      g.vel.copy(tangentVel.multiplyScalar(0.8).add(normalVel.multiplyScalar(-0.4)));
+      g.vel.copy(tangentVel.multiplyScalar(g.tangentKeep ?? 0.8).add(normalVel.multiplyScalar(-(g.bounciness ?? 0.4))));
     }
     return true;
   }

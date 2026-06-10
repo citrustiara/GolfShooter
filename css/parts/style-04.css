@@ -1,420 +1,248 @@
+/* ---------------- weapon select overlay ---------------- */
+.weapon-select-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 214, 10, 0.16) 0 6px, transparent 7px),
+    radial-gradient(rgba(255, 253, 245, 0.08) 2.5px, transparent 3px),
+    linear-gradient(160deg, #2a1551 0%, #471379 55%, #1c0f38 100%);
+  background-size: auto, 26px 26px, auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  opacity: 1;
+  transition: opacity 300ms ease;
+}
 
-button {
-  border: 2px solid #050608;
-  background: #15120f;
-  box-shadow: 4px 4px 0 #000;
-  text-transform: uppercase;
+.weapon-select-overlay.hidden,
+.weapon-select-overlay[hidden] {
+  display: none;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.weapon-select-overlay h2 {
+  margin: 0;
+  padding: 10px 26px 13px;
+  font-family: var(--display);
+  font-size: clamp(22px, 4vw, 36px);
   font-weight: 900;
   letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--yellow);
+  border: var(--border-fat);
+  box-shadow: 6px 6px 0 var(--pink), 12px 12px 0 var(--ink);
+  transform: rotate(-1.4deg);
 }
 
-button:hover {
-  background: #211b14;
-  border-color: #fff2bd;
-  transform: translate(-1px, -1px);
-  box-shadow: 6px 6px 0 #000;
+.countdown-timer {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 52px;
+  font-weight: 900;
+  color: var(--paper);
+  background: var(--pink);
+  border: var(--border-fat);
+  box-shadow: 5px 5px 0 var(--ink);
+  transform: rotate(2deg);
 }
 
-button:active {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 #000;
-}
-
-button.primary {
-  border-color: #050608;
-  background: #ffd166;
-  color: #050608;
-  box-shadow: 5px 5px 0 #fff2bd, 9px 9px 0 #000;
-}
-
-button.ghost {
-  background: #0b0d10;
-  color: #fff2bd;
-}
-
-input,
-.menu select {
-  border: 2px solid #fff2bd !important;
-  background: #090a0d !important;
-  color: #fff7cb !important;
-  box-shadow: 5px 5px 0 #000 !important;
-}
-
-input:focus,
-.menu select:focus {
-  border-color: #ffd166 !important;
-  outline: 2px solid #050608;
-}
-
-.result::before {
-  opacity: 0.22;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.85) 0 3px, transparent 3px 18px),
-    linear-gradient(90deg, rgba(255, 242, 189, 0.14), transparent 55%, rgba(255, 111, 97, 0.12));
-  mix-blend-mode: screen;
-  animation: none;
-}
-
-@keyframes result-burst {
-  to { transform: none; }
-}
-
-.menu,
-.settings-panel,
-.hud,
-.network,
-.kill-notice,
-.victory-banner,
-.weapon-card,
-.practice-card,
-.practice-map-row,
-#practiceMapOptions > div {
-  border-radius: 0 !important;
-  border: 3px solid #fff2bd !important;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 12px),
-    linear-gradient(180deg, #14120e 0%, #07080b 100%) !important;
-  box-shadow: 9px 9px 0 #000, -4px -4px 0 rgba(255, 209, 102, 0.72) !important;
-  backdrop-filter: none !important;
-  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 14px);
-}
-
-.menu {
-  padding: 34px 38px 30px;
-  isolation: isolate;
-  overflow: visible;
-}
-
-#lobby {
-  overflow: auto;
-  padding: 30px 34px;
-}
-
-.menu::after,
-.settings-panel::after,
-.hud::after,
-.network::after,
-.kill-notice::after,
-.victory-banner::after,
-.weapon-card::after,
-.practice-card::after,
-.practice-map-row::after {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 1px solid rgba(255, 242, 189, 0.42);
-  pointer-events: none;
-}
-
-.menu,
-.settings-panel,
-.hud,
-.network,
-.kill-notice,
-.victory-banner,
-.weapon-card,
-.practice-card,
-.practice-map-row {
-  position: relative;
-}
-
-.menu > *,
-.settings-panel > *,
-.hud > *,
-.network > *,
-.kill-notice > *,
-.victory-banner > *,
-.weapon-card > *,
-.practice-card > *,
-.practice-map-row > * {
-  position: relative;
-  z-index: 1;
-}
-
-.menu h1,
-.weapon-select-overlay h2 {
-  color: #fff7cb;
-  text-transform: uppercase;
-  letter-spacing: -0.06em;
-  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.58);
-}
-
-.hud,
-.network {
-  padding: 12px 14px;
-}
-
-.chip,
-.fps-hud .chip,
-.ability-slot,
-.phrase,
-.kill-meta span,
-.practice-check {
-  border-radius: 0 !important;
-  border: 2px solid rgba(255, 242, 189, 0.62) !important;
-  background: #090a0d !important;
-  box-shadow: 4px 4px 0 #000;
-  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 7px);
-}
-
-.fps-hud .chip,
-.ability-slot {
-  border-color: #fff2bd !important;
-}
-
-.ability-slot .cooldown-overlay {
-  background: repeating-linear-gradient(135deg, rgba(255, 209, 102, 0.64) 0 5px, rgba(255, 111, 97, 0.55) 5px 10px);
-}
-
-.settings {
-  border-radius: 0;
-  border: 3px solid #fff2bd;
-  background: #090a0d;
-  box-shadow: 6px 6px 0 #000;
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-}
-
-.kill-notice {
-  border-color: #fff2bd !important;
-  color: #fff7cb;
-  text-shadow: 3px 3px 0 #000;
-}
-
-.kill-notice::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 242, 189, 0.42), transparent);
-}
-
-.kill-notice.death {
-  border-color: #ffc0b8 !important;
-  box-shadow: 9px 9px 0 #000, -4px -4px 0 rgba(255, 111, 97, 0.72) !important;
-}
-
-.kill-main {
-  color: #fff7cb;
-  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.5);
-}
-
-.kill-notice.death .kill-main {
-  color: #ffe4df;
-  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 111, 97, 0.5);
-}
-
-.radar-marker {
-  border-radius: 50% 50% 42% 42%;
-  border: 0;
-  background: radial-gradient(ellipse at center, rgba(255, 32, 32, 0.72) 0 42%, rgba(255, 32, 32, 0.28) 58%, transparent 72%);
-  box-shadow: 0 0 26px rgba(255, 0, 0, 0.62);
-  clip-path: none;
-}
-
-.power,
-.reload-progress {
-  border-radius: 0;
-  border: 2px solid #fff2bd;
-  background: #090a0d;
-  box-shadow: 5px 5px 0 #000;
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-}
-
-.power span,
-.reload-bar {
-  box-shadow: none;
-}
-
-.victory-banner {
-  padding: 12px 18px;
-  color: #fff7cb;
-  text-shadow: 3px 3px 0 #000, 5px 5px 0 rgba(255, 209, 102, 0.55);
-}
-
-.countdown {
-  color: #fff7cb;
-  text-shadow: 8px 8px 0 #000, 14px 14px 0 rgba(255, 209, 102, 0.56);
-}
-
-.weapon-select-overlay {
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 16px),
-    linear-gradient(180deg, rgba(20, 18, 14, 0.96), rgba(7, 8, 11, 0.98));
-  backdrop-filter: none;
+.weapon-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  max-width: 1080px;
+  width: 92%;
+  justify-content: center;
 }
 
 .weapon-card {
-  max-width: 235px;
-  border-color: #fff2bd !important;
-  padding: 24px 22px;
+  flex: 1 1 190px;
+  max-width: 230px;
+  background: var(--paper);
+  border: var(--border-fat);
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 20px 18px;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
+.weapon-card:nth-child(odd) { transform: rotate(-1.1deg); }
+.weapon-card:nth-child(even) { transform: rotate(1.1deg); }
+
 .weapon-card:hover {
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 12px),
-    linear-gradient(180deg, #211b14 0%, #090a0d 100%) !important;
-  border-color: #ffd166 !important;
-  transform: translate(-3px, -3px);
-  box-shadow: 12px 12px 0 #000, -5px -5px 0 rgba(255, 209, 102, 0.88) !important;
+  background: var(--cyan);
+  transform: translate(-3px, -3px) rotate(0deg);
+  box-shadow: 10px 10px 0 var(--ink);
 }
 
 .weapon-card.active {
-  border-color: #7ee2a8 !important;
-  box-shadow: 10px 10px 0 #000, -5px -5px 0 rgba(126, 226, 168, 0.72) !important;
+  background: var(--lime);
+  transform: rotate(0deg) scale(1.03);
+  box-shadow: 6px 6px 0 var(--pink), 12px 12px 0 var(--ink);
 }
 
-/* Comfort pass: same angular language, less eye-searing contrast. */
-.menu,
-#lobby {
-  border-width: 2px !important;
-  border-color: rgba(255, 242, 189, 0.58) !important;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.032) 0 2px, transparent 2px 16px),
-    linear-gradient(180deg, #191713 0%, #0d0e10 100%) !important;
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.64), -2px -2px 0 rgba(255, 209, 102, 0.28) !important;
-}
-
-.menu h1,
-.weapon-select-overlay h2 {
-  text-shadow: 2px 2px 0 #000, 4px 4px 0 rgba(255, 209, 102, 0.34);
-}
-
-.menu button {
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.72) !important;
-}
-
-.menu button.primary {
-  box-shadow: 3px 3px 0 rgba(255, 242, 189, 0.72), 6px 6px 0 rgba(0, 0, 0, 0.72) !important;
-}
-
-.menu input,
-.menu select {
-  border-color: rgba(255, 242, 189, 0.54) !important;
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.62) !important;
-}
-
-/* Round/kill result toast: large upper-middle comic banner. */
-.victory-banner {
-  top: clamp(70px, 12vh, 118px);
-  bottom: auto;
-  width: min(920px, calc(100vw - 36px));
-  max-width: min(920px, calc(100vw - 36px));
-  padding: 24px 34px 26px;
-  font-size: clamp(44px, 7.4vw, 88px);
-  line-height: 0.86;
-  letter-spacing: -0.045em;
-  color: #fff7cb;
-  border-color: rgba(255, 242, 189, 0.74) !important;
-  box-shadow: 7px 7px 0 rgba(0, 0, 0, 0.74), -3px -3px 0 rgba(255, 209, 102, 0.46) !important;
-  text-shadow: 4px 4px 0 #000, 7px 7px 0 rgba(255, 209, 102, 0.34);
-}
-
-/* Damage numbers: readable comic hit callouts with yellow body / red headshot. */
-.damage-pop {
-  isolation: isolate;
-  padding: 7px 12px 8px;
-  color: #ffe36e;
-  font-size: 34px;
-  letter-spacing: -0.04em;
-  -webkit-text-stroke: 1.4px #050608;
-  text-shadow: 3px 3px 0 #000, 0 0 12px rgba(255, 227, 110, 0.45);
-}
-
-.damage-pop::before {
-  content: "";
+.weapon-card.active::before {
+  content: "PICKED!";
   position: absolute;
-  inset: -6px -12px -5px;
-  z-index: -1;
-  background: #11100d;
-  border: 2px solid rgba(255, 242, 189, 0.82);
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.68);
-  clip-path: polygon(9% 0, 100% 0, 94% 24%, 100% 52%, 91% 100%, 0 100%, 7% 72%, 0 43%, 8% 22%);
+  top: -14px;
+  right: -12px;
+  padding: 3px 8px;
+  background: var(--pink);
+  color: var(--paper);
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+  font-size: 10px;
+  transform: rotate(7deg);
+  box-shadow: 2px 2px 0 var(--ink);
 }
 
-.damage-pop.headshot {
-  color: #ff4545;
-  font-size: 42px;
-  -webkit-text-stroke: 1.8px #050608;
-  text-shadow: 3px 3px 0 #000, 0 0 14px rgba(255, 69, 69, 0.56);
+.weapon-card {
+  position: relative;
 }
 
-.damage-pop.headshot::before {
-  background: #18090a;
-  border-color: rgba(255, 142, 126, 0.9);
+.weapon-card h3 {
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  border-bottom: 3px solid var(--ink);
 }
 
-/* Restore positioning for overlays that use the angular shell. */
-.menu {
+.weapon-stat {
+  margin: 6px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.weapon-stat:first-of-type {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+/* ---------------- settings ---------------- */
+.settings {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  right: 18px;
+  bottom: 18px;
+  width: 50px;
+  min-height: 50px;
+  padding: 0;
+  background: var(--paper);
+  border: var(--border);
+  font-size: 24px;
+  line-height: 1;
+  z-index: 12;
+  box-shadow: var(--shadow-s);
+  transform: rotate(3deg);
+}
+
+.settings:hover {
+  transform: rotate(-3deg) translate(-2px, -2px);
 }
 
 .settings-panel {
   position: absolute;
   right: 18px;
-  bottom: 72px;
-}
-
-.kill-notice {
-  position: absolute;
-  left: 50%;
-  bottom: 150px;
-  transform: translateX(-50%);
-  min-width: min(520px, calc(100vw - 36px));
-  max-width: min(600px, calc(100vw - 36px));
-  padding: 14px 22px 16px;
-  z-index: 17;
-}
-
-.kill-notice .kill-badge {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-}
-
-.kill-notice .kill-main {
-  margin-top: 3px;
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 0.9;
-}
-
-.kill-notice .kill-meta {
-  gap: 7px;
-  margin-top: 8px;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-}
-
-.kill-notice .kill-meta span {
-  padding: 3px 6px;
-  border-width: 1px !important;
-  box-shadow: 2px 2px 0 #000;
-}
-
-.victory-banner {
-  position: absolute;
-  left: 50%;
-  top: clamp(70px, 12vh, 118px);
-  bottom: auto;
-  transform: translateX(-50%);
-}
-
-/* Pause/settings are intentionally visible only while FPS pointer lock is off. */
-.settings,
-.settings-panel {
-  border-width: 2px !important;
-  border-color: rgba(255, 242, 189, 0.72) !important;
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.72), -2px -2px 0 rgba(255, 209, 102, 0.34) !important;
-}
-
-.settings-panel {
+  bottom: 80px;
   width: min(320px, calc(100vw - 36px));
   padding: 18px;
+  border: var(--border-fat);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 6px 6px 0 var(--cyan), 12px 12px 0 var(--ink);
+  z-index: 12;
+  transform: rotate(0.6deg);
 }
 
-.settings-panel .danger {
-  margin-top: 1rem !important;
-  width: 100% !important;
-  background: #24100f;
-  color: #ffe4df;
-  border-color: rgba(255, 142, 126, 0.88);
+.settings-panel label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-/* Damage numbers are standalone cartoon digits: no UI-style boxes/windows. */
+.settings-panel label span:last-child {
+  padding: 2px 7px;
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+  font-size: 12px;
+}
+
+.settings-panel input[type="range"] {
+  min-height: 24px;
+  padding: 0;
+  accent-color: var(--pink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* ---------------- fps mode helpers ---------------- */
+.fps .crosshair,
+.fps .countdown {
+  display: flex;
+}
+
+.result:not(.hidden) ~ .crosshair {
+  display: none !important;
+}
+
+.result:not(.hidden) ~ .hit-marker {
+  opacity: 0 !important;
+}
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hud,
+  .network {
+    justify-content: space-between;
+    transform: none;
+  }
+
+  .menu-grid,
+  .join-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-row,
+  .practice-controls,
+  .practice-stat-grid,
+  .practice-map-main {
+    grid-template-columns: 1fr;
+  }
+
+  .logo-burst {
+    right: -16px;
+    width: 60px;
+    height: 60px;
+    font-size: 12px;
+  }
+}
