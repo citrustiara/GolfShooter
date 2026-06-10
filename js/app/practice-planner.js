@@ -212,7 +212,7 @@ function syncPracticeMapPlanner() {
     abilitiesTitle.className = "practice-map-summary";
     abilitiesTitle.textContent = "Abilities and keys";
     const abilityGrid = document.createElement("div");
-    abilityGrid.className = "practice-check-grid";
+    abilityGrid.className = "practice-check-grid practice-ability-grid";
     for (const ability of ABILITY_CHOICES) {
       const abilityRow = document.createElement("div");
       abilityRow.className = "practice-ability-row";

@@ -277,31 +277,44 @@ select:focus {
 
 .fps-hud .chip {
   min-width: 132px;
+  width: min(220px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   padding: 10px 14px 12px;
   text-align: right;
   box-shadow: 5px 5px 0 var(--ink);
   transform: rotate(-1deg);
+  overflow-wrap: anywhere;
 }
 
 .fps-hud .chip strong {
   font-size: 30px;
+  line-height: 0.96;
   margin-top: 3px;
+  overflow-wrap: anywhere;
 }
 
 #healthChip { background: var(--paper); transform: rotate(1deg); }
 #healthChip span { background: var(--red); color: var(--paper); }
 #healthText { color: var(--red); }
 #weaponChip span { background: var(--cyan); }
+#weaponText {
+  font-size: clamp(17px, 2.5vw, 24px);
+  line-height: 1.2;
+}
 #ammoChip span { background: var(--yellow); }
 
 .ability-container {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
+  max-width: calc(100vw - 32px);
   margin-bottom: 2px;
 }
 
 .ability-slot {
   position: relative;
+  flex: 0 0 56px;
   width: 56px;
   height: 56px;
   background: var(--paper);

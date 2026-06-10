@@ -151,7 +151,48 @@ function setupWeapon() {
 }
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
-function showMenu() { clearVictoryBanner(); game.phase = "menu"; menu.classList.remove("hidden"); lobby.classList.add("hidden"); resultPanel.classList.add("hidden"); hud.classList.add("hidden"); document.querySelector("#network").classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps"); document.exitPointerLock?.(); showMenuScene(); }
+
+function hideFpsHudUi() {
+  healthChip?.classList.add("hidden");
+  abilityContainer?.classList.add("hidden");
+  weaponChip?.classList.add("hidden");
+  ammoChip?.classList.add("hidden");
+  document.getElementById("reloadProgress")?.classList.add("hidden");
+  hitMarker?.classList.remove("active", "headshot");
+  killNotice?.classList.add("hidden");
+  radarMarker?.classList.add("hidden");
+  countdown?.classList.add("hidden");
+  damageVignette?.classList.remove("active");
+  if (damageLayer) damageLayer.replaceChildren();
+  if (Array.isArray(activeDamagePops)) activeDamagePops.length = 0;
+  game.killNoticeTimer = 0;
+  game.reloading = false;
+  game.reloadTimer = 0;
+  game.reloadWeapon = null;
+  game.radarTimer = 0;
+  input.shootHeld = false;
+  input.aiming = false;
+  world.weapon && (world.weapon.visible = false);
+  world.meleeWeapon && (world.meleeWeapon.visible = false);
+  world.radarDevice && (world.radarDevice.visible = false);
+}
+
+function showMenu() {
+  clearVictoryBanner();
+  game.phase = "menu";
+  menu.classList.remove("hidden");
+  lobby.classList.add("hidden");
+  resultPanel.classList.add("hidden");
+  hud.classList.add("hidden");
+  document.querySelector("#network").classList.add("hidden");
+  weaponSelectOverlay.classList.add("hidden");
+  settingsBtn.classList.add("hidden");
+  settingsPanel.classList.add("hidden");
+  overlay.classList.remove("fps");
+  hideFpsHudUi();
+  document.exitPointerLock?.();
+  showMenuScene();
+}
 function showLobby() {
   clearVictoryBanner();
   game.phase = "lobby";
@@ -163,6 +204,7 @@ function showLobby() {
   overlay.classList.remove("fps");
   settingsBtn.classList.add("hidden");
   settingsPanel.classList.add("hidden");
+  hideFpsHudUi();
   showMenuScene();
   if (game.role === "guest") {
     startGolfBtn.classList.add("hidden");
@@ -235,6 +277,7 @@ Object.assign(globalThis, {
   buildRadarDeviceMesh,
   setupWeapon,
   beginLocalMatch,
+  hideFpsHudUi,
   showMenu,
   showLobby,
   startGolf,

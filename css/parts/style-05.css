@@ -65,3 +65,68 @@ select {
   font-weight: 800;
   transform: rotate(-0.6deg);
 }
+
+@media (max-width: 520px) {
+  .fps-hud {
+    right: 12px;
+    bottom: 12px;
+    gap: 8px;
+  }
+
+  .fps-hud .chip {
+    width: min(204px, calc(100vw - 24px));
+    padding: 8px 12px 10px;
+  }
+
+  .ability-container {
+    gap: 6px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .ability-slot {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .ability-slot .key-hint {
+    font-size: 9px;
+    padding: 1px 4px 2px;
+  }
+
+  .ability-slot .cooldown-text {
+    font-size: 14px;
+    -webkit-text-stroke-width: 3px;
+  }
+
+  .weapon-select-overlay {
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 22px 14px;
+  }
+
+  .weapon-select-overlay h2 {
+    font-size: 20px;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .weapon-cards {
+    gap: 14px;
+  }
+
+  .weapon-card {
+    flex-basis: 100%;
+    max-width: 100%;
+    padding: 14px 12px;
+  }
+
+  .weapon-card h3 {
+    font-size: 16px;
+  }
+
+  .weapon-stat {
+    font-size: 12px;
+  }
+}

@@ -250,6 +250,7 @@
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .practice-controls {
@@ -332,9 +333,13 @@
 
 .practice-check-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: 0.45rem;
   margin: 0.45rem 0 0.75rem;
+}
+
+.practice-ability-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr));
 }
 
 .practice-check {
@@ -343,11 +348,15 @@
   align-items: center;
   justify-content: flex-start;
   gap: 0.45rem !important;
+  min-width: 0;
+  min-height: 44px;
   padding: 0.45rem 0.5rem;
   border: 2px solid var(--ink);
   background: var(--paper);
   box-shadow: 2px 2px 0 var(--ink);
   font-weight: 700 !important;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .practice-check input[type="checkbox"] {
@@ -364,16 +373,19 @@
 
 .practice-ability-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) minmax(86px, auto);
   gap: 0.45rem;
-  align-items: center;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .practice-ability-row .practice-check { margin: 0; }
 
 .practice-ability-row select {
+  width: 100%;
+  min-width: 0;
   min-height: 36px;
-  padding: 4px 8px;
+  padding: 4px 26px 4px 8px;
   font-size: 0.82rem;
   box-shadow: 2px 2px 0 var(--ink);
 }

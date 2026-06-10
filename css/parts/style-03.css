@@ -49,44 +49,42 @@
 }
 
 /* ---------------- crosshair / hitmarker / reload ---------------- */
-/* Sleek crosshair: four thin ticks with a center gap plus a pin-point dot.
-   Drop-shadows stand in for the old chunky outline so it stays readable on
-   bright and dark terrain without the fat slab look. */
+/* Sleek crosshair: narrow floating ticks with a clear center gap.
+   A subtle shadow preserves contrast without returning to chunky blocks. */
 .crosshair {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 22px;
-  height: 22px;
+  width: 34px;
+  height: 34px;
   transform: translate(-50%, -50%);
   display: none;
   pointer-events: none;
+  background: radial-gradient(circle at center, var(--paper) 0 1.35px, transparent 1.8px);
+  filter: drop-shadow(0 0 1px var(--ink)) drop-shadow(0 1px 2px rgba(14, 14, 17, 0.55));
 }
 
 .crosshair::before,
 .crosshair::after {
   content: "";
   position: absolute;
-  background: var(--paper);
-  filter: drop-shadow(0 0 1px var(--ink)) drop-shadow(0 0 1px var(--ink));
+  background: transparent;
 }
 
-/* vertical ticks (top + bottom, gap in the middle) */
 .crosshair::before {
-  left: 10px;
+  left: calc(50% - 0.75px);
   top: 0;
-  width: 2px;
-  height: 22px;
-  clip-path: polygon(0 0, 100% 0, 100% 32%, 0 32%, 0 68%, 100% 68%, 100% 100%, 0 100%);
+  width: 1.5px;
+  height: 100%;
+  background: linear-gradient(to bottom, var(--paper) 0 9px, transparent 9px 25px, var(--paper) 25px 100%);
 }
 
-/* horizontal ticks (left + right, gap in the middle) */
 .crosshair::after {
   left: 0;
-  top: 10px;
-  width: 22px;
-  height: 2px;
-  clip-path: polygon(0 0, 32% 0, 32% 100%, 0 100%, 68% 0, 100% 0, 100% 100%, 68% 100%);
+  top: calc(50% - 0.75px);
+  width: 100%;
+  height: 1.5px;
+  background: linear-gradient(to right, var(--paper) 0 9px, transparent 9px 25px, var(--paper) 25px 100%);
 }
 
 .crosshair .crosshair-dot,
@@ -98,7 +96,7 @@
   height: 3px;
   transform: translate(-50%, -50%);
   background: var(--paper);
-  filter: drop-shadow(0 0 1px var(--ink));
+  box-shadow: 0 0 0 1px rgba(14, 14, 17, 0.6);
 }
 
 .reload-progress {
