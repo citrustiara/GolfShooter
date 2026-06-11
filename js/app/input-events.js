@@ -126,17 +126,17 @@ function animate(now = performance.now()) {
   }
   const comicMono = victoryComicMonochromeAmount(now);
   const radarMono = game.radarTimer > 0 && (game.phase === "fps" || game.phase === "fpsVictoryLap");
-  // Scoped sniper view: partially desaturated (well below the kill-cam's hard
-  // black-and-white) with the red channel boosted so highlighted enemies pop.
-  const scopeMono = game.phase === "fps" ? (game.scopeAmount || 0) * 0.55 : 0;
-  const monoAmount = radarMono ? 1 : Math.max(comicMono, scopeMono);
+  // Scoped sniper view: fully desaturated (black-and-white) with the red channel boosted so highlighted enemies pop.
+  const scopeMono = game.phase === "fps" ? (game.scopeAmount || 0) * 1.0 : 0;
+  const monoAmount = radarMono ? 1.0 : comicMono;
   renderScene(now * 0.001, {
     grayscale: monoAmount,
+    desaturate: scopeMono,
     inkStrength: radarMono ? 1.18 : 0.92 + comicMono * 0.2,
     colorSteps: radarMono ? 2 : (comicMono > 0.01 ? 4 : 5),
     contrast: radarMono ? 1.85 : 1.18 + comicMono * 0.18,
     brightness: radarMono ? 0.08 : 0.06,
-    redHighlight: radarMono ? 1 : (scopeMono > 0.3 ? 0.9 : 0)
+    redHighlight: radarMono ? 1.0 : (scopeMono > 0.3 ? 1.0 : 0.0)
   });
   requestAnimationFrame(animate);
 }

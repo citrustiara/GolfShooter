@@ -20,6 +20,7 @@ uniform sampler2D tDiffuse;
 uniform vec2 resolution;
 uniform float time;
 uniform float grayscale;
+uniform float desaturate;
 uniform float inkStrength;
 uniform float colorSteps;
 uniform float contrast;
@@ -94,6 +95,7 @@ void main() {
   comic *= vignette;
   comic = (comic - 0.5) * (1.10 + monoMix * 0.32) + 0.5;
   comic = comic * (1.10 + monoMix * 0.08) + (0.055 + monoMix * 0.035);
+  comic = mix(comic, vec3(luma(comic)), desaturate);
   float redMask = smoothstep(0.18, 0.62, raw.r - max(raw.g, raw.b)) * smoothstep(0.34, 0.88, raw.r);
   comic = mix(comic, vec3(1.0, 0.025, 0.015), clamp(redHighlight * redMask, 0.0, 1.0));
   comic += (grain(vUv * resolution + time * 31.0) - 0.5) * (0.008 + monoMix * 0.018);
@@ -107,6 +109,7 @@ const comicUniforms = {
   resolution: { value: new THREE.Vector2(1, 1) },
   time: { value: 0 },
   grayscale: { value: 0 },
+  desaturate: { value: 0 },
   inkStrength: { value: 0.58 },
   colorSteps: { value: 5 },
   contrast: { value: 1.16 },
@@ -144,6 +147,7 @@ export function renderScene(timeSeconds = 0, options = {}) {
   syncComicRenderTarget();
   comicUniforms.time.value = timeSeconds;
   comicUniforms.grayscale.value = options.grayscale ?? 0;
+  comicUniforms.desaturate.value = options.desaturate ?? 0;
   comicUniforms.inkStrength.value = options.inkStrength ?? 0.58;
   comicUniforms.colorSteps.value = options.colorSteps ?? 5;
   comicUniforms.contrast.value = options.contrast ?? 1.16;

@@ -7,6 +7,12 @@ function updateFpsMovement(dt) {
   if (input.keys.has("KeyW")) move.add(forward); if (input.keys.has("KeyS")) move.sub(forward); if (input.keys.has("KeyA")) move.sub(right); if (input.keys.has("KeyD")) move.add(right); if (move.lengthSq() > 0) move.normalize();
   const wasGrounded = p.grounded;
   const wasGroundSurface = p.groundSurface || null;
+
+  // Process jump immediately so p.grounded updates before speed clamping/friction (enables bunny hopping)
+  if (input.keys.has("Space") && p.grounded) { p.vel.y = 10.4; p.grounded = false; playSound("jump"); }
+  if (input.keys.has(getAbilityKey("jump")) && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); }
+
+  // Process slide immediately
   const slideKey = input.keys.has("ShiftLeft") || input.keys.has("ControlLeft"), slidePressed = slideKey && !input.slideKeyWasDown, wantsSlide = slidePressed && p.grounded && move.lengthSq() > 0 && game.slideCooldown <= 0;
   const activeWeaponId = game.activeWeapon === "melee" ? "melee" : game.primaryWeapon;
   const cfg = weaponConfig(activeWeaponId);
@@ -20,20 +26,26 @@ function updateFpsMovement(dt) {
   // so their burst velocity is not eaten by the walk clamp on the next frame.
   const dashing = (game.dashTimer || 0) > 0;
   const grappling = Boolean(game.grapple?.active);
-  const accel = p.sliding ? 31 : (p.grounded ? 210 : 24), maxSpeed = (dashing || grappling) ? Math.max(DASH_SPEED, GRAPPLE_SPEED) : (p.sliding ? FPS_SLIDE_MAX_SPEED : FPS_WALK_MAX_SPEED) * weaponMoveScale;
+  const accel = p.sliding ? 31 : (p.grounded ? 210 : 24);
+  const maxSpeed = (dashing || grappling) ? Math.max(DASH_SPEED, GRAPPLE_SPEED) : (p.sliding ? FPS_SLIDE_MAX_SPEED : FPS_WALK_MAX_SPEED) * weaponMoveScale;
   p.vel.addScaledVector(move, accel * weaponMoveScale * dt);
   const baseFriction = (dashing || grappling) ? 0.999 : (p.sliding ? 0.976 : (p.grounded ? (move.lengthSq() > 0 ? 0.80 : 0.65) : 0.985));
   const friction = Math.pow(baseFriction, dt * 60);
   p.vel.x *= friction;
   p.vel.z *= friction;
   const horiz = Math.hypot(p.vel.x, p.vel.z);
-  if (horiz > maxSpeed) {
+  
+  // Speed retaining rule: Only clamp to maxSpeed if we are currently dashing/grappling, 
+  // or if we are walking on the ground (grounded and NOT sliding). 
+  // If sliding or in the air, we let the speed carry over and decay via friction.
+  const shouldClamp = (dashing || grappling) || (p.grounded && !p.sliding);
+  if (shouldClamp && horiz > maxSpeed) {
     const s = maxSpeed / horiz;
     p.vel.x *= s;
     p.vel.z *= s;
   }
   
-  if (input.keys.has("Space") && p.grounded) { p.vel.y = 10.4; p.grounded = false; playSound("jump"); } if (input.keys.has(getAbilityKey("jump")) && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has(getAbilityKey("heal")) && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); } if (input.keys.has(getAbilityKey("jetpack")) && abilityAllowed("jetpack") && p.pos.y < (game.jetpackHeightLimit || 40.0)) { p.vel.y = Math.min(p.vel.y + 60 * dt, 12); p.grounded = false; }
+  if (input.keys.has(getAbilityKey("heal")) && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); } if (input.keys.has(getAbilityKey("jetpack")) && abilityAllowed("jetpack") && p.pos.y < (game.jetpackHeightLimit || 40.0)) { p.vel.y = Math.min(p.vel.y + 60 * dt, 12); p.grounded = false; }
 
   // Katana wall jump: a fresh Space press while airborne next to a wall kicks
   // the player up and away from it. Edge-detected so holding Space cannot chain
@@ -161,7 +173,18 @@ function updateFpsMovement(dt) {
     }
   }
   
-  if (!wasGrounded && p.grounded) playSound("land");
+  if (!wasGrounded && p.grounded) {
+    playSound("land");
+    const landSlideKey = input.keys.has("ShiftLeft") || input.keys.has("ControlLeft");
+    const spaceHeld = input.keys.has("Space");
+    if (landSlideKey && !spaceHeld && move.lengthSq() > 0 && game.slideCooldown <= 0) {
+      game.slideTimer = 0.58;
+      game.slideCooldown = 0.65;
+      p.sliding = true;
+      p.vel.addScaledVector(move, 7.5 * weaponMoveScale);
+      playSound("slide");
+    }
+  }
   if (p.pos.y < -8) {
     p.health = 0;
     updateHud();

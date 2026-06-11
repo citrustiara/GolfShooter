@@ -53,9 +53,9 @@ const ABILITY_CHOICES = [
 const DASH_COOLDOWN = 3.5;
 const DASH_DURATION = 0.4;
 const DASH_SPEED = 60;
-const GRAPPLE_COOLDOWN = 7.0;
+const GRAPPLE_COOLDOWN = 3.5;
 const GRAPPLE_RANGE = 70;
-const GRAPPLE_SPEED = 34;
+const GRAPPLE_SPEED = 60;
 const ABILITY_KEY_OPTIONS = ["KeyQ", "KeyE", "KeyF", "KeyG", "KeyC", "KeyV", "KeyX", "KeyZ", "Space", "ShiftLeft", "ControlLeft"];
 
 Object.assign(globalThis, {
