@@ -166,9 +166,12 @@ function shouldSkipCompositeSurfaceCollision(player, obstacle) {
   const obstacleBox = new THREE.Box3().setFromObject(obstacle);
   const standingOnSupport = Math.abs(player.pos.y - supportBox.max.y) <= 0.12;
   const obstacleCrossesFeet = obstacleBox.min.y <= player.pos.y + 0.08 && obstacleBox.max.y > player.pos.y + 0.08;
+  // Only flush trim the player could step over may be skipped; anything taller
+  // (rails, parapets sitting on the same deck) must stay solid from the inside too.
+  const obstacleTopWalkable = obstacleBox.max.y <= player.pos.y + 0.58;
   const overlapsX = supportBox.min.x < obstacleBox.max.x - 0.02 && supportBox.max.x > obstacleBox.min.x + 0.02;
   const overlapsZ = supportBox.min.z < obstacleBox.max.z - 0.02 && supportBox.max.z > obstacleBox.min.z + 0.02;
-  return standingOnSupport && obstacleCrossesFeet && overlapsX && overlapsZ;
+  return standingOnSupport && obstacleCrossesFeet && obstacleTopWalkable && overlapsX && overlapsZ;
 }
 
 function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundSurface) {

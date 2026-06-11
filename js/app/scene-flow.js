@@ -203,6 +203,7 @@ function showMenu() {
 function showLobby() {
   clearVictoryBanner();
   game.phase = "lobby";
+  startLobbyMusic();
   lobby.classList.remove("hidden");
   menu.classList.add("hidden");
   resultPanel.classList.add("hidden");
@@ -235,7 +236,7 @@ function showLobby() {
   startRandomFpsBtn.textContent = game.role === "solo" ? "Random Loadout Duel" : "Random FPS Duel";
   populateMapSelects().then(() => syncPracticeMapPlanner());
 }
-function startGolf(courseIds = null) { clearVictoryBanner(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
+function startGolf(courseIds = null) { clearVictoryBanner(); stopLobbyMusic(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps"); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
 function applyGolfAtmosphere(hole) {
   if (!hole) return;
   const sky = hole.skyColor ?? 0x8fd3f4;
@@ -248,7 +249,7 @@ function applyGolfAtmosphere(hole) {
   }
 }
 function enterFps(isSimulation = false, options = {}) {
-  clearVictoryBanner(); ensureFpsPlayers(game.playerCount);
+  clearVictoryBanner(); stopLobbyMusic(); ensureFpsPlayers(game.playerCount);
   game.phase = "fps"; overlay.classList.add("fps"); menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); weaponSelectOverlay.classList.add("hidden"); weaponSelectOverlay.hidden = true; weaponSelectOverlay.style.display = "none"; resultPanel.classList.add("hidden"); resultPanel.classList.remove("fps-result"); world.golfRoot.visible = false; world.arenaRoot.visible = true; world.weapon.visible = true; world.meleeWeapon.visible = true;
   updateFpsSettingsVisibility();
   power.classList.add("hidden"); shotArrow.classList.add("hidden"); game.dragging = false;

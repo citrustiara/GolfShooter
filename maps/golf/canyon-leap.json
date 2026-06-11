@@ -1,0 +1,46 @@
+{
+  "id": "canyon-leap",
+  "name": "Canyon Leap",
+  "skyColor": 16753340,
+  "lightIntensity": 1.15,
+  "deathZoneY": -5,
+  "start": {
+    "x": -19,
+    "y": 0.34,
+    "z": 0
+  },
+  "cup": {
+    "x": 18,
+    "y": 0.34,
+    "z": 0
+  },
+  "walls": {
+    "x": 24,
+    "z": 5
+  },
+  "surfaces": [
+    {
+      "x": -14,
+      "z": 0,
+      "sx": 20,
+      "sz": 10
+    },
+    {
+      "x": 13,
+      "z": 0,
+      "sx": 22,
+      "sz": 10
+    }
+  ],
+  "ice": [],
+  "bumpers": [
+    { "name": "backstop", "x": 20.5, "z": 0, "sx": 0.8, "sz": 6, "sy": 0.8, "y": 0.5, "color": 12756605 }
+  ],
+  "ramps": [
+    { "name": "canyon-jump", "x": -7, "z": 0, "width": 5, "length": 6, "height": 1.4, "rot": 1.571, "color": 13408614 }
+  ],
+  "mounds": [
+    { "x": 8, "z": -3, "r": 1.6, "c": 11823615 },
+    { "x": 8, "z": 3, "r": 1.6, "c": 11823615 }
+  ]
+}

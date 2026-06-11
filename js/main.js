@@ -34,6 +34,7 @@ app.initNetworkLinks({
   enterFps: app.enterFps,
   applyGolfState: app.applyGolfState,
   applyGolfHoleScored: app.applyGolfHoleScored,
+  applyGolfForceEnd: app.applyGolfForceEnd,
   applyFpsDuelState: app.applyFpsDuelState,
   serializeGolfState: app.serializeGolfState,
   resetFpsDuelState: app.resetFpsDuelState,

@@ -74,6 +74,11 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
     ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
   showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
+  if (matchOver) {
+    if (matchWinner !== -1) playSound(localWonMatch ? "matchWin" : "matchLose", { volume: 0.9 });
+  } else if (winner !== -1) {
+    playSound(localWonRound ? "roundWin" : "roundLose", { volume: 0.8 });
+  }
   if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() });
   updateHud();
 }
@@ -100,6 +105,8 @@ function finishMatch(winner, reason) {
   if (game.phase === "result") return;
   game.phase = "result";
   game.result = { winner, reason };
+  // FPS matches already play their stinger in startVictoryLap.
+  if (reason === "golf" && winner !== -1) playSound(winner === game.localIndex || game.role === "solo" ? "matchWin" : "matchLose", { volume: 0.9 });
   document.exitPointerLock?.();
   const totals = totalStrokes();
   input.shootHeld = false;

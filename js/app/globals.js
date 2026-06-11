@@ -8,7 +8,7 @@ import {
 } from "../core/constants.js";
 import { canvas, scene, camera, clock, raycaster, materials, setupLighting, resize, lights, renderScene } from "../core/engine.js";
 import { game, input, world, fps } from "../core/state.js";
-import { ensureAudio, playSound, generatePhrase, cleanPhrase, flatDistance, toScreen, directionFromAngles, lerpAngle, moveTowards } from "../core/utils.js";
+import { ensureAudio, playSound, startLobbyMusic, stopLobbyMusic, generatePhrase, cleanPhrase, flatDistance, toScreen, directionFromAngles, lerpAngle, moveTowards } from "../core/utils.js";
 import { closePeer, createMatch, joinMatch, send, initNetworkLinks } from "../core/network.js";
 import { holes, resetTournamentState, resetGolfHole, setupGolfObjects, ensureGolfBalls, applyTournamentHoleIds, drawTournamentHoleIds } from "../golf/logic.js";
 import { setupArena, makePlayerMesh, clampArenaPosition, isPointInsideArena, getArenaSpawnPoints } from "../fps/logic.js";
@@ -57,7 +57,7 @@ Object.assign(globalThis, {
   FPS_COUNTDOWN_DURATION, WEAPON_SWAP_DURATION, FPS_MAPS_PER_DUEL, RADAR_DURATION, RADAR_COOLDOWN, weaponCatalog, randomTournamentWeapons, tournamentCombinations,
   canvas, scene, camera, clock, raycaster, materials, setupLighting, resize, lights, renderScene,
   game, input, world, fps,
-  ensureAudio, playSound, generatePhrase, cleanPhrase, flatDistance, toScreen, directionFromAngles, lerpAngle, moveTowards,
+  ensureAudio, playSound, startLobbyMusic, stopLobbyMusic, generatePhrase, cleanPhrase, flatDistance, toScreen, directionFromAngles, lerpAngle, moveTowards,
   closePeer, createMatch, joinMatch, send, initNetworkLinks,
   holes, resetTournamentState, resetGolfHole, setupGolfObjects, ensureGolfBalls, applyTournamentHoleIds, drawTournamentHoleIds,
   setupArena, makePlayerMesh, clampArenaPosition, isPointInsideArena, getArenaSpawnPoints,

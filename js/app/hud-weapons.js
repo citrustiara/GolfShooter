@@ -120,6 +120,7 @@ function requestWeaponSwap(aw, pw = game.primaryWeapon) {
   game.pendingPrimaryWeapon = pw;
   game.weaponSwapTimer = WEAPON_SWAP_DURATION;
   game.weaponSwapCommitted = false;
+  playSound("weaponSwap", { volume: 0.8 });
   game.inspectTimer = 0;
   input.aiming = false;
   updateHud();
@@ -183,7 +184,7 @@ function syncPrimaryWeaponModel() {
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
-function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#21d0ff"; } updateHud(); }
+function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; playSound("reloadStart", { volume: 0.8 }); const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#21d0ff"; } updateHud(); }
 
 Object.assign(globalThis, {
   updateHud,

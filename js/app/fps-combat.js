@@ -38,7 +38,30 @@ function updateGrenades(dt) {
       }
     }
     
-    const outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
+    let outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
+    if (outOfArena && isBouncer) {
+      // The map edge acts as a wall for bouncer orbs: reflect back inside so
+      // open arena borders count as a ricochet surface instead of a detonation.
+      const speedBefore = g.vel.length();
+      const inside = clampArenaPosition(g.mesh.position.clone(), 0.45, world.arenaFloors);
+      let nx = inside.x - g.mesh.position.x;
+      let nz = inside.z - g.mesh.position.z;
+      const len = Math.hypot(nx, nz);
+      if (len > 0.0001) {
+        nx /= len; nz /= len;
+        const dot = g.vel.x * nx + g.vel.z * nz;
+        if (dot < 0) { g.vel.x -= 2 * dot * nx; g.vel.z -= 2 * dot * nz; }
+      } else {
+        g.vel.x *= -1;
+        g.vel.z *= -1;
+      }
+      if (g.vel.lengthSq() > 0.001) g.vel.setLength(speedBefore);
+      g.mesh.position.x = inside.x;
+      g.mesh.position.z = inside.z;
+      g.bounces = (g.bounces || 0) + 1;
+      playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
+      outOfArena = false;
+    }
     const hitPlayer = projectileHitPlayer(g);
     
     let hitGround = false;

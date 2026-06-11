@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "id": "ricochet-bunker",
+  "name": "Ricochet Bullseye: Target Bunker",
+  "sky": 1777190,
+  "fog": 1777190,
+  "fogNear": 30,
+  "fogFar": 95,
+  "bounds": {
+    "x": 34,
+    "z": 34
+  },
+  "floors": [
+    {
+      "x": 0,
+      "z": 0,
+      "sx": 68,
+      "sz": 68
+    }
+  ],
+  "floor": 2962232,
+  "gridA": 3817808,
+  "gridB": 2500142,
+  "edge": 11745593,
+  "spawnPoints": [
+    { "x": 0, "y": 1.2, "z": 29.5 },
+    { "x": 0, "y": 1.2, "z": -29.5 },
+    { "x": 29.5, "y": 1.2, "z": 0 },
+    { "x": -29.5, "y": 1.2, "z": 0 },
+    { "x": 29.3, "y": 1.2, "z": -15 },
+    { "x": -29.3, "y": 1.2, "z": 15 }
+  ],
+  "boxes": [
+    { "name": "outer-wall-west", "x": -33.6, "y": 0, "z": 0, "sx": 1, "sy": 10, "sz": 69, "color": 2500142, "isPlatform": false },
+    { "name": "outer-wall-east", "x": 33.6, "y": 0, "z": 0, "sx": 1, "sy": 10, "sz": 69, "color": 2500142, "isPlatform": false },
+    { "name": "outer-wall-south", "x": 0, "y": 0, "z": -33.6, "sx": 69, "sy": 10, "sz": 1, "color": 2500142, "isPlatform": false },
+    { "name": "outer-wall-north", "x": 0, "y": 0, "z": 33.6, "sx": 69, "sy": 10, "sz": 1, "color": 2500142, "isPlatform": false },
+
+    { "name": "ring-a-north-west", "x": -14, "y": 0, "z": 25, "sx": 23, "sy": 6, "sz": 1, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-north-east", "x": 14, "y": 0, "z": 25, "sx": 23, "sy": 6, "sz": 1, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-south-west", "x": -14, "y": 0, "z": -25, "sx": 23, "sy": 6, "sz": 1, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-south-east", "x": 14, "y": 0, "z": -25, "sx": 23, "sy": 6, "sz": 1, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-east", "x": 25, "y": 0, "z": 0, "sx": 1, "sy": 6, "sz": 51, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-west", "x": -25, "y": 0, "z": 0, "sx": 1, "sy": 6, "sz": 51, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-lintel-north", "x": 0, "y": 4, "z": 25, "sx": 5, "sy": 2, "sz": 1, "color": 11745593, "isPlatform": false },
+    { "name": "ring-a-lintel-south", "x": 0, "y": 4, "z": -25, "sx": 5, "sy": 2, "sz": 1, "color": 11745593, "isPlatform": false },
+
+    { "name": "ring-b-east-north", "x": 16, "y": 0, "z": 9.5, "sx": 1, "sy": 5, "sz": 14, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-east-south", "x": 16, "y": 0, "z": -9.5, "sx": 1, "sy": 5, "sz": 14, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-west-north", "x": -16, "y": 0, "z": 9.5, "sx": 1, "sy": 5, "sz": 14, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-west-south", "x": -16, "y": 0, "z": -9.5, "sx": 1, "sy": 5, "sz": 14, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-north", "x": 0, "y": 0, "z": 16, "sx": 33, "sy": 5, "sz": 1, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-south", "x": 0, "y": 0, "z": -16, "sx": 33, "sy": 5, "sz": 1, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-lintel-east", "x": 16, "y": 3.5, "z": 0, "sx": 1, "sy": 1.5, "sz": 5, "color": 14603190, "isPlatform": false },
+    { "name": "ring-b-lintel-west", "x": -16, "y": 3.5, "z": 0, "sx": 1, "sy": 1.5, "sz": 5, "color": 14603190, "isPlatform": false },
+
+    { "name": "ring-c-north-west", "x": -5.25, "y": 0, "z": 8, "sx": 6.5, "sy": 4.5, "sz": 1, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-north-east", "x": 5.25, "y": 0, "z": 8, "sx": 6.5, "sy": 4.5, "sz": 1, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-south-west", "x": -5.25, "y": 0, "z": -8, "sx": 6.5, "sy": 4.5, "sz": 1, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-south-east", "x": 5.25, "y": 0, "z": -8, "sx": 6.5, "sy": 4.5, "sz": 1, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-east", "x": 8, "y": 0, "z": 0, "sx": 1, "sy": 4.5, "sz": 17, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-west", "x": -8, "y": 0, "z": 0, "sx": 1, "sy": 4.5, "sz": 17, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-lintel-north", "x": 0, "y": 3, "z": 8, "sx": 4, "sy": 1.5, "sz": 1, "color": 3041094, "isPlatform": false },
+    { "name": "ring-c-lintel-south", "x": 0, "y": 3, "z": -8, "sx": 4, "sy": 1.5, "sz": 1, "color": 3041094, "isPlatform": false },
+
+    { "name": "bull-pillar", "x": 0, "y": 0, "z": 0, "sx": 2.6, "sy": 6, "sz": 2.6, "color": 2500142, "isPlatform": false },
+    { "name": "bull-cover-n", "x": 0, "y": 0, "z": 4.5, "sx": 1.8, "sy": 1.3, "sz": 1.8, "color": 11745593, "isPlatform": true },
+    { "name": "bull-cover-s", "x": 0, "y": 0, "z": -4.5, "sx": 1.8, "sy": 1.3, "sz": 1.8, "color": 11745593, "isPlatform": true },
+    { "name": "bull-cover-e", "x": 4.5, "y": 0, "z": 0, "sx": 1.8, "sy": 1.3, "sz": 1.8, "color": 14603190, "isPlatform": true },
+    { "name": "bull-cover-w", "x": -4.5, "y": 0, "z": 0, "sx": 1.8, "sy": 1.3, "sz": 1.8, "color": 14603190, "isPlatform": true },
+
+    { "name": "outer-funnel-n-west", "x": -5, "y": 0, "z": 30.5, "sx": 1, "sy": 5, "sz": 6, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-n-east", "x": 5, "y": 0, "z": 30.5, "sx": 1, "sy": 5, "sz": 6, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-s-west", "x": -5, "y": 0, "z": -30.5, "sx": 1, "sy": 5, "sz": 6, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-s-east", "x": 5, "y": 0, "z": -30.5, "sx": 1, "sy": 5, "sz": 6, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-e-north", "x": 30.5, "y": 0, "z": 5, "sx": 6, "sy": 5, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-e-south", "x": 30.5, "y": 0, "z": -5, "sx": 6, "sy": 5, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-w-north", "x": -30.5, "y": 0, "z": 5, "sx": 6, "sy": 5, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "outer-funnel-w-south", "x": -30.5, "y": 0, "z": -5, "sx": 6, "sy": 5, "sz": 1, "color": 9080728, "isPlatform": false },
+
+    { "name": "corner-crate-ne-big", "x": 29.8, "y": 0, "z": 29.8, "sx": 2.4, "sy": 2, "sz": 2.4, "color": 4150400, "isPlatform": true },
+    { "name": "corner-crate-ne-small", "x": 27.2, "y": 0, "z": 29.4, "sx": 1.4, "sy": 1.2, "sz": 1.4, "color": 5263440, "isPlatform": true },
+    { "name": "corner-crate-nw-big", "x": -29.8, "y": 0, "z": 29.8, "sx": 2.4, "sy": 2, "sz": 2.4, "color": 4150400, "isPlatform": true },
+    { "name": "corner-crate-nw-small", "x": -29.4, "y": 0, "z": 27.2, "sx": 1.4, "sy": 1.2, "sz": 1.4, "color": 5263440, "isPlatform": true },
+    { "name": "corner-crate-se-big", "x": 29.8, "y": 0, "z": -29.8, "sx": 2.4, "sy": 2, "sz": 2.4, "color": 4150400, "isPlatform": true },
+    { "name": "corner-crate-se-small", "x": 29.4, "y": 0, "z": -27.2, "sx": 1.4, "sy": 1.2, "sz": 1.4, "color": 5263440, "isPlatform": true },
+    { "name": "corner-crate-sw-big", "x": -29.8, "y": 0, "z": -29.8, "sx": 2.4, "sy": 2, "sz": 2.4, "color": 4150400, "isPlatform": true },
+    { "name": "corner-crate-sw-small", "x": -27.2, "y": 0, "z": -29.4, "sx": 1.4, "sy": 1.2, "sz": 1.4, "color": 5263440, "isPlatform": true },
+
+    { "name": "ring-ab-baffle-ne", "x": 20.5, "y": 0, "z": 20.5, "sx": 5, "sy": 4.5, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "ring-ab-baffle-sw", "x": -20.5, "y": 0, "z": -20.5, "sx": 5, "sy": 4.5, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "ring-ab-baffle-nw", "x": -20.5, "y": 0, "z": 20.5, "sx": 1, "sy": 4.5, "sz": 5, "color": 9080728, "isPlatform": false },
+    { "name": "ring-ab-baffle-se", "x": 20.5, "y": 0, "z": -20.5, "sx": 1, "sy": 4.5, "sz": 5, "color": 9080728, "isPlatform": false },
+    { "name": "ring-ab-block-n", "x": 0, "y": 0, "z": 20.5, "sx": 2.2, "sy": 1.4, "sz": 2.2, "color": 4150400, "isPlatform": true },
+    { "name": "ring-ab-block-s", "x": 0, "y": 0, "z": -20.5, "sx": 2.2, "sy": 1.4, "sz": 2.2, "color": 4150400, "isPlatform": true },
+    { "name": "ring-ab-block-e", "x": 20.5, "y": 0, "z": 0, "sx": 2.2, "sy": 1.4, "sz": 2.2, "color": 4150400, "isPlatform": true },
+    { "name": "ring-ab-block-w", "x": -20.5, "y": 0, "z": 0, "sx": 2.2, "sy": 1.4, "sz": 2.2, "color": 4150400, "isPlatform": true },
+
+    { "name": "ring-bc-baffle-ne", "x": 12, "y": 0, "z": 12, "sx": 1, "sy": 4, "sz": 4, "color": 9080728, "isPlatform": false },
+    { "name": "ring-bc-baffle-sw", "x": -12, "y": 0, "z": -12, "sx": 1, "sy": 4, "sz": 4, "color": 9080728, "isPlatform": false },
+    { "name": "ring-bc-baffle-nw", "x": -12, "y": 0, "z": 12, "sx": 4, "sy": 4, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "ring-bc-baffle-se", "x": 12, "y": 0, "z": -12, "sx": 4, "sy": 4, "sz": 1, "color": 9080728, "isPlatform": false },
+    { "name": "ring-bc-block-n", "x": 0, "y": 0, "z": 12, "sx": 2, "sy": 1.3, "sz": 2, "color": 4150400, "isPlatform": true },
+    { "name": "ring-bc-block-s", "x": 0, "y": 0, "z": -12, "sx": 2, "sy": 1.3, "sz": 2, "color": 4150400, "isPlatform": true },
+
+    { "name": "roof-ring-ab-n", "x": 0, "y": 6.4, "z": 20.5, "sx": 50, "sy": 0.6, "sz": 8, "color": 3095110, "isPlatform": true },
+    { "name": "roof-ring-ab-s", "x": 0, "y": 6.4, "z": -20.5, "sx": 50, "sy": 0.6, "sz": 8, "color": 3095110, "isPlatform": true },
+    { "name": "roof-ring-ab-e", "x": 20.5, "y": 6.4, "z": 0, "sx": 8, "sy": 0.6, "sz": 32, "color": 3095110, "isPlatform": true },
+    { "name": "roof-ring-ab-w", "x": -20.5, "y": 6.4, "z": 0, "sx": 8, "sy": 0.6, "sz": 32, "color": 3095110, "isPlatform": true },
+    { "name": "roof-bull-halo", "x": 0, "y": 6.2, "z": 0, "sx": 10, "sy": 0.6, "sz": 10, "color": 3095110, "isPlatform": true }
+  ],
+  "ramps": [],
+  "collision": [],
+  "decor": [
+    { "name": "floor-court", "x": 0, "y": 0.02, "z": 0, "sx": 15, "sy": 0.08, "sz": 15, "color": 14603190, "collidable": false },
+    { "name": "floor-bull", "x": 0, "y": 0.1, "z": 0, "sx": 5.4, "sy": 0.08, "sz": 5.4, "color": 11745593, "collidable": false },
+    { "name": "floor-bc-n", "x": 0, "y": 0.02, "z": 12, "sx": 16, "sy": 0.06, "sz": 7, "color": 11745593, "collidable": false },
+    { "name": "floor-bc-s", "x": 0, "y": 0.02, "z": -12, "sx": 16, "sy": 0.06, "sz": 7, "color": 11745593, "collidable": false },
+    { "name": "floor-bc-e", "x": 12, "y": 0.02, "z": 0, "sx": 7, "sy": 0.06, "sz": 16, "color": 11745593, "collidable": false },
+    { "name": "floor-bc-w", "x": -12, "y": 0.02, "z": 0, "sx": 7, "sy": 0.06, "sz": 16, "color": 11745593, "collidable": false },
+    { "name": "floor-ab-n", "x": 0, "y": 0.02, "z": 20.5, "sx": 48, "sy": 0.06, "sz": 7.5, "color": 10195575, "collidable": false },
+    { "name": "floor-ab-s", "x": 0, "y": 0.02, "z": -20.5, "sx": 48, "sy": 0.06, "sz": 7.5, "color": 10195575, "collidable": false },
+    { "name": "floor-ab-e", "x": 20.5, "y": 0.02, "z": 0, "sx": 7.5, "sy": 0.06, "sz": 32, "color": 10195575, "collidable": false },
+    { "name": "floor-ab-w", "x": -20.5, "y": 0.02, "z": 0, "sx": 7.5, "sy": 0.06, "sz": 32, "color": 10195575, "collidable": false },
+    { "name": "fin-ne", "x": 15, "y": 5, "z": 32.9, "sx": 3.4, "sy": 3.4, "sz": 0.3, "color": 11745593, "rotY": 0.785, "collidable": false },
+    { "name": "fin-sw", "x": -15, "y": 5, "z": -32.9, "sx": 3.4, "sy": 3.4, "sz": 0.3, "color": 11745593, "rotY": 0.785, "collidable": false },
+    { "name": "fin-se", "x": 32.9, "y": 5, "z": -15, "sx": 0.3, "sy": 3.4, "sz": 3.4, "color": 14603190, "rotY": 0.785, "collidable": false },
+    { "name": "fin-nw", "x": -32.9, "y": 5, "z": 15, "sx": 0.3, "sy": 3.4, "sz": 3.4, "color": 14603190, "rotY": 0.785, "collidable": false },
+    { "name": "stripe-bull", "x": 0, "y": 2.8, "z": 0, "sx": 2.8, "sy": 0.3, "sz": 2.8, "color": 11745593, "collidable": false }
+  ],
+  "assets": [],
+  "config": {
+    "hp": 100,
+    "abilities": [
+      "grenade",
+      "smoke"
+    ],
+    "weapons": [
+      "bouncer",
+      "desertEagle",
+      "melee"
+    ]
+  }
+}

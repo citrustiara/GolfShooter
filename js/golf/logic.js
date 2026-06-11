@@ -65,7 +65,9 @@ export function resetGolfHole() {
     ball.lastShot.copy(ball.mesh.position);
     ball.moving = false;
     ball.falling = false;
+    ball.airborne = false;
   }
+  game.golfHoleTimer = null;
   world.ball = world.golfBalls[game.localIndex]?.mesh || world.golfBalls[0]?.mesh || world.ball;
   world.ballVel = world.golfBalls[game.localIndex]?.vel || world.golfBalls[0]?.vel || world.ballVel;
   game.lastShotPosition.copy(world.ball.position);

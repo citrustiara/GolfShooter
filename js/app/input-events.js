@@ -105,7 +105,7 @@ function tryActivateAbilityKey(code) {
 
 function animate(now = performance.now()) {
   const dt = Math.min(0.033, (now - lastFrame) / 1000 || clock.getDelta()); lastFrame = now;
-  if (game.phase === "golf") updateGolf(dt); if (game.phase === "fps") { if (input.shootHeld && game.activeWeapon === "gun") fireHitscan(); updateFps(dt, now); }
+  if (game.phase === "golf") updateGolf(dt); else hideGolfHoleTimer(); if (game.phase === "fps") { if (input.shootHeld && game.activeWeapon === "gun") fireHitscan(); updateFps(dt, now); }
   if (game.phase === "fpsVictoryLap") {
     updateFps(dt, now); const elapsed = (now - game.victoryLapStart) / 1000, target = fps.players[game.result.winner] || fps.players[game.localIndex], isW = game.localIndex === game.result.winner;
     if (!isW) {
@@ -137,6 +137,13 @@ function animate(now = performance.now()) {
 }
 
 window.addEventListener("resize", resize);
+// Global UI feedback: any click on a control gives a soft tick, and the first
+// gesture unlocks WebAudio so the menu/lobby music can start.
+document.addEventListener("pointerdown", (e) => {
+  ensureAudio();
+  if (game.phase === "lobby" || (!game.phase && !menu.classList.contains("hidden")) || game.phase === "menu") startLobbyMusic();
+  if (e.target.closest?.("button, .weapon-card, select, input, .map-pill")) playSound("uiClick", { volume: 0.8 });
+});
 window.addEventListener("keydown", (e) => {
   const c = codeFromKeyEvent(e); if (e.code === "Escape" && game.phase === "fps") { document.exitPointerLock?.(); input.aiming = false; }
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();

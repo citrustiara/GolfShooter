@@ -1,0 +1,14 @@
+{
+  "id": "ricochet_bunker_pinball",
+  "map": "fps/ricochet-bunker.json",
+  "weapons": [
+    "bouncer",
+    "desertEagle",
+    "melee"
+  ],
+  "hp": 100,
+  "abilities": [
+    "grenade",
+    "smoke"
+  ]
+}

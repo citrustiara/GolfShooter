@@ -1,7 +1,7 @@
 import "./globals.js";
 
 function updateFps(dt, now) {
-  if (game.countdown > 0) { game.countdown -= dt; countdown.textContent = Math.ceil(game.countdown); countdown.classList.remove("hidden"); if (game.countdown <= 0) countdown.classList.add("hidden"); }
+  if (game.countdown > 0) { const prevTick = Math.ceil(game.countdown); game.countdown -= dt; const curTick = Math.ceil(game.countdown); countdown.textContent = curTick; countdown.classList.remove("hidden"); if (curTick !== prevTick) playSound(curTick > 0 ? "countdownTick" : "countdownGo", { volume: 0.7 }); if (game.countdown <= 0) countdown.classList.add("hidden"); }
   if (game.connected) {
     for (let remoteIdx = 0; remoteIdx < fps.players.length; remoteIdx++) {
       if (remoteIdx === game.localIndex) continue;
@@ -46,6 +46,7 @@ function updateFps(dt, now) {
       game.reloadTimer = 0;
       game.ammo[reloadingWeapon] = weaponMaxAmmo(reloadingWeapon);
       game.reloadWeapon = null;
+      playSound("reloadEnd", { volume: 0.8 });
       if (progress) progress.classList.add("hidden");
       if (bar) bar.style.transform = "scaleX(0)";
       updateHud();

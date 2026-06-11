@@ -1,5 +1,9 @@
 import "./globals.js";
 
+const GOLF_GRAVITY = -30;
+const GOLF_BOUNCE_RESTITUTION = 0.42;
+const GOLF_BOUNCE_MIN_SPEED = 4.5;
+
 function updateGolf(dt) {
   ensureGolfBalls(game.playerCount);
   const localBall = useGolfBall(activeGolfPlayerIndex());
@@ -23,6 +27,7 @@ function updateGolf(dt) {
     updateGolfCamera(dt);
     return;
   }
+  updateGolfHoleTimer(dt);
   const anyMoving = world.golfBalls.some((ball, index) => game.holeScores[index]?.[game.holeIndex] === null && ball.moving);
   if (anyMoving) {
     for (let i = 0; i < world.golfBalls.length; i++) {
@@ -81,7 +86,7 @@ function updateShotArrow() {
   shaft.position.x = length * 0.5;
   head.position.x = length + 0.18;
 }
-function simulateShot(direction, power, local = false) { const playerIndex = activeGolfPlayerIndex(); const ball = useGolfBall(playerIndex); if (!ball || ball.moving || power <= 0.04 || game.holeScores[playerIndex]?.[game.holeIndex] !== null) return; const dir = direction.clone().setY(0); if (dir.lengthSq() <= 0.0001) return; dir.normalize(); ball.lastShot.copy(ball.mesh.position); ball.lastShot.y = golfBallSurfaceY(); ball.falling = false; ball.moving = true; game.ballMoving = true; ball.mesh.position.y = golfBallSurfaceY(); game.strokesThisHole[playerIndex]++; playSound("golfHit"); ball.vel.copy(dir.multiplyScalar(power * GOLF_MAX_SHOT_SPEED)); if (world.golfAimArrow) world.golfAimArrow.visible = false; shotArrow.classList.add("hidden"); if (local && game.role !== "solo") send({ type: "golfShot", state: serializeGolfState() }); updateHud(); }
+function simulateShot(direction, power, local = false) { const playerIndex = activeGolfPlayerIndex(); const ball = useGolfBall(playerIndex); if (!ball || ball.moving || power <= 0.04 || game.holeScores[playerIndex]?.[game.holeIndex] !== null) return; const dir = direction.clone().setY(0); if (dir.lengthSq() <= 0.0001) return; dir.normalize(); ball.lastShot.copy(ball.mesh.position); ball.lastShot.y = golfBallSurfaceY(); ball.falling = false; ball.airborne = false; ball.moving = true; game.ballMoving = true; ball.mesh.position.y = golfBallSurfaceY(); game.strokesThisHole[playerIndex]++; playSound("golfHit"); ball.vel.copy(dir.multiplyScalar(power * GOLF_MAX_SHOT_SPEED)); if (world.golfAimArrow) world.golfAimArrow.visible = false; shotArrow.classList.add("hidden"); if (local && game.role !== "solo") send({ type: "golfShot", state: serializeGolfState() }); updateHud(); }
 function isBallOnGolfSurface(hole) {
   if (golfRampAt(world.ball.position)) return true;
   return (hole?.surfaces || []).some((surface) => {
@@ -96,6 +101,7 @@ function resetGolfAfterFall(hole) {
   if (!ball) return;
   ball.moving = false;
   ball.falling = false;
+  ball.airborne = false;
   game.ballMoving = false;
   game.golfFalling = false;
   game.strokesThisHole[game.currentPlayer]++;
@@ -108,32 +114,67 @@ function resetGolfAfterFall(hole) {
   updateHud();
   if (game.role !== "solo") send({ type: "golfResolved", state: serializeGolfState() });
 }
+function launchGolfBall(ball, fromRamp) {
+  if (ball) ball.airborne = true;
+  if (fromRamp) {
+    // Convert the speed carried up the slope into vertical launch velocity so
+    // ramps behave like jumps instead of invisible cliffs.
+    const uphill = rampUphillDirection(fromRamp.ramp);
+    const slope = fromRamp.ramp.height / Math.max(0.001, fromRamp.ramp.length);
+    const uphillSpeed = world.ballVel.x * uphill.x + world.ballVel.z * uphill.z;
+    if (uphillSpeed > 0) world.ballVel.y = Math.max(world.ballVel.y, uphillSpeed * slope);
+  }
+}
 function resolveGolfBall(dt) {
   const hole = holes[game.holeIndex];
   const ball = golfBallForPlayer(game.currentPlayer);
   if (world.ball.position.y < (hole?.deathZoneY ?? -5)) { resetGolfAfterFall(hole); return; }
-  if (!isBallOnGolfSurface(hole)) { resetGolfAfterFall(hole); return; }
   const wasOnIce = isBallOnIce();
-  world.ballVel.y = 0; // Constrain to X-Z plane
+  const airborne = Boolean(ball?.airborne);
+  const prevRamp = airborne ? null : golfRampAt(world.ball.position);
+  if (airborne) world.ballVel.y += GOLF_GRAVITY * dt;
+  else world.ballVel.y = 0;
   world.ball.position.addScaledVector(world.ballVel, dt);
-  world.ball.position.y = golfBallSurfaceY();
-  if (!isBallOnGolfSurface(hole)) { resetGolfAfterFall(hole); return; }
-  const ramp = golfRampAt(world.ball.position);
-  if (ramp) {
-    const downhill = rampUphillDirection(ramp.ramp).multiplyScalar(-1);
-    const slope = ramp.ramp.height / Math.max(0.001, ramp.ramp.length);
-    world.ballVel.addScaledVector(downhill, 18 * slope * dt);
-    world.ball.position.y = ramp.y + 0.34;
+  const overSurface = isBallOnGolfSurface(hole);
+  const rampNow = golfRampAt(world.ball.position);
+  const supportY = rampNow ? rampNow.y + 0.34 : 0.53;
+  if (!airborne) {
+    if (!overSurface) {
+      // Rolled off an edge over a gap or the void: go ballistic so chasm
+      // jumps are possible. The deathZoneY check above handles misses.
+      launchGolfBall(ball, prevRamp);
+    } else if (prevRamp && supportY < world.ball.position.y - 0.3) {
+      // Flew off the high lip of a ramp onto lower ground.
+      launchGolfBall(ball, prevRamp);
+    } else {
+      world.ball.position.y = supportY;
+      if (rampNow) {
+        const downhill = rampUphillDirection(rampNow.ramp).multiplyScalar(-1);
+        const slope = rampNow.ramp.height / Math.max(0.001, rampNow.ramp.length);
+        world.ballVel.addScaledVector(downhill, 18 * slope * dt);
+      }
+      world.ballVel.multiplyScalar(Math.pow(wasOnIce ? GOLF_ICE_FRICTION : GOLF_GROUND_FRICTION, dt * 60));
+    }
+  } else if (overSurface && world.ballVel.y <= 0 && world.ball.position.y <= supportY + 0.02 && world.ball.position.y >= supportY - 0.6) {
+    // Touched down on a surface (flat green or ramp face).
+    world.ball.position.y = supportY;
+    if (-world.ballVel.y > GOLF_BOUNCE_MIN_SPEED) {
+      world.ballVel.y = -world.ballVel.y * GOLF_BOUNCE_RESTITUTION;
+      world.ballVel.x *= 0.86;
+      world.ballVel.z *= 0.86;
+      playSound("golfBounce", { position: world.ball.position, volume: 0.7 });
+    } else {
+      world.ballVel.y = 0;
+      world.ballVel.x *= 0.92;
+      world.ballVel.z *= 0.92;
+      if (ball) ball.airborne = false;
+      playSound("golfBounce", { position: world.ball.position, volume: 0.4 });
+    }
   }
-  world.ballVel.multiplyScalar(Math.pow(wasOnIce ? GOLF_ICE_FRICTION : GOLF_GROUND_FRICTION, dt * 60));
-  if (!isBallOnGolfSurface(hole)) {
-    resetGolfAfterFall(hole);
-    return;
-  } else if (game.golfFalling) {
-    game.golfFalling = false;
-    world.ball.position.y = golfBallSurfaceY();
-  }
+  game.golfFalling = Boolean(ball?.airborne);
+  const inFlight = Boolean(ball?.airborne);
   for (const mound of world.mounds) {
+    if (inFlight && world.ball.position.y > 1.2) break;
     const d = flatDistance(world.ball.position, mound);
     if (d < mound.radius + 0.34) {
       const push = world.ball.position.clone().sub(new THREE.Vector3(mound.x, 0, mound.z)).setY(0).normalize();
@@ -148,6 +189,8 @@ function resolveGolfBall(dt) {
   for (const b of world.bumpers) resolveGolfBumperCollision(b);
   const distToCup = flatDistance(world.ball.position, world.cup.position);
   const ballSpeed = world.ballVel.length();
+  // Cup logic only applies while the ball is rolling on the ground.
+  if (inFlight) return;
   // Wide gentle pull zone — attracts the ball toward the cup
   if (distToCup < 0.9 && ballSpeed < 8.0) {
     const pullNormal = world.cup.position.clone().sub(world.ball.position).setY(0).normalize();
@@ -178,6 +221,9 @@ function isBallOnIce() {
 }
 function resolveGolfBumperCollision(b) {
   const radius = 0.34;
+  // Airborne balls can sail clean over low walls and bumpers.
+  const top = (b.y ?? 0.46) + (b.sy ?? 0.75) / 2;
+  if (world.ball.position.y - radius > top) return;
   const rot = -(b.rot || 0);
   const local = world.ball.position.clone().sub(new THREE.Vector3(b.x, 0, b.z)).applyAxisAngle(new THREE.Vector3(0, 1, 0), rot);
   const clampedX = Math.max(-b.sx / 2, Math.min(b.sx / 2, local.x));
@@ -197,10 +243,10 @@ function resolveGolfBumperCollision(b) {
   const normal = normalLocal.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), b.rot || 0).normalize();
   const overlap = radius - Math.sqrt(Math.max(0.0001, distSq));
   world.ball.position.addScaledVector(normal, overlap + 0.015);
-  world.ball.position.y = 0.53;
   if (world.ballVel.dot(normal) < 0) {
+    const vy = world.ballVel.y;
     world.ballVel.reflect(normal).multiplyScalar(0.82);
-    world.ballVel.y = 0; // Constrain to X-Z plane
+    world.ballVel.y = vy; // Walls only redirect horizontal motion
   }
 }
 function scoreHole() {
@@ -249,6 +295,73 @@ function applyGolfHoleScored(message) {
   if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) game.holeTransitionTimer = 2.0;
   updateHud();
 }
+function golfHoleTimeLimit(hole) {
+  if (!hole) return 90;
+  let extent = 0;
+  for (const s of hole.surfaces || []) {
+    if (s.type === "circle") extent = Math.max(extent, Math.abs(s.x) + s.r, Math.abs(s.z) + s.r);
+    else extent = Math.max(extent, Math.abs(s.x) + (s.sx || 0) / 2, Math.abs(s.z) + (s.sz || 0) / 2);
+  }
+  if (hole.walls) extent = Math.max(extent, hole.walls.x || 0, hole.walls.z || 0);
+  // Small courses ≈ 45s; sprawling ones cap out at 150s.
+  return Math.max(45, Math.min(150, Math.round(20 + extent * 2.4)));
+}
+function golfTimerElement() {
+  let el = document.querySelector("#golfTimer");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "golfTimer";
+    el.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:40;font:700 19px 'Segoe UI',system-ui,sans-serif;color:#eaf6ff;background:rgba(8,16,24,0.55);padding:5px 14px;border-radius:10px;letter-spacing:0.08em;pointer-events:none;display:none;";
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function hideGolfHoleTimer() {
+  const el = document.querySelector("#golfTimer");
+  if (el && el.style.display !== "none") el.style.display = "none";
+}
+function updateGolfHoleTimer(dt) {
+  const hole = holes[game.holeIndex];
+  if (!hole) return;
+  if (!Number.isFinite(game.golfHoleTimer)) game.golfHoleTimer = golfHoleTimeLimit(hole);
+  game.golfHoleTimer -= dt;
+  const remaining = Math.max(0, game.golfHoleTimer);
+  const el = golfTimerElement();
+  el.style.display = "block";
+  if (remaining <= 10.5) {
+    // Final countdown — force-ends the hole so idle players can't stall.
+    el.textContent = `HOLE ENDS IN ${Math.ceil(remaining)}`;
+    el.style.color = "#ff5d6e";
+  } else {
+    el.textContent = `${Math.floor(remaining / 60)}:${String(Math.floor(remaining % 60)).padStart(2, "0")}`;
+    el.style.color = remaining <= 30 ? "#ffd166" : "#eaf6ff";
+  }
+  if (remaining <= 0 && game.role !== "guest") forceEndGolfHole();
+}
+function forceEndGolfHole() {
+  if (game.holeTransitionTimer > 0) return;
+  // Anti-troll: time is up. Everyone still on the course is scored with their
+  // current strokes plus a one-stroke penalty and the hole advances.
+  for (let i = 0; i < game.holeScores.length; i++) {
+    if (game.holeScores[i]?.[game.holeIndex] === null) {
+      game.holeScores[i][game.holeIndex] = (game.strokesThisHole[i] || 0) + 1;
+    }
+  }
+  for (const ball of world.golfBalls) { ball.moving = false; ball.airborne = false; ball.vel.set(0, 0, 0); }
+  game.ballMoving = false;
+  game.golfHoleTimer = null;
+  game.holeTransitionTimer = 2.0;
+  updateHud();
+  if (game.role === "host") send({ type: "golfForceEnd", state: serializeGolfState() });
+}
+function applyGolfForceEnd(message) {
+  if (message?.state) applyGolfState(message.state);
+  for (const ball of world.golfBalls) { ball.moving = false; ball.airborne = false; ball.vel.set(0, 0, 0); }
+  game.ballMoving = false;
+  game.golfHoleTimer = null;
+  if (game.holeTransitionTimer <= 0) game.holeTransitionTimer = 2.0;
+  updateHud();
+}
 function advanceAfterScore() {
   if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) nextHole();
 }
@@ -286,7 +399,7 @@ function serializeGolfState() {
     holeIndex: game.holeIndex,
     holeScores: game.holeScores,
     strokesThisHole: game.strokesThisHole,
-    balls: world.golfBalls.map((ball) => ({ x: ball.mesh.position.x, y: ball.mesh.position.y, z: ball.mesh.position.z, vx: ball.vel.x, vz: ball.vel.z, moving: ball.moving, falling: ball.falling, lastX: ball.lastShot.x, lastZ: ball.lastShot.z })),
+    balls: world.golfBalls.map((ball) => ({ x: ball.mesh.position.x, y: ball.mesh.position.y, z: ball.mesh.position.z, vx: ball.vel.x, vy: ball.vel.y, vz: ball.vel.z, moving: ball.moving, falling: ball.falling, airborne: ball.airborne, lastX: ball.lastShot.x, lastZ: ball.lastShot.z })),
     ballPos: { x: world.ball.position.x, z: world.ball.position.z },
     ballVel: { x: world.ballVel.x, z: world.ballVel.z },
     token: game.golfResolveToken
@@ -307,9 +420,10 @@ function applyGolfState(s) {
     const ball = world.golfBalls[index];
     if (!ball || !state) return;
     ball.mesh.position.set(state.x ?? 0, state.y ?? 0.53, state.z ?? 0);
-    ball.vel.set(state.vx || 0, 0, state.vz || 0);
+    ball.vel.set(state.vx || 0, state.vy || 0, state.vz || 0);
     ball.moving = Boolean(state.moving || ball.vel.lengthSq() > 0);
     ball.falling = Boolean(state.falling);
+    ball.airborne = Boolean(state.airborne);
     ball.lastShot.set(state.lastX ?? ball.mesh.position.x, 0.53, state.lastZ ?? ball.mesh.position.z);
   });
   useGolfBall(activeGolfPlayerIndex());
@@ -319,6 +433,12 @@ function applyGolfState(s) {
 
 Object.assign(globalThis, {
   updateGolf,
+  launchGolfBall,
+  golfHoleTimeLimit,
+  hideGolfHoleTimer,
+  updateGolfHoleTimer,
+  forceEndGolfHole,
+  applyGolfForceEnd,
   canControlGolf,
   updateGolfCamera,
   updateShotArrow,

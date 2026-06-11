@@ -7,6 +7,7 @@
     "fps/skyhook-spires.json",
     "fps/abyssal-platforms.json",
     "fps/enclosed-arena.json",
+    "fps/ricochet-bunker.json",
     "fps/shaft-arena.json",
     "fps/phallic-palace.json",
     "fps/overpass-compound.json",
@@ -26,6 +27,8 @@
     "golf/easy-tap.json",
     "golf/easy-slide.json",
     "golf/bumper-alley.json",
-    "golf/grand-colossus.json"
+    "golf/grand-colossus.json",
+    "golf/canyon-leap.json",
+    "golf/twin-mesas.json"
   ]
 }

@@ -77,6 +77,7 @@ export const networkLinks = {
   enterFps: null,
   applyGolfState: null,
   applyGolfHoleScored: null,
+  applyGolfForceEnd: null,
   applyFpsDuelState: null,
   serializeGolfState: null,
   resetFpsDuelState: null,
@@ -267,6 +268,7 @@ function shouldRelay(message) {
     "golfHoleScored",
     "golfShot",
     "golfResolved",
+    "golfForceEnd",
     "phaseFps",
     "fpsWeaponChoice",
     "fpsState",
@@ -327,6 +329,10 @@ export function handleMessage(message, sourceConnection = null) {
 
   if (message.type === "golfResolved") {
     networkLinks.applyGolfState(message.state);
+  }
+
+  if (message.type === "golfForceEnd") {
+    networkLinks.applyGolfForceEnd?.(message);
   }
 
   if (message.type === "phaseFps") {
