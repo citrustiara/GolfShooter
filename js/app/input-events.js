@@ -121,7 +121,7 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    const victoryHold = game.finalKillCinematicActive ? 6.6 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
+    const victoryHold = game.finalKillCinematicActive ? 10.9 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
     if (elapsed >= victoryHold) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
   }
   const comicMono = victoryComicMonochromeAmount(now);

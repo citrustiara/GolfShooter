@@ -5,8 +5,41 @@ import { camera } from "./engine.js";
 let audioContext = null;
 let cachedNoiseBuffer = null;
 
+const TARGET_ELIMINATED_AUDIO_URL = new URL("../../assets/audio/low-honor-rdr-2.mp3", import.meta.url).href;
+let targetEliminatedAudio = null;
+
+function targetEliminatedAudioElement() {
+  if (typeof Audio === "undefined") return null;
+  if (!targetEliminatedAudio) {
+    targetEliminatedAudio = new Audio(TARGET_ELIMINATED_AUDIO_URL);
+    targetEliminatedAudio.preload = "auto";
+  }
+  return targetEliminatedAudio;
+}
+
+function preloadTargetEliminatedSound() {
+  targetEliminatedAudioElement()?.load?.();
+}
+
+function playTargetEliminatedSound(options = {}) {
+  const volume = Math.max(0, Math.min(1, Number(options.volume ?? 1) || 0));
+  if (volume <= 0) return;
+  const audio = targetEliminatedAudioElement();
+  if (!audio) return;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = volume;
+    const playPromise = audio.play();
+    playPromise?.catch?.(() => {});
+  } catch {}
+}
+
 export function ensureAudio() {
-  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    preloadTargetEliminatedSound();
+  }
   if (audioContext.state === "suspended") audioContext.resume();
 }
 
@@ -22,6 +55,10 @@ function noiseBuffer() {
 export function playSound(type, options = {}) {
   if (!audioContext) return;
   if (typeof options === "number") options = { volume: options };
+  if (type === "targetEliminated") {
+    playTargetEliminatedSound(options);
+    return;
+  }
   const now = audioContext.currentTime;
   const master = audioContext.createGain();
   const output = audioContext.createGain();
@@ -180,13 +217,6 @@ export function playSound(type, options = {}) {
     blip(760, 0.14, 0.46, "triangle", 0, 0.05);
     blip(1160, 0.16, 0.36, "sawtooth", 0, 0.11);
     blip(1580, 0.22, 0.24, "sine", 0, 0.18);
-  } else if (type === "targetEliminated") {
-    master.gain.setValueAtTime(0.44, now);
-    blip(82, 0.26, 0.9, "square");
-    blip(164, 0.32, 0.48, "sawtooth", -120, 0.02);
-    sweep(520, 1040, 0.24, 0.36, "triangle", 0.04);
-    blip(1560, 0.18, 0.28, "sine", 0, 0.16);
-    noise(0.42, 0.16, 4200, 1.2, 0.08, "highpass");
   } else if (type === "hurt") {
     master.gain.setValueAtTime(0.28, now);
     blip(92, 0.22, 0.8, "sawtooth");

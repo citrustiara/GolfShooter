@@ -429,7 +429,6 @@
   inset: 0;
   background: #000;
   opacity: 1;
-  transition: opacity 4.8s cubic-bezier(0.08, 0.82, 0.16, 1);
 }
 
 .final-kill-frame {
@@ -442,7 +441,7 @@
 }
 
 .final-kill-overlay.revealed .final-kill-black {
-  opacity: 0;
+  animation: final-kill-background-reveal 9.2s cubic-bezier(0.08, 0.72, 0.16, 1) both;
 }
 
 .final-kill-overlay.revealed .final-kill-frame {
@@ -540,6 +539,14 @@
   right: clamp(12px, 2.2vw, 32px);
   top: clamp(20px, 5vh, 58px);
   align-items: flex-end;
+}
+
+@keyframes final-kill-background-reveal {
+  0% { opacity: 0.98; }
+  16% { opacity: 0.95; }
+  40% { opacity: 0.78; }
+  72% { opacity: 0.34; }
+  100% { opacity: 0; }
 }
 
 @keyframes final-kill-glow-falloff {

@@ -86,11 +86,16 @@ function aimingSensitivityMultiplier() {
   return Math.max(0.05, Math.min(1, ratio));
 }
 let finalKillRevealTimeout = null;
+let finalKillSoundTimeout = null;
 
 function clearFinalKillCinematic() {
   if (finalKillRevealTimeout) {
     clearTimeout(finalKillRevealTimeout);
     finalKillRevealTimeout = null;
+  }
+  if (finalKillSoundTimeout) {
+    clearTimeout(finalKillSoundTimeout);
+    finalKillSoundTimeout = null;
   }
   game.finalKillCinematicActive = false;
   game.finalKillCinematicRevealed = false;
@@ -152,12 +157,16 @@ function showFinalKillCinematic(result = game.result) {
   root.classList.remove("revealed");
   root.setAttribute("aria-hidden", "false");
   void root.offsetWidth;
+  finalKillSoundTimeout = window.setTimeout(() => {
+    finalKillSoundTimeout = null;
+    if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
+    playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
+  }, 1100);
   finalKillRevealTimeout = window.setTimeout(() => {
     finalKillRevealTimeout = null;
     if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
     game.finalKillCinematicRevealed = true;
     root.classList.add("revealed");
-    playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
   }, 1500);
   return true;
 }
