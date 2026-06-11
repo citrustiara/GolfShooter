@@ -331,7 +331,9 @@ function explodeGrenade(g) {
         if (g.owner === game.localIndex) showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
         if (i === game.localIndex) showDamageTaken(dmg);
         if (wasAlive && target.health === 0 && i !== game.localIndex && g.owner === game.localIndex) {
-          showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false });
+          const aliveAfterKill = aliveFpsPlayerIndexes();
+          const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === g.owner && willFpsKillWinMapOrMatch(g.owner);
+          if (!cinematicKill) showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false });
         }
       }
     }
@@ -510,11 +512,15 @@ function fireHitscan() {
     const popPos = entry.headshot ? playerHeadHitCenter(target).add(new THREE.Vector3(0, 0.18, 0)) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
     showDamageDealt(entry.damage, popPos, entry.headshot);
     if (wasAlive && target.health === 0 && entry.target !== game.localIndex) {
-      showEliminationNotice(entry.target, {
-        weapon: game.primaryWeapon,
-        distance: entry.distance ?? origin.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.9, 0))),
-        headshot: entry.headshot
-      });
+      const aliveAfterKill = aliveFpsPlayerIndexes();
+      const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
+      if (!cinematicKill) {
+        showEliminationNotice(entry.target, {
+          weapon: game.primaryWeapon,
+          distance: entry.distance ?? origin.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.9, 0))),
+          headshot: entry.headshot
+        });
+      }
     }
   }
   if (anyHit) { showHitMarker(anyHeadshot); updateHud(); }
@@ -591,7 +597,7 @@ function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDura
     if (dH < targetDist && dH < range && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
     else if (dB < targetDist && dB < range && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex, { weapon: weaponId, distance: targetDist, headshot: hs }); } }
+  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { const aliveAfterKill = aliveFpsPlayerIndexes(); const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex); if (!cinematicKill) showEliminationNotice(targetIndex, { weapon: weaponId, distance: targetDist, headshot: hs }); } }
   send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, weapon: weaponId, headshot: hs, distance: hit ? targetDist : null }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
 function fireMelee() { meleeStrike(); }

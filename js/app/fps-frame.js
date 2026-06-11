@@ -126,6 +126,7 @@ function updateWeaponModel(dt, p) {
   world.weapon.visible = false;
   world.meleeWeapon.visible = false;
   world.radarDevice.visible = false;
+  if (game.finalKillCinematicActive) return;
   
   let weapon;
   let cfg;

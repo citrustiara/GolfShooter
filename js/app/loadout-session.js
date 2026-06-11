@@ -85,14 +85,92 @@ function aimingSensitivityMultiplier() {
   const ratio = Math.tan((aimFov * Math.PI) / 360) / Math.tan((baseFov * Math.PI) / 360);
   return Math.max(0.05, Math.min(1, ratio));
 }
-function clearVictoryBanner() { document.getElementById("victoryBanner")?.remove(); }
+let finalKillRevealTimeout = null;
+
+function clearFinalKillCinematic() {
+  if (finalKillRevealTimeout) {
+    clearTimeout(finalKillRevealTimeout);
+    finalKillRevealTimeout = null;
+  }
+  game.finalKillCinematicActive = false;
+  game.finalKillCinematicRevealed = false;
+  overlay?.classList.remove("final-kill-running");
+  const root = document.getElementById("finalKillOverlay");
+  if (!root) return;
+  root.classList.add("hidden");
+  root.classList.remove("active", "revealed");
+  root.setAttribute("aria-hidden", "true");
+}
+
+function fpsScoreLeader(values = []) {
+  const best = Math.max(...values);
+  const leaders = values.map((score, index) => score === best ? index : -1).filter((index) => index !== -1);
+  return leaders.length === 1 ? leaders[0] : -1;
+}
+
+function willFpsKillWinMapOrMatch(winner = game.localIndex) {
+  if (!Number.isInteger(winner) || winner < 0) return false;
+  const rules = activeFpsRules();
+  const nextKillWins = [...game.fpsKillWins];
+  while (nextKillWins.length <= winner) nextKillWins.push(0);
+  nextKillWins[winner] = (nextKillWins[winner] || 0) + 1;
+  const roundWinsNeeded = Math.floor(rules.roundsPerMap / 2) + 1;
+  const playedRounds = nextKillWins.reduce((sum, wins) => sum + wins, 0);
+  const mapOver = playedRounds >= rules.roundsPerMap || Math.max(...nextKillWins) >= roundWinsNeeded;
+  if (!mapOver) return false;
+  const mapWinner = fpsScoreLeader(nextKillWins);
+  const nextMapWins = [...game.fpsMapWins];
+  if (mapWinner !== -1) nextMapWins[mapWinner] = (nextMapWins[mapWinner] || 0) + 1;
+  const matchOver = game.fpsMatchConfig?.maps?.length
+    ? rules.currentMapSlot >= rules.mapCount - 1
+    : Math.max(...nextMapWins) >= Math.ceil(rules.mapCount / 2) || (game.fpsCompletedMaps || 0) + 1 >= rules.mapCount;
+  const matchWinner = matchOver ? fpsScoreLeader(nextMapWins) : null;
+  return (mapWinner === winner) || (matchWinner === winner);
+}
+
+function finalKillStatusText(result = game.result) {
+  if (result?.matchOver && result.matchWinner === game.localIndex) return "YOU WON THE MATCH";
+  if (result?.mapOver && !result.mapTied && fpsScoreLeader(game.fpsKillWins) === game.localIndex) return "YOU WON THE MAP";
+  return "YOU WON";
+}
+
+function showFinalKillCinematic(result = game.result) {
+  const root = document.getElementById("finalKillOverlay");
+  if (!root) return false;
+  document.getElementById("victoryBanner")?.remove();
+  clearFinalKillCinematic();
+  game.finalKillCinematicActive = true;
+  game.finalKillCinematicRevealed = false;
+  hideKillNotice();
+  damageVignette?.classList.remove("active");
+  hitMarker?.classList.remove("active", "headshot");
+  const status = document.getElementById("finalKillStatus");
+  if (status) status.textContent = finalKillStatusText(result);
+  overlay?.classList.add("final-kill-running");
+  root.classList.remove("hidden");
+  root.classList.add("active");
+  root.classList.remove("revealed");
+  root.setAttribute("aria-hidden", "false");
+  void root.offsetWidth;
+  finalKillRevealTimeout = window.setTimeout(() => {
+    finalKillRevealTimeout = null;
+    if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
+    game.finalKillCinematicRevealed = true;
+    root.classList.add("revealed");
+    playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
+  }, 1500);
+  return true;
+}
+
+function clearVictoryBanner() {
+  document.getElementById("victoryBanner")?.remove();
+  clearFinalKillCinematic();
+}
 function hideKillNotice() { game.killNoticeTimer = 0; killNotice.classList.add("hidden"); killNotice.replaceChildren(); killNotice.dataset.victim = ""; killNotice.dataset.detailed = "0"; }
-function resultOverlayVisible() { return game.phase === "result"; }
+function resultOverlayVisible() { return game.phase === "result" || game.finalKillCinematicActive; }
 function victoryComicMonochromeAmount(now = performance.now()) {
   if (game.phase !== "fpsVictoryLap" || game.result?.reason !== "deathmatch") return 0;
-  const elapsed = Math.max(0, (now - game.victoryLapStart) / 1000);
-  if (elapsed < 1.25) return 1;
-  return Math.max(0, 1 - (elapsed - 1.25) / 0.95);
+  return 0;
 }
 function activeGolfPlayerIndex() { return game.role === "solo" ? game.currentPlayer : game.localIndex; }
 function golfBallForPlayer(index = activeGolfPlayerIndex()) { return world.golfBalls[index] || world.golfBalls[0]; }
@@ -208,6 +286,9 @@ Object.assign(globalThis, {
   abilityCooldown,
   jumpAbilityStrength,
   aimingSensitivityMultiplier,
+  clearFinalKillCinematic,
+  willFpsKillWinMapOrMatch,
+  showFinalKillCinematic,
   clearVictoryBanner,
   hideKillNotice,
   resultOverlayVisible,

@@ -73,11 +73,16 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   const toast = reason === "deathmatch" && !matchOver
     ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
-  showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
-  if (matchOver) {
-    if (matchWinner !== -1) playSound(localWonMatch ? "matchWin" : "matchLose", { volume: 0.9 });
-  } else if (winner !== -1) {
-    playSound(localWonRound ? "roundWin" : "roundLose", { volume: 0.8 });
+  const useFinalKillCinematic = reason === "deathmatch" && winner === game.localIndex && winner !== -1 && (localWonMap || localWonMatch);
+  if (useFinalKillCinematic && showFinalKillCinematic(game.result)) {
+    // The cinematic handles its own delayed stinger and result text.
+  } else {
+    showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
+    if (matchOver) {
+      if (matchWinner !== -1) playSound(localWonMatch ? "matchWin" : "matchLose", { volume: 0.9 });
+    } else if (winner !== -1) {
+      playSound(localWonRound ? "roundWin" : "roundLose", { volume: 0.8 });
+    }
   }
   if (announce) send({ type: "matchResult", winner, reason, fpsState: serializeFpsDuelState() });
   updateHud();

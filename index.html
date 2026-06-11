@@ -86,6 +86,25 @@
       <div class="chip hidden" id="ammoChip">Ammo<strong id="ammoText">7 / 7</strong></div>
     </div>
     <div class="kill-notice hidden" id="killNotice"></div>
+    <div class="final-kill-overlay hidden" id="finalKillOverlay" aria-hidden="true">
+      <div class="final-kill-black"></div>
+      <div class="final-kill-frame">
+        <div class="final-kill-corner final-kill-corner-left">
+          <span>LIVE FEED</span>
+          <span>CONFIRMED</span>
+          <span>NO SIGNAL LOSS</span>
+        </div>
+        <div class="final-kill-corner final-kill-corner-right">
+          <span>STREAM</span>
+          <span>ROUND SECURED</span>
+        </div>
+        <div class="final-kill-copy" aria-live="polite">
+          <div class="final-kill-target">TARGET</div>
+          <div class="final-kill-eliminated">ELIMINATED</div>
+          <div class="final-kill-status" id="finalKillStatus">YOU WON</div>
+        </div>
+      </div>
+    </div>
     <div class="radar-marker hidden" id="radarMarker" aria-hidden="true"></div>
 
     <button class="settings hidden" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>

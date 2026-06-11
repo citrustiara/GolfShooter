@@ -121,11 +121,12 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    const victoryHold = game.result.reason === "deathmatch" ? 5.2 : 3.2;
+    const victoryHold = game.finalKillCinematicActive ? 6.6 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
     if (elapsed >= victoryHold) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
   }
   const comicMono = victoryComicMonochromeAmount(now);
-  const radarMono = game.radarTimer > 0 && (game.phase === "fps" || game.phase === "fpsVictoryLap");
+  const finalKillCinematic = Boolean(game.finalKillCinematicActive);
+  const radarMono = !finalKillCinematic && game.radarTimer > 0 && game.phase === "fps";
   // Scoped sniper view: fully desaturated (black-and-white) with the red channel boosted so highlighted enemies pop.
   const scopeMono = game.phase === "fps" ? (game.scopeAmount || 0) * 1.0 : 0;
   const monoAmount = radarMono ? 1.0 : comicMono;

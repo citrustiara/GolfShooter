@@ -33,6 +33,8 @@ export const game = {
   fpsMatchOver: false,
   countdown: 0,
   result: null,
+  finalKillCinematicActive: false,
+  finalKillCinematicRevealed: false,
   lastSend: 0,
   lastShotAt: 0,
   activeWeapon: "gun",

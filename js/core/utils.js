@@ -180,6 +180,13 @@ export function playSound(type, options = {}) {
     blip(760, 0.14, 0.46, "triangle", 0, 0.05);
     blip(1160, 0.16, 0.36, "sawtooth", 0, 0.11);
     blip(1580, 0.22, 0.24, "sine", 0, 0.18);
+  } else if (type === "targetEliminated") {
+    master.gain.setValueAtTime(0.44, now);
+    blip(82, 0.26, 0.9, "square");
+    blip(164, 0.32, 0.48, "sawtooth", -120, 0.02);
+    sweep(520, 1040, 0.24, 0.36, "triangle", 0.04);
+    blip(1560, 0.18, 0.28, "sine", 0, 0.16);
+    noise(0.42, 0.16, 4200, 1.2, 0.08, "highpass");
   } else if (type === "hurt") {
     master.gain.setValueAtTime(0.28, now);
     blip(92, 0.22, 0.8, "sawtooth");
