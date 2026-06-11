@@ -88,7 +88,9 @@ function tryActivateAbilityKey(code) {
     ["heal", activateHealAbility],
     ["grenade", throwGrenade],
     ["smoke", throwSmokeGrenade],
-    ["radar", activateRadar]
+    ["radar", activateRadar],
+    ["dash", activateDashAbility],
+    ["grapple", activateGrappleAbility]
   ];
   for (const [name, handler] of handlers) {
     if (abilityAllowed(name) && code === getAbilityKey(name)) {
@@ -124,14 +126,17 @@ function animate(now = performance.now()) {
   }
   const comicMono = victoryComicMonochromeAmount(now);
   const radarMono = game.radarTimer > 0 && (game.phase === "fps" || game.phase === "fpsVictoryLap");
-  const monoAmount = radarMono ? 1 : comicMono;
+  // Scoped sniper view: partially desaturated (well below the kill-cam's hard
+  // black-and-white) with the red channel boosted so highlighted enemies pop.
+  const scopeMono = game.phase === "fps" ? (game.scopeAmount || 0) * 0.55 : 0;
+  const monoAmount = radarMono ? 1 : Math.max(comicMono, scopeMono);
   renderScene(now * 0.001, {
     grayscale: monoAmount,
     inkStrength: radarMono ? 1.18 : 0.92 + comicMono * 0.2,
     colorSteps: radarMono ? 2 : (comicMono > 0.01 ? 4 : 5),
     contrast: radarMono ? 1.85 : 1.18 + comicMono * 0.18,
     brightness: radarMono ? 0.08 : 0.06,
-    redHighlight: radarMono ? 1 : 0
+    redHighlight: radarMono ? 1 : (scopeMono > 0.3 ? 0.9 : 0)
   });
   requestAnimationFrame(animate);
 }
@@ -183,7 +188,7 @@ window.addEventListener("keydown", (e) => {
     }
   }
 });
-window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
+window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "fps" && game.grapple?.active && abilityAllowed("grapple") && (c === getAbilityKey("grapple") || e.code === getAbilityKey("grapple"))) releaseGrapple(); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
 document.addEventListener("pointerlockchange", () => { input.pointerLocked = document.pointerLockElement === canvas; updateFpsSettingsVisibility(); });
 document.addEventListener("mousemove", onMouseMove); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!activeWeaponIds().includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));

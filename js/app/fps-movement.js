@@ -15,10 +15,14 @@ function updateFpsMovement(dt) {
   p.sliding = game.slideTimer > 0 && p.grounded;
   input.slideKeyWasDown = slideKey;
   
-  // Snappy movement: accel 220, friction 0.80 when moving, 0.65 when stopping
-  const accel = p.sliding ? 31 : (p.grounded ? 210 : 24), maxSpeed = (p.sliding ? FPS_SLIDE_MAX_SPEED : FPS_WALK_MAX_SPEED) * weaponMoveScale;
+  // Snappy movement: accel 220, friction 0.80 when moving, 0.65 when stopping.
+  // Dash and grapple temporarily lift the speed cap and run near-zero friction
+  // so their burst velocity is not eaten by the walk clamp on the next frame.
+  const dashing = (game.dashTimer || 0) > 0;
+  const grappling = Boolean(game.grapple?.active);
+  const accel = p.sliding ? 31 : (p.grounded ? 210 : 24), maxSpeed = (dashing || grappling) ? Math.max(DASH_SPEED, GRAPPLE_SPEED) : (p.sliding ? FPS_SLIDE_MAX_SPEED : FPS_WALK_MAX_SPEED) * weaponMoveScale;
   p.vel.addScaledVector(move, accel * weaponMoveScale * dt);
-  const baseFriction = p.sliding ? 0.976 : (p.grounded ? (move.lengthSq() > 0 ? 0.80 : 0.65) : 0.985);
+  const baseFriction = (dashing || grappling) ? 0.999 : (p.sliding ? 0.976 : (p.grounded ? (move.lengthSq() > 0 ? 0.80 : 0.65) : 0.985));
   const friction = Math.pow(baseFriction, dt * 60);
   p.vel.x *= friction;
   p.vel.z *= friction;
@@ -30,7 +34,45 @@ function updateFpsMovement(dt) {
   }
   
   if (input.keys.has("Space") && p.grounded) { p.vel.y = 10.4; p.grounded = false; playSound("jump"); } if (input.keys.has(getAbilityKey("jump")) && abilityAllowed("jump") && game.jumpCooldown <= 0) { p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); } if (input.keys.has(getAbilityKey("heal")) && abilityAllowed("heal") && game.healCooldown <= 0 && p.health < game.maxHealth) { p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); } if (input.keys.has(getAbilityKey("jetpack")) && abilityAllowed("jetpack") && p.pos.y < (game.jetpackHeightLimit || 40.0)) { p.vel.y = Math.min(p.vel.y + 60 * dt, 12); p.grounded = false; }
-  p.vel.y += fps.gravity * dt; p.pos.addScaledVector(p.vel, dt);
+
+  // Katana wall jump: a fresh Space press while airborne next to a wall kicks
+  // the player up and away from it. Edge-detected so holding Space cannot chain
+  // jumps off the same wall in consecutive frames.
+  const jumpHeld = input.keys.has("Space");
+  if (jumpHeld && !input.jumpKeyWasDown && !p.grounded && !wasGrounded && game.activeWeapon === "gun" && weaponConfig(game.primaryWeapon).wallJump) {
+    const wallNormal = findWallContactNormal(p);
+    if (wallNormal) {
+      p.vel.y = 10.2;
+      p.vel.x = p.vel.x * 0.3 + wallNormal.x * 8.5;
+      p.vel.z = p.vel.z * 0.3 + wallNormal.z * 8.5;
+      playSound("jump");
+    }
+  }
+  input.jumpKeyWasDown = jumpHeld;
+
+  if (grappling) {
+    // Grapple pull: steer velocity toward the anchor; gravity is skipped so the
+    // rope wins. The hook only lets go when the player releases the grapple key
+    // (handled on keyup) or dies — so holding the button keeps you attached, and
+    // once you reach the anchor you simply hang there until you let go.
+    const g = game.grapple;
+    const anchorOffset = new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z);
+    const toAnchor = g.point.clone().sub(anchorOffset);
+    const anchorDist = toAnchor.length();
+    if (p.health <= 0) {
+      releaseGrapple();
+    } else if (anchorDist < 2.4) {
+      // Reached the anchor: bleed off momentum and hang while the key is held.
+      p.vel.multiplyScalar(Math.pow(0.7, dt * 60));
+      p.grounded = false;
+    } else {
+      p.vel.lerp(toAnchor.normalize().multiplyScalar(GRAPPLE_SPEED), Math.min(1, dt * 9));
+      p.grounded = false;
+    }
+  } else {
+    p.vel.y += fps.gravity * dt;
+  }
+  p.pos.addScaledVector(p.vel, dt);
   
   // Ceiling collision check: stop player from phasing through ceilings when jumping upwards
   if (p.vel.y > 0) {
@@ -172,6 +214,33 @@ function shouldSkipCompositeSurfaceCollision(player, obstacle) {
   const overlapsX = supportBox.min.x < obstacleBox.max.x - 0.02 && supportBox.max.x > obstacleBox.min.x + 0.02;
   const overlapsZ = supportBox.min.z < obstacleBox.max.z - 0.02 && supportBox.max.z > obstacleBox.min.z + 0.02;
   return standingOnSupport && obstacleCrossesFeet && obstacleTopWalkable && overlapsX && overlapsZ;
+}
+
+function findWallContactNormal(player) {
+  // Horizontal probe against obstacle AABBs at torso height. Returns the
+  // outward wall normal when the player hugs a side face, null when the
+  // nearest contact is a top surface or nothing is in reach.
+  const probe = 0.32;
+  const feet = player.pos.y;
+  const box = new THREE.Box3();
+  let best = null;
+  let bestDist = Infinity;
+  for (const obs of world.obstacles) {
+    if (obs.userData?.isRamp) continue;
+    box.setFromObject(obs);
+    if (box.max.y < feet + 0.7 || box.min.y > feet + 1.6) continue;
+    const closestX = Math.max(box.min.x, Math.min(box.max.x, player.pos.x));
+    const closestZ = Math.max(box.min.z, Math.min(box.max.z, player.pos.z));
+    const dx = player.pos.x - closestX;
+    const dz = player.pos.z - closestZ;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.0001 || dist > FPS_PLAYER_RADIUS_WORLD + probe) continue;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = new THREE.Vector3(dx / dist, 0, dz / dist);
+    }
+  }
+  return best;
 }
 
 function fpsFlatSurfaceY(position, previousY, velocityY, wasGrounded, wasGroundSurface) {
@@ -441,6 +510,7 @@ function collideGrenadeWithObstacle(g, obs, radius) {
 Object.assign(globalThis, {
   updateFpsMovement,
   updateFootstepAudio,
+  findWallContactNormal,
   shouldSkipCompositeSurfaceCollision,
   fpsFlatSurfaceY,
   fpsRampSurface,

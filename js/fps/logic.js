@@ -90,7 +90,9 @@ export function setupArena() {
   skyShell.position.y = 28;
   world.arenaRoot.add(skyShell);
 
-  // Thin perimeter walls
+  // Thin perimeter walls. They join world.obstacles so they are real for
+  // combat: hitscan stops at the border, grenades bounce, and ricochet orbs
+  // reflect off the wall face instead of ghosting through it.
   if (generatedArenaFrame) {
     const edgeMat = getMaterial(activeMap.edge ?? theme.edge, 0.75, 0.22);
     const edgeH = 8.0;
@@ -99,7 +101,9 @@ export function setupArena() {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.sx, w.sy, w.sz), edgeMat);
       mesh.position.set(w.x, w.sy / 2, w.z);
       mesh.rotation.y = w.rot || 0;
+      mesh.userData.isArenaWall = true;
       staticMeshes.push(mesh);
+      world.obstacles.push(mesh);
     }
   }
 

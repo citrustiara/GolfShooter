@@ -88,5 +88,10 @@
     "author": "novikto (https://sketchfab.com/novikto)",
     "source": "https://sketchfab.com/3d-models/low-poly-industrial-zone-17816ea520cc40db9b094ec7779d2757",
     "license": "CC-BY-4.0"
+  },
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "grenade", "radar"],
+    "weapons": ["ak47", "desertEagle", "melee"]
   }
 }

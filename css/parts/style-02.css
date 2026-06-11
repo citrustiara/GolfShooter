@@ -253,6 +253,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Give the loadout summary breathing room beneath the map name/select row. */
+.practice-map-main + .practice-map-summary {
+  margin-top: 0.5rem;
+}
+
 .practice-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;

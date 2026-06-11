@@ -58,6 +58,11 @@ export const game = {
   smokeCooldown: 0,
   radarCooldown: 0,
   radarTimer: 0,
+  dashCooldown: 0,
+  dashTimer: 0,
+  grappleCooldown: 0,
+  grapple: null,
+  scopeAmount: 0,
   slideTimer: 0,
   slideCooldown: 0,
   weaponSelectTimer: 0,
@@ -89,7 +94,8 @@ export const input = {
   shootHeld: false,
   golfChargeDir: 1,
   mouseSensitivity: FPS_BASE_MOUSE_SENSITIVITY,
-  slideKeyWasDown: false
+  slideKeyWasDown: false,
+  jumpKeyWasDown: false
 };
 
 export const world = {
@@ -116,8 +122,7 @@ export const world = {
   weapon: null,
   meleeWeapon: null,
   weaponTip: null,
-  meleeWeapon: null,
-  weaponTip: null,
+  grappleRope: null,
   playerMeshes: [],
   lasers: [],
   grenades: [],

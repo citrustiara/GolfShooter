@@ -916,5 +916,10 @@
       "skyhook-spires/decor-24.json"
     ]
   },
-  "assets": []
+  "assets": [],
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "grapple", "smoke"],
+    "weapons": ["tacticalSniper", "katana"]
+  }
 }

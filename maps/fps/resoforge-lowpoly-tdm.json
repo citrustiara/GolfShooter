@@ -82,5 +82,10 @@
     "author": "Space_One (https://sketchfab.com/aslbekburonbey)",
     "source": "https://sketchfab.com/3d-models/lowpoly-fps-tdm-game-map-by-resoforge-d41a19f699ea421a9aa32b407cb7537b",
     "license": "CC-BY-4.0"
+  },
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "grenade", "smoke"],
+    "weapons": ["rifle", "drumShotgun", "melee"]
   }
 }

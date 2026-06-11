@@ -379,7 +379,7 @@ export function handleMessage(message, sourceConnection = null) {
     const origin = new THREE.Vector3(message.ox, message.oy, message.oz);
     const direction = new THREE.Vector3(message.dx, message.dy, message.dz);
     if (message.isMelee) {
-      playSound("melee");
+      playSound(message.weapon === "katana" ? "katana" : "melee");
       networkLinks.drawMeleeSwipe(origin, direction);
     } else {
       playSound(message.weapon || "pistol");
@@ -397,7 +397,7 @@ export function handleMessage(message, sourceConnection = null) {
       fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - dmg);
       networkLinks.showDamageTaken(dmg);
       if (fps.players[game.localIndex].health <= 0) {
-        networkLinks.showKilledBy(message.isMelee ? "Club" : networkLinks.weaponLabel(message.weapon), {
+        networkLinks.showKilledBy(message.isMelee ? (message.weapon && message.weapon !== "melee" ? networkLinks.weaponLabel(message.weapon) : "Club") : networkLinks.weaponLabel(message.weapon), {
           headshot: Boolean(localDamage.headshot ?? message.headshot),
           distance: localDamage.distance ?? message.distance,
           killerIndex: message.player

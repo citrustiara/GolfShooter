@@ -66,6 +66,83 @@ select {
   transform: rotate(-0.6deg);
 }
 
+/* ---------------- sniper scope ---------------- */
+
+/* Full-screen blackout with a circular viewport cut out of the middle.
+   The hole radius keys off the smaller viewport axis so the circle always
+   fits on screen. */
+.scope-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  --scope-r: calc(min(100vw, 100vh) * 0.42);
+  background: radial-gradient(
+    circle at center,
+    transparent 0 calc(var(--scope-r) - 2px),
+    rgba(7, 9, 12, 0.985) var(--scope-r) 100%
+  );
+}
+
+.scope-overlay .scope-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--scope-r) * 2);
+  height: calc(var(--scope-r) * 2);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid rgba(10, 12, 15, 0.9);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.55);
+}
+
+.scope-overlay .scope-hair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(12, 14, 17, 0.85);
+}
+
+.scope-overlay .scope-hair-h {
+  width: calc(var(--scope-r) * 2);
+  height: 1.6px;
+  transform: translate(-50%, -50%);
+}
+
+.scope-overlay .scope-hair-v {
+  width: 1.6px;
+  height: calc(var(--scope-r) * 2);
+  transform: translate(-50%, -50%);
+}
+
+/* Center dot so the exact aim point reads instantly */
+.scope-overlay .scope-hair-v::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(255, 60, 60, 0.95);
+}
+
+/* Red target boxes drawn around scoped enemies */
+#enemyBoxLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 41;
+}
+
+.enemy-scope-box {
+  position: absolute;
+  border: 2.5px solid rgba(255, 42, 42, 0.95);
+  border-radius: 3px;
+  box-shadow: 0 0 14px rgba(255, 30, 30, 0.55), inset 0 0 10px rgba(255, 30, 30, 0.25);
+}
+
 @media (max-width: 520px) {
   .fps-hud {
     right: 12px;

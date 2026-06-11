@@ -36,6 +36,8 @@
       "range": 180,
       "spread": 0.1,
       "aimFov": 14,
+      "aimSpeed": 340,
+      "scope": true,
       "moveScale": 0.78,
       "recoil": 0.42
     },
@@ -49,6 +51,8 @@
       "range": 220,
       "spread": 0.05,
       "aimFov": 14,
+      "aimSpeed": 300,
+      "scope": true,
       "moveScale": 0.64,
       "recoil": 0.42
     },
@@ -232,14 +236,30 @@
       "spread": 0.08,
       "aimFov": 30,
       "aimSpeed": 400,
+      "scope": true,
       "moveScale": 0.84,
       "recoil": 0.3
+    },
+    "katana": {
+      "label": "Katana",
+      "ammo": 999,
+      "damage": 70,
+      "crit": 1.6,
+      "reload": 1,
+      "fireDelay": 260,
+      "range": 5.2,
+      "moveScale": 1.24,
+      "recoil": 0.0,
+      "meleeAttack": true,
+      "wallJump": true,
+      "firstPersonOffset": { "x": 0.2, "y": -0.16, "z": -0.3 }
     }
   },
   "standardWeapons": [
     "pistol",
     "rifle",
     "sniper",
+    "katana",
     "spermShooter",
     "heavySpermShooter",
     "heaviestSpermShooter",
@@ -264,6 +284,7 @@
     "ak47",
     "drumShotgun",
     "tacticalSniper",
-    "bouncer"
+    "bouncer",
+    "katana"
   ]
 }

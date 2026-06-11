@@ -150,5 +150,10 @@
   "collision": [],
   "decor": [],
   "assets": [],
-  "shape": "l"
+  "shape": "l",
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "heal", "dash"],
+    "weapons": ["sniper", "pistol", "melee"]
+  }
 }

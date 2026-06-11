@@ -152,5 +152,10 @@
   "collision": [],
   "decor": [],
   "assets": [],
-  "shape": "long"
+  "shape": "long",
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "grenade", "smoke"],
+    "weapons": ["ak47", "shotgun", "melee"]
+  }
 }

@@ -211,6 +211,23 @@ export function playSound(type, options = {}) {
   } else if (type === "slide") {
     master.gain.setValueAtTime(0.12, now);
     blip(210, 0.18, 0.24, "sawtooth", -220);
+  } else if (type === "dash") {
+    // Air-rip whoosh: fast downward sweep with a breathy noise tail.
+    master.gain.setValueAtTime(0.2, now);
+    sweep(900, 240, 0.16, 0.4, "sawtooth");
+    noise(0.18, 0.3, 1500, 0.6, 0, "highpass");
+  } else if (type === "grapple") {
+    // Hook launch: sharp mechanical click, rising line whirr.
+    master.gain.setValueAtTime(0.2, now);
+    blip(2200, 0.03, 0.4, "square");
+    sweep(320, 880, 0.22, 0.3, "triangle", 0.03);
+    noise(0.2, 0.18, 2600, 1.2, 0.04);
+  } else if (type === "katana") {
+    // Blade swish: bright high-passed cut, faster and sharper than the club.
+    master.gain.setValueAtTime(0.2, now);
+    sweep(2400, 900, 0.12, 0.32, "sine");
+    noise(0.1, 0.45, 5200, 1.6, 0, "highpass");
+    noise(0.06, 0.25, 7600, 2.2, 0.02, "highpass");
   } else if (type === "footstep" || type === "step") {
     const pitch = (Math.random() - 0.5) * 26;
     master.gain.setValueAtTime(0.18, now);

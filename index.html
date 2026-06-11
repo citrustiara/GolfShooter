@@ -68,6 +68,18 @@
           <span class="cooldown-text" id="smokeCDText"></span>
           <span class="ability-icon">◒</span>
         </div>
+        <div class="ability-slot" id="dashAbility">
+          <span class="key-hint">V</span>
+          <div class="cooldown-overlay" id="dashOverlay"></div>
+          <span class="cooldown-text" id="dashCDText"></span>
+          <span class="ability-icon">≫</span>
+        </div>
+        <div class="ability-slot" id="grappleAbility">
+          <span class="key-hint">F</span>
+          <div class="cooldown-overlay" id="grappleOverlay"></div>
+          <span class="cooldown-text" id="grappleCDText"></span>
+          <span class="ability-icon">🪝</span>
+        </div>
       </div>
       <div class="chip hidden" id="healthChip">Health<strong id="healthText">100</strong></div>
       <div class="chip hidden" id="weaponChip">Weapon<strong id="weaponText">Gun</strong></div>
@@ -192,6 +204,12 @@
 
     <div class="power hidden" id="power"><span id="powerFill"></span></div>
     <div class="shot-arrow hidden" id="shotArrow"></div>
+    <div class="scope-overlay hidden" id="scopeOverlay" aria-hidden="true">
+      <div class="scope-ring"></div>
+      <div class="scope-hair scope-hair-h"></div>
+      <div class="scope-hair scope-hair-v"></div>
+    </div>
+    <div id="enemyBoxLayer" aria-hidden="true"></div>
     <div class="crosshair" id="crosshair"></div>
     <div class="reload-progress hidden" id="reloadProgress"><div class="reload-bar" id="reloadBar"></div></div>
     <div class="hit-marker" id="hitMarker"></div>

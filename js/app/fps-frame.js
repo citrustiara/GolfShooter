@@ -64,7 +64,7 @@ function updateFps(dt, now) {
     if (progress) progress.classList.add("hidden");
     if (bar) bar.style.transform = "scaleX(0)";
   }
-  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.throwTimer > 0) game.throwTimer = Math.max(0, game.throwTimer - dt); if (game.throwBlockTimer > 0) game.throwBlockTimer = Math.max(0, game.throwBlockTimer - dt); if (game.throwTimer <= 0) game.throwKind = ""; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt;
+  if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.throwTimer > 0) game.throwTimer = Math.max(0, game.throwTimer - dt); if (game.throwBlockTimer > 0) game.throwBlockTimer = Math.max(0, game.throwBlockTimer - dt); if (game.throwTimer <= 0) game.throwKind = ""; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt; if (game.dashCooldown > 0) game.dashCooldown -= dt; if (game.dashTimer > 0) game.dashTimer -= dt; if (game.grappleCooldown > 0) game.grappleCooldown -= dt;
   if (game.radarTimer > 0) {
     game.radarTimer -= dt;
     if (game.radarTimer <= 0) {
@@ -74,7 +74,7 @@ function updateFps(dt, now) {
     }
     updateRadarMarker();
   }
-  updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt);
+  updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt); updateGrappleRope(); updateScopeEnemyBoxes();
   // Round-end watchdog: if every kill/death message path failed (dropped
   // packet, race with phase changes), a round with <=1 survivors must still
   // end. The short grace period lets the normal paths win first.
@@ -102,7 +102,23 @@ function updateFpsCamera(dt) {
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
   const cfg = weaponConfig(game.primaryWeapon);
   const baseFov = game.fov || FPS_DEFAULT_FOV;
-  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix(); updateWeaponModel(dt, p);
+  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix();
+  updateScopeState(cfg, baseFov);
+  updateWeaponModel(dt, p);
+}
+function updateScopeState(cfg = weaponConfig(game.primaryWeapon), baseFov = game.fov || FPS_DEFAULT_FOV) {
+  // scopeAmount tracks how far the FOV has converged on the scoped FOV; the
+  // overlay and the black-and-white grade fade in past the 0.55 threshold.
+  const scoping = game.phase === "fps" && input.aiming && game.activeWeapon === "gun" && Boolean(cfg.scope);
+  if (scoping) {
+    const aimFov = cfg.aimFov || FPS_AIM_FOV;
+    game.scopeAmount = Math.max(0, Math.min(1, (baseFov - camera.fov) / Math.max(1, baseFov - aimFov)));
+  } else {
+    game.scopeAmount = 0;
+  }
+  const overlayOn = game.scopeAmount > 0.55;
+  scopeOverlay?.classList.toggle("hidden", !overlayOn);
+  if (crosshairEl) crosshairEl.style.opacity = overlayOn ? "0" : "";
 }
 function updateWeaponModel(dt, p) {
   const isRadarActive = game.radarTimer > 0;
@@ -124,6 +140,8 @@ function updateWeaponModel(dt, p) {
     weapon = game.activeWeapon === "gun" ? world.weapon : world.meleeWeapon;
     weapon.visible = true;
     cfg = game.activeWeapon === "gun" ? weaponConfig(game.primaryWeapon) : weaponConfig("melee");
+    // Hard-scoped snipers look through a real scope: the rifle leaves the view.
+    if (game.activeWeapon === "gun" && cfg.scope && game.scopeAmount > 0.55) weapon.visible = false;
   }
 
   // Full camera-space basis: the weapon offset is applied along the camera's own
@@ -213,7 +231,8 @@ function updateWeaponModel(dt, p) {
   // Golf-club slash: quick wind-up over the right shoulder, then a diagonal
   // strike across the view with a forward lunge, easing back to rest.
   let meleeSwing = 0;
-  if (!isRadarActive && game.activeWeapon === "melee" && game.meleeSwingTimer > 0) {
+  const swingingBlade = game.activeWeapon === "melee" || (game.activeWeapon === "gun" && cfg.meleeAttack);
+  if (!isRadarActive && swingingBlade && game.meleeSwingTimer > 0) {
     const swingDuration = 0.32;
     const progress = Math.max(0, Math.min(1, (swingDuration - game.meleeSwingTimer) / swingDuration));
     meleeSwing = progress;
@@ -275,5 +294,6 @@ function updateWeaponModel(dt, p) {
 Object.assign(globalThis, {
   updateFps,
   updateFpsCamera,
+  updateScopeState,
   updateWeaponModel
 });

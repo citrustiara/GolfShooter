@@ -9,7 +9,7 @@ function updateHud() {
   holeText.textContent = isFps ? `${rules.currentMapSlot + 1}/${rules.mapCount}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? `${formatScores(game.fpsKillWins)} / ${rules.roundsPerMap}` : (game.role === "solo" ? "Solo" : `P${game.localIndex + 1}`); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
   healthChip.classList.toggle("hidden", !isFps); healthText.textContent = `${Math.ceil(fps.players[game.localIndex].health)}`; abilityContainer.classList.toggle("hidden", !isFps);
   if (isFps) {
-    for (const [name, id] of [["jump", "#jumpAbility"], ["heal", "#healAbility"], ["radar", "#radarAbility"], ["grenade", "#grenadeAbility"], ["smoke", "#smokeAbility"], ["jetpack", "#jetpackAbility"]]) {
+    for (const [name, id] of [["jump", "#jumpAbility"], ["heal", "#healAbility"], ["radar", "#radarAbility"], ["grenade", "#grenadeAbility"], ["smoke", "#smokeAbility"], ["jetpack", "#jetpackAbility"], ["dash", "#dashAbility"], ["grapple", "#grappleAbility"]]) {
       const el = document.querySelector(id);
       if (el) {
         el.classList.toggle("disabled", !abilityAllowed(name));
@@ -26,11 +26,14 @@ function updateHud() {
     radarOverlay.style.height = `${Math.max(0, game.radarCooldown / abilityCooldown("radar", RADAR_COOLDOWN)) * 100}%`; radarCDText.textContent = abilityAllowed("radar") && game.radarCooldown > 0 ? Math.ceil(game.radarCooldown) : "";
     grenadeOverlay.style.height = `${Math.max(0, game.grenadeCooldown / abilityCooldown("grenade", GRENADE_COOLDOWN)) * 100}%`; grenadeCDText.textContent = abilityAllowed("grenade") && game.grenadeCooldown > 0 ? Math.ceil(game.grenadeCooldown) : "";
     if (smokeOverlay) smokeOverlay.style.height = `${Math.max(0, game.smokeCooldown / abilityCooldown("smoke", SMOKE_GRENADE_COOLDOWN)) * 100}%`; if (smokeCDText) smokeCDText.textContent = abilityAllowed("smoke") && game.smokeCooldown > 0 ? Math.ceil(game.smokeCooldown) : "";
+    if (dashOverlay) dashOverlay.style.height = `${Math.max(0, game.dashCooldown / abilityCooldown("dash", DASH_COOLDOWN)) * 100}%`; if (dashCDText) dashCDText.textContent = abilityAllowed("dash") && game.dashCooldown > 0 ? Math.ceil(game.dashCooldown) : "";
+    if (grappleOverlay) grappleOverlay.style.height = `${Math.max(0, game.grappleCooldown / abilityCooldown("grapple", GRAPPLE_COOLDOWN)) * 100}%`; if (grappleCDText) grappleCDText.textContent = abilityAllowed("grapple") && game.grappleCooldown > 0 ? Math.ceil(game.grappleCooldown) : "";
     if (jetpackOverlay) jetpackOverlay.style.height = "0%";
     if (jetpackCDText) jetpackCDText.textContent = "";
   }
   weaponChip.classList.toggle("hidden", !isFps); weaponText.textContent = (game.activeWeapon === "gun" ? weaponLabelText(game.primaryWeapon) : "Club");
-  ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun"); if (game.activeWeapon === "gun") ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
+  const bladeEquipped = game.activeWeapon === "gun" && Boolean(weaponConfig(game.primaryWeapon).meleeAttack);
+  ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun" || bladeEquipped); if (game.activeWeapon === "gun" && !bladeEquipped) ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
   const progress = document.getElementById("reloadProgress");
   if (progress && !game.reloading && game.radarTimer <= 0) progress.classList.add("hidden");
 }
@@ -184,7 +187,7 @@ function syncPrimaryWeaponModel() {
   rebuildWeaponMesh("melee", world.meleeWeapon);
 }
 function setWeaponPalette() {}
-function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; playSound("reloadStart", { volume: 0.8 }); const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#21d0ff"; } updateHud(); }
+function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (cfg.meleeAttack) return; if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; playSound("reloadStart", { volume: 0.8 }); const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#21d0ff"; } updateHud(); }
 
 Object.assign(globalThis, {
   updateHud,

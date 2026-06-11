@@ -26,6 +26,7 @@ import {
 } from "../fps/mesh-collision.js";
 
 const overlay = document.querySelector("#overlay"), menu = document.querySelector("#menu"), lobby = document.querySelector("#lobby"), resultPanel = document.querySelector("#result"), hud = document.querySelector("#hud"), phraseInput = document.querySelector("#phraseInput"), menuError = document.querySelector("#menuError"), holeLabel = document.querySelector("#holeLabel"), turnLabel = document.querySelector("#turnLabel"), strokeLabel = document.querySelector("#strokeLabel"), holeText = document.querySelector("#holeText"), turnText = document.querySelector("#turnText"), strokeText = document.querySelector("#strokeText"), healthChip = document.querySelector("#healthChip"), healthText = document.querySelector("#healthText"), abilityContainer = document.querySelector("#abilityContainer"), jumpOverlay = document.querySelector("#jumpOverlay"), healOverlay = document.querySelector("#healOverlay"), radarOverlay = document.querySelector("#radarOverlay"), jumpCDText = document.querySelector("#jumpCDText"), healCDText = document.querySelector("#healCDText"), radarCDText = document.querySelector("#radarCDText"), jetpackOverlay = document.querySelector("#jetpackOverlay"), jetpackCDText = document.querySelector("#jetpackCDText"), power = document.querySelector("#power"), powerFill = document.querySelector("#powerFill"), shotArrow = document.querySelector("#shotArrow"), damageLayer = document.querySelector("#damageLayer"), countdown = document.querySelector("#countdown"), settingsBtn = document.querySelector("#settingsBtn"), settingsPanel = document.querySelector("#settingsPanel"), sensitivityInput = document.querySelector("#sensitivityInput"), sensitivityValue = document.querySelector("#sensitivityValue"), menuSensitivityInput = document.querySelector("#menuSensitivityInput"), menuSensitivityValue = document.querySelector("#menuSensitivityValue"), weaponChip = document.querySelector("#weaponChip"), weaponText = document.querySelector("#weaponText"), resultTitle = document.querySelector("#resultTitle"), resultBody = document.querySelector("#resultBody"), ammoChip = document.querySelector("#ammoChip"), ammoText = document.querySelector("#ammoText"), weaponSelectOverlay = document.querySelector("#weaponSelectOverlay"), weaponSelectTimer = document.querySelector("#weaponSelectTimer"), weaponCards = document.querySelectorAll(".weapon-card"), hitMarker = document.querySelector("#hitMarker"), damageVignette = document.querySelector("#damageVignette"), grenadeOverlay = document.querySelector("#grenadeOverlay"), grenadeCDText = document.querySelector("#grenadeCDText"), smokeOverlay = document.querySelector("#smokeOverlay"), smokeCDText = document.querySelector("#smokeCDText"), killNotice = document.querySelector("#killNotice"), radarMarker = document.querySelector("#radarMarker"), lobbyStatus = document.querySelector("#lobbyStatus"), startGolfBtn = document.querySelector("#startGolfBtn"), startFpsBtn = document.querySelector("#startFpsBtn"), startRandomFpsBtn = document.querySelector("#startRandomFpsBtn"), mapJsonInput = document.querySelector("#mapJsonInput"), loadMapBtn = document.querySelector("#loadMapBtn"), saveMapBtn = document.querySelector("#saveMapBtn"), assetUrlInput = document.querySelector("#assetUrlInput"), loadAssetBtn = document.querySelector("#loadAssetBtn"), leaveBtn = document.querySelector("#leaveBtn"), createBtn = document.querySelector("#createBtn"), joinBtn = document.querySelector("#joinBtn"), soloBtn = document.querySelector("#soloBtn"), randomBtn = document.querySelector("#randomBtn"), restartBtn = document.querySelector("#restartBtn");
+const dashOverlay = document.querySelector("#dashOverlay"), dashCDText = document.querySelector("#dashCDText"), grappleOverlay = document.querySelector("#grappleOverlay"), grappleCDText = document.querySelector("#grappleCDText"), scopeOverlay = document.querySelector("#scopeOverlay"), enemyBoxLayer = document.querySelector("#enemyBoxLayer"), crosshairEl = document.querySelector("#crosshair");
 const fovInput = document.querySelector("#fovInput"), fovValue = document.querySelector("#fovValue"), ingameLeaveBtn = document.querySelector("#ingameLeaveBtn"), practiceMapOptions = document.querySelector("#practiceMapOptions"), golfMapSelect = document.querySelector("#golfMapSelect"), fpsMapSelect = document.querySelector("#fpsMapSelect"), playerCountSelect = document.querySelector("#playerCountSelect"), mapUploadInput = document.querySelector("#mapUploadInput"), practiceMapCountInput = document.querySelector("#practiceMapCountInput"), practiceRoundsInput = document.querySelector("#practiceRoundsInput"), practiceMapList = document.querySelector("#practiceMapList");
 
 const FPS_PLAYER_RADIUS_WORLD = 0.42;
@@ -45,8 +46,16 @@ const ABILITY_CHOICES = [
   { id: "grenade", label: "Grenade", defaultKey: "KeyG" },
   { id: "smoke", label: "Smoke", defaultKey: "KeyX" },
   { id: "radar", label: "Radar", defaultKey: "KeyC" },
-  { id: "jetpack", label: "Jetpack", defaultKey: "Space" }
+  { id: "jetpack", label: "Jetpack", defaultKey: "Space" },
+  { id: "dash", label: "Dash", defaultKey: "KeyV" },
+  { id: "grapple", label: "Grapple Hook", defaultKey: "KeyF" }
 ];
+const DASH_COOLDOWN = 3.5;
+const DASH_DURATION = 0.4;
+const DASH_SPEED = 60;
+const GRAPPLE_COOLDOWN = 7.0;
+const GRAPPLE_RANGE = 70;
+const GRAPPLE_SPEED = 34;
 const ABILITY_KEY_OPTIONS = ["KeyQ", "KeyE", "KeyF", "KeyG", "KeyC", "KeyV", "KeyX", "KeyZ", "Space", "ShiftLeft", "ControlLeft"];
 
 Object.assign(globalThis, {
@@ -78,5 +87,7 @@ Object.assign(globalThis, {
   FPS_DEFAULT_GRAVITY,
   FPS_DEFAULT_ROUNDS_PER_MAP,
   ABILITY_CHOICES,
-  ABILITY_KEY_OPTIONS
+  ABILITY_KEY_OPTIONS,
+  DASH_COOLDOWN, DASH_DURATION, DASH_SPEED, GRAPPLE_COOLDOWN, GRAPPLE_RANGE, GRAPPLE_SPEED,
+  dashOverlay, dashCDText, grappleOverlay, grappleCDText, scopeOverlay, enemyBoxLayer, crosshairEl
 });

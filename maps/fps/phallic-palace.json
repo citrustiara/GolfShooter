@@ -2,679 +2,152 @@
   "version": 1,
   "id": "phallic-palace",
   "name": "Phallic Palace",
-  "sky": 3149870,
-  "fog": 3149870,
-  "fogNear": 50,
-  "fogFar": 180,
+  "sky": 16757604,
+  "fog": 16757604,
+  "fogNear": 60,
+  "fogFar": 230,
   "bounds": {
     "x": 80,
     "z": 80
   },
   "spawnPoints": [
-    { "x": -50, "y": 3.0, "z": -50 },
-    { "x": 50, "y": 3.0, "z": 50 },
-    { "x": 50, "y": 3.0, "z": -50 },
-    { "x": -50, "y": 3.0, "z": 50 },
-    { "x": -35, "y": 13.0, "z": 0 },
-    { "x": 35, "y": 13.0, "z": 0 }
+    { "x": -50, "z": -50 },
+    { "x": 50, "z": 50 },
+    { "x": 50, "z": -50 },
+    { "x": -50, "z": 50 },
+    { "x": 20, "z": 20 },
+    { "x": -20, "z": -20 },
+    { "x": 20, "z": -20 },
+    { "x": -20, "z": 20 }
   ],
-  "floors": [],
-  "floor": 4860474,
-  "gridA": 16744608,
-  "gridB": 6300224,
-  "edge": 12600416,
+  "floors": [
+    { "x": 0, "z": 0, "sx": 160, "sz": 160 }
+  ],
+  "floor": 13349498,
+  "gridA": 12098926,
+  "gridB": 9073740,
+  "edge": 14262587,
   "boxes": [
-    {
-      "x": 0,
-      "y": -150,
-      "z": 0,
-      "sx": 12,
-      "sy": 188,
-      "sz": 12,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -10,
-      "y": -150,
-      "z": 2,
-      "sx": 14,
-      "sy": 164,
-      "sz": 14,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 10,
-      "y": -150,
-      "z": 2,
-      "sx": 14,
-      "sy": 164,
-      "sz": 14,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 0,
-      "y": 38,
-      "z": 0,
-      "sx": 13,
-      "sy": 4,
-      "sz": 13,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -60,
-      "y": -150,
-      "z": -60,
-      "sx": 35,
-      "sy": 152,
-      "sz": 35,
-      "color": 3487029,
-      "isPlatform": true
-    },
-    {
-      "x": 60,
-      "y": -150,
-      "z": -60,
-      "sx": 35,
-      "sy": 152,
-      "sz": 35,
-      "color": 3487029,
-      "isPlatform": true
-    },
-    {
-      "x": -60,
-      "y": -150,
-      "z": 60,
-      "sx": 35,
-      "sy": 152,
-      "sz": 35,
-      "color": 3487029,
-      "isPlatform": true
-    },
-    {
-      "x": 60,
-      "y": -150,
-      "z": 60,
-      "sx": 35,
-      "sy": 152,
-      "sz": 35,
-      "color": 3487029,
-      "isPlatform": true
-    },
-    {
-      "x": -60,
-      "y": 2,
-      "z": -60,
-      "sx": 12,
-      "sy": 10,
-      "sz": 12,
-      "color": 2500134,
-      "isPlatform": true
-    },
-    {
-      "x": 60,
-      "y": 2,
-      "z": -60,
-      "sx": 12,
-      "sy": 10,
-      "sz": 12,
-      "color": 2500134,
-      "isPlatform": true
-    },
-    {
-      "x": -60,
-      "y": 2,
-      "z": 60,
-      "sx": 12,
-      "sy": 10,
-      "sz": 12,
-      "color": 2500134,
-      "isPlatform": true
-    },
-    {
-      "x": 60,
-      "y": 2,
-      "z": 60,
-      "sx": 12,
-      "sy": 10,
-      "sz": 12,
-      "color": 2500134,
-      "isPlatform": true
-    },
-    {
-      "x": -35,
-      "y": -150,
-      "z": 0,
-      "sx": 16,
-      "sy": 162,
-      "sz": 16,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 35,
-      "y": -150,
-      "z": 0,
-      "sx": 16,
-      "sy": 162,
-      "sz": 16,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 0,
-      "y": -150,
-      "z": -35,
-      "sx": 16,
-      "sy": 162,
-      "sz": 16,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 0,
-      "y": -150,
-      "z": 35,
-      "sx": 16,
-      "sy": 162,
-      "sz": 16,
-      "color": 4150400,
-      "isPlatform": true
-    },
-    {
-      "x": 0,
-      "y": -150,
-      "z": -18,
-      "sx": 22,
-      "sy": 172,
-      "sz": 8,
-      "color": 5000280,
-      "isPlatform": true
-    },
-    {
-      "x": 0,
-      "y": -150,
-      "z": 18,
-      "sx": 22,
-      "sy": 172,
-      "sz": 8,
-      "color": 5000280,
-      "isPlatform": true
-    },
-    {
-      "x": 18,
-      "y": -150,
-      "z": 0,
-      "sx": 8,
-      "sy": 172,
-      "sz": 22,
-      "color": 5000280,
-      "isPlatform": true
-    },
-    {
-      "x": -18,
-      "y": -150,
-      "z": 0,
-      "sx": 8,
-      "sy": 172,
-      "sz": 22,
-      "color": 5000280,
-      "isPlatform": true
-    },
-    {
-      "x": -48,
-      "y": -150,
-      "z": -30,
-      "sx": 4,
-      "sy": 156,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -51,
-      "y": -150,
-      "z": -28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -45,
-      "y": -150,
-      "z": -28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -48,
-      "y": 6,
-      "z": -30,
-      "sx": 4.6,
-      "sy": 1.5,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": 48,
-      "y": -150,
-      "z": -30,
-      "sx": 4,
-      "sy": 156,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": 45,
-      "y": -150,
-      "z": -28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 51,
-      "y": -150,
-      "z": -28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 48,
-      "y": 6,
-      "z": -30,
-      "sx": 4.6,
-      "sy": 1.5,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -48,
-      "y": -150,
-      "z": 30,
-      "sx": 4,
-      "sy": 156,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -51,
-      "y": -150,
-      "z": 28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -45,
-      "y": -150,
-      "z": 28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -48,
-      "y": 6,
-      "z": 30,
-      "sx": 4.6,
-      "sy": 1.5,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": 48,
-      "y": -150,
-      "z": 30,
-      "sx": 4,
-      "sy": 156,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": 45,
-      "y": -150,
-      "z": 28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 51,
-      "y": -150,
-      "z": 28,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 48,
-      "y": 6,
-      "z": 30,
-      "sx": 4.6,
-      "sy": 1.5,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -30,
-      "y": -150,
-      "z": -30,
-      "sx": 5,
-      "sy": 164,
-      "sz": 5,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -34,
-      "y": -150,
-      "z": -28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -26,
-      "y": -150,
-      "z": -28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -30,
-      "y": 14,
-      "z": -30,
-      "sx": 5.8,
-      "sy": 2,
-      "sz": 5.8,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": 30,
-      "y": -150,
-      "z": -30,
-      "sx": 5,
-      "sy": 164,
-      "sz": 5,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": 26,
-      "y": -150,
-      "z": -28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 34,
-      "y": -150,
-      "z": -28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 30,
-      "y": 14,
-      "z": -30,
-      "sx": 5.8,
-      "sy": 2,
-      "sz": 5.8,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -30,
-      "y": -150,
-      "z": 30,
-      "sx": 5,
-      "sy": 164,
-      "sz": 5,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -34,
-      "y": -150,
-      "z": 28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -26,
-      "y": -150,
-      "z": 28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -30,
-      "y": 14,
-      "z": 30,
-      "sx": 5.8,
-      "sy": 2,
-      "sz": 5.8,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": 30,
-      "y": -150,
-      "z": 30,
-      "sx": 5,
-      "sy": 164,
-      "sz": 5,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": 26,
-      "y": -150,
-      "z": 28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 34,
-      "y": -150,
-      "z": 28,
-      "sx": 5,
-      "sy": 155,
-      "sz": 5,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 30,
-      "y": 14,
-      "z": 30,
-      "sx": 5.8,
-      "sy": 2,
-      "sz": 5.8,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -10,
-      "y": -150,
-      "z": -10,
-      "sx": 4,
-      "sy": 178,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": -13,
-      "y": -150,
-      "z": -8,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -7,
-      "y": -150,
-      "z": -8,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": -10,
-      "y": 28,
-      "z": -10,
-      "sx": 4.6,
-      "sy": 1.6,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": 10,
-      "y": -150,
-      "z": 10,
-      "sx": 4,
-      "sy": 178,
-      "sz": 4,
-      "color": 6045747,
-      "isPlatform": true
-    },
-    {
-      "x": 7,
-      "y": -150,
-      "z": 8,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 13,
-      "y": -150,
-      "z": 8,
-      "sx": 4,
-      "sy": 154,
-      "sz": 4,
-      "color": 5057077,
-      "isPlatform": true
-    },
-    {
-      "x": 10,
-      "y": 28,
-      "z": 10,
-      "sx": 4.6,
-      "sy": 1.6,
-      "sz": 4.6,
-      "color": 16744608,
-      "isPlatform": true
-    },
-    {
-      "x": -35,
-      "y": 12,
-      "z": -3,
-      "sx": 1,
-      "sy": 3,
-      "sz": 6,
-      "color": 7071231,
-      "isPlatform": false
-    },
-    {
-      "x": 35,
-      "y": 12,
-      "z": 3,
-      "sx": 1,
-      "sy": 3,
-      "sz": 6,
-      "color": 7071231,
-      "isPlatform": false
-    }
+    { "name": "court-wall-n-west", "x": -45.5, "y": 0, "z": -40, "sx": 65, "sy": 6, "sz": 2, "color": 13613450 },
+    { "name": "court-wall-n-east", "x": 45.5, "y": 0, "z": -40, "sx": 65, "sy": 6, "sz": 2, "color": 13613450 },
+    { "name": "court-wall-s-west", "x": -45.5, "y": 0, "z": 40, "sx": 65, "sy": 6, "sz": 2, "color": 13613450 },
+    { "name": "court-wall-s-east", "x": 45.5, "y": 0, "z": 40, "sx": 65, "sy": 6, "sz": 2, "color": 13613450 },
+    { "name": "court-wall-w-north", "x": -40, "y": 0, "z": -45.5, "sx": 2, "sy": 6, "sz": 65, "color": 13613450 },
+    { "name": "court-wall-w-south", "x": -40, "y": 0, "z": 45.5, "sx": 2, "sy": 6, "sz": 65, "color": 13613450 },
+    { "name": "court-wall-e-north", "x": 40, "y": 0, "z": -45.5, "sx": 2, "sy": 6, "sz": 65, "color": 13613450 },
+    { "name": "court-wall-e-south", "x": 40, "y": 0, "z": 45.5, "sx": 2, "sy": 6, "sz": 65, "color": 13613450 },
+    { "name": "gate-lintel-n", "x": 0, "y": 4.5, "z": -40, "sx": 28, "sy": 1.5, "sz": 2, "color": 12098926 },
+    { "name": "gate-lintel-s", "x": 0, "y": 4.5, "z": 40, "sx": 28, "sy": 1.5, "sz": 2, "color": 12098926 },
+    { "name": "gate-lintel-w", "x": -40, "y": 4.5, "z": 0, "sx": 2, "sy": 1.5, "sz": 28, "color": 12098926 },
+    { "name": "gate-lintel-e", "x": 40, "y": 4.5, "z": 0, "sx": 2, "sy": 1.5, "sz": 28, "color": 12098926 },
+    { "name": "parapet-n", "x": 0, "y": 6, "z": -40, "sx": 158, "sy": 0.5, "sz": 3.4, "color": 10256719 },
+    { "name": "parapet-s", "x": 0, "y": 6, "z": 40, "sx": 158, "sy": 0.5, "sz": 3.4, "color": 10256719 },
+    { "name": "parapet-w", "x": -40, "y": 6, "z": 0, "sx": 3.4, "sy": 0.5, "sz": 158, "color": 10256719 },
+    { "name": "parapet-e", "x": 40, "y": 6, "z": 0, "sx": 3.4, "sy": 0.5, "sz": 158, "color": 10256719 },
+
+    { "name": "scepter-shaft", "x": 0, "y": 0, "z": 0, "sx": 11, "sy": 22, "sz": 11, "color": 14257056 },
+    { "name": "scepter-ball-west", "x": -8.5, "y": 0, "z": -6, "sx": 9, "sy": 8, "sz": 9, "color": 13074323 },
+    { "name": "scepter-ball-east", "x": 8.5, "y": 0, "z": -6, "sx": 9, "sy": 8, "sz": 9, "color": 13074323 },
+    { "name": "scepter-collar", "x": 0, "y": 21.4, "z": 0, "sx": 12, "sy": 0.6, "sz": 12, "color": 14262587, "isPlatform": false },
+    { "name": "scepter-cap", "x": 0, "y": 22, "z": 0, "sx": 13, "sy": 2, "sz": 13, "color": 15245492 },
+
+    { "name": "balcony-north", "x": 0, "y": 10, "z": -7.8, "sx": 15, "sy": 0.6, "sz": 4.6, "color": 8015774 },
+    { "name": "balcony-south", "x": 0, "y": 10, "z": 7.8, "sx": 15, "sy": 0.6, "sz": 4.6, "color": 8015774 },
+    { "name": "balcony-east", "x": 7.8, "y": 10, "z": 0, "sx": 4.6, "sy": 0.6, "sz": 13, "color": 8015774 },
+    { "name": "balcony-west", "x": -7.8, "y": 10, "z": 0, "sx": 4.6, "sy": 0.6, "sz": 13, "color": 8015774 },
+
+    { "name": "balcony-step-east", "x": 18, "y": 0, "z": 4, "sx": 5, "sy": 5, "sz": 5, "color": 12098926 },
+    { "name": "balcony-step-west", "x": -18, "y": 0, "z": 4, "sx": 5, "sy": 5, "sz": 5, "color": 12098926 },
+
+    { "name": "guard-tower-shaft-ne", "x": 28, "y": 0, "z": -28, "sx": 6, "sy": 12, "sz": 6, "color": 13074323 },
+    { "name": "guard-tower-ball-ne-a", "x": 24.5, "y": 0, "z": -31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-ball-ne-b", "x": 31.5, "y": 0, "z": -31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-cap-ne", "x": 28, "y": 12, "z": -28, "sx": 8, "sy": 1.4, "sz": 8, "color": 15245492 },
+    { "name": "guard-step-ne", "x": 31, "y": 0, "z": -13, "sx": 5, "sy": 6, "sz": 5, "color": 12098926 },
+
+    { "name": "guard-tower-shaft-se", "x": 28, "y": 0, "z": 28, "sx": 6, "sy": 12, "sz": 6, "color": 13074323 },
+    { "name": "guard-tower-ball-se-a", "x": 24.5, "y": 0, "z": 31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-ball-se-b", "x": 31.5, "y": 0, "z": 31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-cap-se", "x": 28, "y": 12, "z": 28, "sx": 8, "sy": 1.4, "sz": 8, "color": 15245492 },
+    { "name": "guard-step-se", "x": 25, "y": 0, "z": 13, "sx": 5, "sy": 6, "sz": 5, "color": 12098926 },
+
+    { "name": "guard-tower-shaft-nw", "x": -28, "y": 0, "z": -28, "sx": 6, "sy": 12, "sz": 6, "color": 13074323 },
+    { "name": "guard-tower-ball-nw-a", "x": -24.5, "y": 0, "z": -31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-ball-nw-b", "x": -31.5, "y": 0, "z": -31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-cap-nw", "x": -28, "y": 12, "z": -28, "sx": 8, "sy": 1.4, "sz": 8, "color": 15245492 },
+    { "name": "guard-step-nw", "x": -25, "y": 0, "z": -13, "sx": 5, "sy": 6, "sz": 5, "color": 12098926 },
+
+    { "name": "guard-tower-shaft-sw", "x": -28, "y": 0, "z": 28, "sx": 6, "sy": 12, "sz": 6, "color": 13074323 },
+    { "name": "guard-tower-ball-sw-a", "x": -24.5, "y": 0, "z": 31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-ball-sw-b", "x": -31.5, "y": 0, "z": 31, "sx": 5, "sy": 5, "sz": 5, "color": 14257056 },
+    { "name": "guard-tower-cap-sw", "x": -28, "y": 12, "z": 28, "sx": 8, "sy": 1.4, "sz": 8, "color": 15245492 },
+    { "name": "guard-step-sw", "x": -31, "y": 0, "z": 13, "sx": 5, "sy": 6, "sz": 5, "color": 12098926 },
+
+    { "name": "obelisk-shaft-east", "x": 18, "y": 0, "z": -14, "sx": 1.6, "sy": 5.5, "sz": 1.6, "color": 14257056 },
+    { "name": "obelisk-ball-east-a", "x": 17.1, "y": 0, "z": -13.2, "sx": 1.3, "sy": 1.3, "sz": 1.3, "color": 13074323 },
+    { "name": "obelisk-ball-east-b", "x": 18.9, "y": 0, "z": -13.2, "sx": 1.3, "sy": 1.3, "sz": 1.3, "color": 13074323 },
+    { "name": "obelisk-tip-east", "x": 18, "y": 5.5, "z": -14, "sx": 1.9, "sy": 0.7, "sz": 1.9, "color": 15245492 },
+    { "name": "obelisk-shaft-west", "x": -18, "y": 0, "z": -14, "sx": 1.6, "sy": 5.5, "sz": 1.6, "color": 14257056 },
+    { "name": "obelisk-ball-west-a", "x": -17.1, "y": 0, "z": -13.2, "sx": 1.3, "sy": 1.3, "sz": 1.3, "color": 13074323 },
+    { "name": "obelisk-ball-west-b", "x": -18.9, "y": 0, "z": -13.2, "sx": 1.3, "sy": 1.3, "sz": 1.3, "color": 13074323 },
+    { "name": "obelisk-tip-west", "x": -18, "y": 5.5, "z": -14, "sx": 1.9, "sy": 0.7, "sz": 1.9, "color": 15245492 },
+
+    { "name": "west-hall-wall-n", "x": -55, "y": 0, "z": -9, "sx": 18, "sy": 5, "sz": 1.5, "color": 13613450 },
+    { "name": "west-hall-wall-s", "x": -55, "y": 0, "z": 9, "sx": 18, "sy": 5, "sz": 1.5, "color": 13613450 },
+    { "name": "west-hall-wall-w", "x": -63.25, "y": 0, "z": 0, "sx": 1.5, "sy": 5, "sz": 16.5, "color": 13613450 },
+    { "name": "west-hall-door-n", "x": -46.75, "y": 0, "z": -5.5, "sx": 1.5, "sy": 5, "sz": 5.5, "color": 13613450 },
+    { "name": "west-hall-door-s", "x": -46.75, "y": 0, "z": 5.5, "sx": 1.5, "sy": 5, "sz": 5.5, "color": 13613450 },
+    { "name": "west-hall-roof", "x": -55, "y": 5, "z": 0, "sx": 19.5, "sy": 0.6, "sz": 20, "color": 9072461 },
+    { "name": "west-hall-pillar", "x": -55, "y": 0, "z": -4, "sx": 1.2, "sy": 3.4, "sz": 1.2, "color": 14257056 },
+    { "name": "west-hall-pillar-tip", "x": -55, "y": 3.4, "z": -4, "sx": 1.5, "sy": 0.5, "sz": 1.5, "color": 15245492 },
+
+    { "name": "east-hall-wall-n", "x": 55, "y": 0, "z": -9, "sx": 18, "sy": 5, "sz": 1.5, "color": 13613450 },
+    { "name": "east-hall-wall-s", "x": 55, "y": 0, "z": 9, "sx": 18, "sy": 5, "sz": 1.5, "color": 13613450 },
+    { "name": "east-hall-wall-e", "x": 63.25, "y": 0, "z": 0, "sx": 1.5, "sy": 5, "sz": 16.5, "color": 13613450 },
+    { "name": "east-hall-door-n", "x": 46.75, "y": 0, "z": -5.5, "sx": 1.5, "sy": 5, "sz": 5.5, "color": 13613450 },
+    { "name": "east-hall-door-s", "x": 46.75, "y": 0, "z": 5.5, "sx": 1.5, "sy": 5, "sz": 5.5, "color": 13613450 },
+    { "name": "east-hall-roof", "x": 55, "y": 5, "z": 0, "sx": 19.5, "sy": 0.6, "sz": 20, "color": 9072461 },
+    { "name": "east-hall-pillar", "x": 55, "y": 0, "z": -4, "sx": 1.2, "sy": 3.4, "sz": 1.2, "color": 14257056 },
+    { "name": "east-hall-pillar-tip", "x": 55, "y": 3.4, "z": -4, "sx": 1.5, "sy": 0.5, "sz": 1.5, "color": 15245492 },
+
+    { "name": "banner-n-west", "x": -30, "y": 1.8, "z": -38.8, "sx": 2.4, "sy": 3.6, "sz": 0.3, "color": 8015774, "isPlatform": false },
+    { "name": "banner-n-east", "x": 30, "y": 1.8, "z": -38.8, "sx": 2.4, "sy": 3.6, "sz": 0.3, "color": 8015774, "isPlatform": false },
+    { "name": "banner-s-west", "x": -30, "y": 1.8, "z": 38.8, "sx": 2.4, "sy": 3.6, "sz": 0.3, "color": 8015774, "isPlatform": false },
+    { "name": "banner-s-east", "x": 30, "y": 1.8, "z": 38.8, "sx": 2.4, "sy": 3.6, "sz": 0.3, "color": 8015774, "isPlatform": false }
   ],
+  "platforms": [],
   "ramps": [
-    {
-      "name": "ramp-tl",
-      "x": -45,
-      "y": 2,
-      "z": -50,
-      "width": 4,
-      "length": 10,
-      "height": 4,
-      "rot": 0.785,
-      "color": 4150400
-    },
-    {
-      "name": "ramp-br",
-      "x": 45,
-      "y": 2,
-      "z": 50,
-      "width": 4,
-      "length": 10,
-      "height": 4,
-      "rot": -2.356,
-      "color": 4150400
-    }
+    { "name": "parapet-ramp-n", "x": -20, "y": 0, "z": -32.1, "width": 3, "length": 13, "height": 6.5, "rot": 3.14159, "color": 11569512 },
+    { "name": "parapet-ramp-s", "x": 20, "y": 0, "z": 32.1, "width": 3, "length": 13, "height": 6.5, "rot": 0, "color": 11569512 },
+    { "name": "parapet-ramp-w", "x": -47.9, "y": 0, "z": -20, "width": 3, "length": 13, "height": 6.5, "rot": 1.571, "color": 11569512 },
+    { "name": "parapet-ramp-e", "x": 47.9, "y": 0, "z": 20, "width": 3, "length": 13, "height": 6.5, "rot": -1.571, "color": 11569512 },
+
+    { "name": "grand-ramp-s", "x": 0, "y": 6.5, "z": 22.6, "width": 3.4, "length": 32.8, "height": 17.5, "rot": 3.14159, "color": 14262587 },
+    { "name": "grand-ramp-n", "x": 0, "y": 6.5, "z": -22.6, "width": 3.4, "length": 32.8, "height": 17.5, "rot": 0, "color": 14262587 },
+
+    { "name": "balcony-ramp-east-low", "x": 18, "y": 0, "z": 11.2, "width": 3, "length": 10, "height": 5, "rot": 3.14159, "color": 11569512 },
+    { "name": "balcony-ramp-east-high", "x": 14, "y": 5, "z": 4, "width": 3, "length": 8.4, "height": 5.6, "rot": -1.571, "color": 11569512 },
+    { "name": "balcony-ramp-west-low", "x": -18, "y": 0, "z": 11.2, "width": 3, "length": 10, "height": 5, "rot": 3.14159, "color": 11569512 },
+    { "name": "balcony-ramp-west-high", "x": -14, "y": 5, "z": 4, "width": 3, "length": 8.4, "height": 5.6, "rot": 1.571, "color": 11569512 },
+
+    { "name": "guard-ramp-ne-low", "x": 31, "y": 0, "z": -5.3, "width": 3, "length": 11, "height": 6, "rot": 3.14159, "color": 11569512 },
+    { "name": "guard-ramp-ne-high", "x": 31, "y": 6, "z": -19.9, "width": 3, "length": 8.8, "height": 7.4, "rot": 3.14159, "color": 11569512 },
+    { "name": "guard-ramp-se-low", "x": 25, "y": 0, "z": 5.3, "width": 3, "length": 11, "height": 6, "rot": 0, "color": 11569512 },
+    { "name": "guard-ramp-se-high", "x": 25, "y": 6, "z": 19.9, "width": 3, "length": 8.8, "height": 7.4, "rot": 0, "color": 11569512 },
+    { "name": "guard-ramp-nw-low", "x": -25, "y": 0, "z": -5.3, "width": 3, "length": 11, "height": 6, "rot": 3.14159, "color": 11569512 },
+    { "name": "guard-ramp-nw-high", "x": -25, "y": 6, "z": -19.9, "width": 3, "length": 8.8, "height": 7.4, "rot": 3.14159, "color": 11569512 },
+    { "name": "guard-ramp-sw-low", "x": -31, "y": 0, "z": 5.3, "width": 3, "length": 11, "height": 6, "rot": 0, "color": 11569512 },
+    { "name": "guard-ramp-sw-high", "x": -31, "y": 6, "z": 19.9, "width": 3, "length": 8.8, "height": 7.4, "rot": 0, "color": 11569512 },
+
+    { "name": "west-hall-roof-ramp", "x": -55, "y": 0, "z": 15.2, "width": 3, "length": 11, "height": 5.6, "rot": 3.14159, "color": 11569512 },
+    { "name": "east-hall-roof-ramp", "x": 55, "y": 0, "z": 15.2, "width": 3, "length": 11, "height": 5.6, "rot": 3.14159, "color": 11569512 }
   ],
+  "collision": [],
+  "decor": [],
+  "assets": [],
   "config": {
     "hp": 100,
-    "abilities": ["jetpack", "grenade", "smoke"],
-    "weapons": ["heaviestSpermShooter", "heavySpermShooter", "spermShooter"],
-    "abilityKeys": {
-      "jetpack": "Space"
-    }
+    "abilities": ["dash", "grapple", "grenade", "smoke"],
+    "weapons": ["heavySpermShooter", "spermShooter", "melee"]
   }
 }

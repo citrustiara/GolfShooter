@@ -142,5 +142,10 @@
     { "name": "spine-connector-east", "x": 70, "y": 6.85, "z": 0, "width": 2.4, "length": 6, "height": 2.8, "rot": -1.571, "color": 16765286 },
     { "name": "gantry-east-ramp", "x": 36.5, "y": 0, "z": 10, "width": 3, "length": 14, "height": 7.5, "rot": 1.571, "color": 5943551 },
     { "name": "gantry-west-ramp", "x": -36.5, "y": 0, "z": -10, "width": 3, "length": 14, "height": 7.5, "rot": -1.571, "color": 16740193 }
-  ]
+  ],
+  "config": {
+    "hp": 100,
+    "abilities": ["jump", "radar", "smoke"],
+    "weapons": ["sniper", "rifle", "melee"]
+  }
 }

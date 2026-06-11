@@ -217,6 +217,87 @@ function throwSmokeGrenade() {
   updateHud();
 }
 function activateJumpAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
+function activateDashAbility() {
+  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("dash") || game.dashCooldown > 0) return;
+  const p = fps.players[game.localIndex];
+  const forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw));
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+  const dir = new THREE.Vector3();
+  if (input.keys.has("KeyW")) dir.add(forward);
+  if (input.keys.has("KeyS")) dir.sub(forward);
+  if (input.keys.has("KeyA")) dir.sub(right);
+  if (input.keys.has("KeyD")) dir.add(right);
+  if (dir.lengthSq() < 0.01) dir.copy(forward);
+  dir.normalize();
+  p.vel.x = dir.x * DASH_SPEED;
+  p.vel.z = dir.z * DASH_SPEED;
+  if (p.vel.y < 0) p.vel.y = 0;
+  game.dashTimer = DASH_DURATION;
+  game.dashCooldown = abilityCooldown("dash", DASH_COOLDOWN);
+  playSound("dash", { volume: 0.9 });
+  updateHud();
+}
+function activateGrappleAbility() {
+  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
+  // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
+  // current hook; release happens on keyup. Don't re-fire while attached.
+  if (game.grapple?.active) return;
+  if (game.grappleCooldown > 0) return;
+  const p = fps.players[game.localIndex];
+  const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const ray = new THREE.Raycaster(origin, dir, 0.2, GRAPPLE_RANGE);
+  const hits = ray.intersectObjects(world.obstacles, true);
+  let point = hits.length ? hits[0].point.clone() : null;
+  let distance = hits.length ? hits[0].distance : Infinity;
+  const meshHit = raycastTriangleMeshColliders(world.meshColliders, origin, dir, GRAPPLE_RANGE);
+  if (meshHit && meshHit.distance < distance) { point = meshHit.point.clone(); distance = meshHit.distance; }
+  if (!point) {
+    // Whiffed hook: short tap on the cooldown so it can be retried quickly.
+    game.grappleCooldown = 0.8;
+    playSound("grapple", { volume: 0.4 });
+    updateHud();
+    return;
+  }
+  game.grapple = { active: true, point };
+  game.grappleCooldown = abilityCooldown("grapple", GRAPPLE_COOLDOWN);
+  playSound("grapple", { volume: 0.9 });
+  updateHud();
+}
+function releaseGrapple() {
+  game.grapple = null;
+  if (world.grappleRope) {
+    world.arenaRoot.remove(world.grappleRope);
+    world.grappleRope = null;
+  }
+}
+function updateGrappleRope() {
+  const g = game.grapple;
+  if (!g?.active || game.phase !== "fps") {
+    if (world.grappleRope) releaseGrapple();
+    return;
+  }
+  if (!world.grappleRope) {
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 1, 6),
+      new THREE.MeshBasicMaterial({ color: 0x20262e })
+    );
+    const hookHead = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd166 }));
+    hookHead.name = "hookHead";
+    rope.add(hookHead);
+    world.grappleRope = rope;
+    world.arenaRoot.add(rope);
+  }
+  const p = fps.players[game.localIndex];
+  const start = new THREE.Vector3(p.pos.x, p.pos.y + 1.1, p.pos.z);
+  const span = g.point.clone().sub(start);
+  const length = Math.max(0.1, span.length());
+  world.grappleRope.position.copy(start).addScaledVector(span, 0.5);
+  world.grappleRope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), span.clone().normalize());
+  world.grappleRope.scale.set(1, length, 1);
+  const head = world.grappleRope.getObjectByName("hookHead");
+  if (head) { head.position.set(0, 0.5, 0); head.scale.set(1, 1 / length, 1); }
+}
 function activateHealAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
@@ -357,8 +438,22 @@ function countObstaclesBeforeDistance(intersections, meshWallHit, distance) {
 }
 function fireHitscan() {
   if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
-  if (game.phase !== "fps" || game.countdown > 0 || game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
+  if (game.phase !== "fps" || game.countdown > 0) return;
   const cfg = weaponConfig();
+  if (cfg.meleeAttack) {
+    // Blade weapons in the gun slot (katana): no ammo, no reload, fast swings.
+    meleeStrike({
+      range: cfg.range || 5.0,
+      bodyDamage: cfg.damage || 70,
+      headDamage: Math.floor((cfg.damage || 70) * (cfg.crit || 1.5)),
+      swingDuration: 0.24,
+      minDelay: cfg.fireDelay || 260,
+      sound: "katana",
+      weaponId: game.primaryWeapon
+    });
+    return;
+  }
+  if (game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   if (cfg.projectile) { fireProjectileWeapon(cfg); return; }
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon === "heavySniper" ? "sniper" : game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
@@ -485,20 +580,21 @@ function playerHeadHitCenter(player) {
 function playerBodyHitCenter(player) {
   return player.pos.clone().add(new THREE.Vector3(0, FPS_BODY_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
 }
-function fireMelee() {
+function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDuration = 0.32, minDelay = 320, sound = "melee", weaponId = "melee" } = {}) {
   if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
-  const now = performance.now(); if (now - game.lastShotAt < 320) return; game.lastShotAt = now; game.meleeSwingTimer = 0.32; playSound("melee");
+  const now = performance.now(); if (now - game.lastShotAt < minDelay) return; game.lastShotAt = now; game.meleeSwingTimer = swingDuration; playSound(sound);
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
   let hit = false, hs = false, targetIndex = null, targetDist = Infinity;
   for (const { player: opp, index } of opposingFpsPlayers()) {
     const hC = playerHeadHitCenter(opp), bC = playerBodyHitCenter(opp), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
-    if (dH < targetDist && dH < 2.6 && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
-    else if (dB < targetDist && dB < 2.6 && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
+    if (dH < targetDist && dH < range && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
+    else if (dB < targetDist && dB < range && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  const dmg = hit ? (hs ? 100 : 50) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex, { weapon: "melee", distance: targetDist, headshot: hs }); } }
-  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, headshot: hs, distance: hit ? targetDist : null }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { showEliminationNotice(targetIndex, { weapon: weaponId, distance: targetDist, headshot: hs }); } }
+  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, weapon: weaponId, headshot: hs, distance: hit ? targetDist : null }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
+function fireMelee() { meleeStrike(); }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
 function rayHitsPlayer(origin, direction, player) { const hC = playerHeadHitCenter(player), hD = rayHitsSphere(origin, direction, hC, FPS_HEAD_HIT_RADIUS), bC = playerBodyHitCenter(player), bD = rayHitsSphere(origin, direction, bC, FPS_BODY_HIT_RADIUS); if (hD !== null && (bD === null || hD < bD)) return { distance: hD, headshot: true }; if (bD !== null) return { distance: bD, headshot: false }; return null; }
 const TRACER_STYLES = {
@@ -675,8 +771,78 @@ function syncThirdPersonWeaponMesh(group, weaponId) {
   group.scale.setScalar(thirdPersonWeaponScale(weaponId));
 }
 
+function enemyVisibleToCamera(player) {
+  // FOV gate: the enemy must intersect the camera frustum.
+  camera.updateMatrixWorld();
+  const center = player.pos.clone().add(new THREE.Vector3(0, 1.0, 0));
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(
+    new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+  );
+  if (!frustum.intersectsSphere(new THREE.Sphere(center, 1.1))) return false;
+  // Line-of-sight gate: body or head must be reachable without crossing walls.
+  for (const target of [center, playerHeadHitCenter(player)]) {
+    const dir = target.clone().sub(camera.position);
+    const dist = dir.length();
+    if (dist < 0.5) return true;
+    dir.normalize();
+    const ray = new THREE.Raycaster(camera.position, dir, 0.1, dist - 0.6);
+    if (ray.intersectObjects(world.obstacles, true).length) continue;
+    if (raycastTriangleMeshColliders(world.meshColliders, camera.position, dir, dist - 0.6)) continue;
+    return true;
+  }
+  return false;
+}
+
+function scopeHighlightActive() {
+  return game.phase === "fps" && (game.scopeAmount || 0) > 0.55;
+}
+
+function updateScopeEnemyBoxes() {
+  if (!enemyBoxLayer) return;
+  const active = scopeHighlightActive();
+  const used = new Set();
+  if (active) {
+    for (const { player, index } of opposingFpsPlayers()) {
+      const mesh = world.playerMeshes[index];
+      if (!mesh?.visible || !enemyVisibleToCamera(player)) continue;
+      const drop = playerSlideHitboxDrop(player);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, behind = false;
+      for (const ox of [-0.62, 0.62]) {
+        for (const oy of [0.05, 1.95 - drop]) {
+          for (const oz of [-0.62, 0.62]) {
+            const corner = new THREE.Vector3(player.pos.x + ox, player.pos.y + oy, player.pos.z + oz);
+            if (corner.clone().sub(camera.position).dot(directionFromAngles(input.yaw, input.pitch)) < 0.2) { behind = true; break; }
+            const screen = toScreen(corner);
+            minX = Math.min(minX, screen.x); maxX = Math.max(maxX, screen.x);
+            minY = Math.min(minY, screen.y); maxY = Math.max(maxY, screen.y);
+          }
+          if (behind) break;
+        }
+        if (behind) break;
+      }
+      if (behind || !Number.isFinite(minX)) continue;
+      used.add(String(index));
+      let el = enemyBoxLayer.querySelector(`[data-enemy="${index}"]`);
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "enemy-scope-box";
+        el.dataset.enemy = String(index);
+        enemyBoxLayer.appendChild(el);
+      }
+      el.style.left = `${minX}px`;
+      el.style.top = `${minY}px`;
+      el.style.width = `${Math.max(8, maxX - minX)}px`;
+      el.style.height = `${Math.max(8, maxY - minY)}px`;
+    }
+  }
+  for (const el of [...enemyBoxLayer.children]) {
+    if (!used.has(el.dataset.enemy)) el.remove();
+  }
+}
+
 function updatePlayerMeshes(dt = 1 / 60) {
   const isRadarActive = game.radarTimer > 0;
+  const scopeActive = scopeHighlightActive();
   for (let i = 0; i < world.playerMeshes.length; i++) {
     const mesh = world.playerMeshes[i], player = fps.players[i];
     player.visualSlide = moveTowards(player.visualSlide || 0, player.sliding ? 1 : 0, dt * 8.0);
@@ -698,6 +864,10 @@ function updatePlayerMeshes(dt = 1 / 60) {
 
     mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
 
+    // Scope highlight: while hard-scoped, enemies inside the view frustum with
+    // line of sight burn bright red (depth-tested — never through walls).
+    const scopeHighlight = scopeActive && mesh.visible && i !== game.localIndex && enemyVisibleToCamera(player);
+
     // Wallhack uses per-mesh cloned materials so shared player materials are never left hidden/mutated.
     mesh.traverse((child) => {
       if (!child.isMesh) return;
@@ -718,6 +888,10 @@ function updatePlayerMeshes(dt = 1 / 60) {
         }
         child.material = child.userData.wallhackMaterial;
         child.renderOrder = 9999;
+      } else if (scopeHighlight) {
+        child.userData.scopeMaterial ??= new THREE.MeshBasicMaterial({ color: 0xff2a2a, toneMapped: false });
+        child.material = child.userData.scopeMaterial;
+        child.renderOrder = child.userData.baseRenderOrder || 0;
       } else {
         child.material = child.userData.baseMaterial;
         child.renderOrder = child.userData.baseRenderOrder || 0;
@@ -733,6 +907,13 @@ Object.assign(globalThis, {
   throwSmokeGrenade,
   activateJumpAbility,
   activateHealAbility,
+  activateDashAbility,
+  activateGrappleAbility,
+  releaseGrapple,
+  updateGrappleRope,
+  enemyVisibleToCamera,
+  scopeHighlightActive,
+  updateScopeEnemyBoxes,
   grenadeRadius,
   grenadeDamage,
   explosiveWeaponLabel,
@@ -756,6 +937,7 @@ Object.assign(globalThis, {
   playerSlideHitboxDrop,
   playerHeadHitCenter,
   playerBodyHitCenter,
+  meleeStrike,
   fireMelee,
   rayHitsSphere,
   rayHitsPlayer,

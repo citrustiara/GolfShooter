@@ -98,21 +98,27 @@ export function makePlayerMesh(material) {
   headGroup.add(meleePart);
 
   // ---- Enemy visibility outline ----
-  // Inverted-hull rim around every body part: enemies read as a hot magenta
-  // silhouette against any map. Hulls share one material and are flagged so
-  // nothing tries to outline an outline.
-  const outlineMat = new THREE.MeshBasicMaterial({ color: 0xff2d78, side: THREE.BackSide, toneMapped: false });
+  // Double inverted-hull rim around every body part: a bright white halo
+  // hugging the body with a hot magenta contour outside it, so enemies read
+  // as a comic-sticker silhouette against any map color or lighting. Hulls
+  // share materials and are flagged so nothing tries to outline an outline.
+  const outlineInnerMat = new THREE.MeshBasicMaterial({ color: 0xfffdf5, side: THREE.BackSide, toneMapped: false });
+  const outlineOuterMat = new THREE.MeshBasicMaterial({ color: 0xff2d78, side: THREE.BackSide, toneMapped: false });
   const outlineTargets = [];
   group.traverse((child) => {
     if (child.isMesh && !child.userData.isPlayerOutline && !child.userData.skipOutline) outlineTargets.push(child);
   });
   for (const mesh of outlineTargets) {
-    const hull = new THREE.Mesh(mesh.geometry, outlineMat);
-    hull.scale.setScalar(1.09);
-    hull.userData.isPlayerOutline = true;
-    hull.castShadow = false;
-    hull.receiveShadow = false;
-    mesh.add(hull);
+    const inner = new THREE.Mesh(mesh.geometry, outlineInnerMat);
+    inner.scale.setScalar(1.08);
+    const outer = new THREE.Mesh(mesh.geometry, outlineOuterMat);
+    outer.scale.setScalar(1.16);
+    for (const hull of [inner, outer]) {
+      hull.userData.isPlayerOutline = true;
+      hull.castShadow = false;
+      hull.receiveShadow = false;
+      mesh.add(hull);
+    }
   }
 
   return group;

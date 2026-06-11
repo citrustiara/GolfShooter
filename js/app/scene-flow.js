@@ -177,6 +177,12 @@ function hideFpsHudUi() {
   game.reloadTimer = 0;
   game.reloadWeapon = null;
   game.radarTimer = 0;
+  game.scopeAmount = 0;
+  game.dashTimer = 0;
+  releaseGrapple?.();
+  scopeOverlay?.classList.add("hidden");
+  if (crosshairEl) crosshairEl.style.opacity = "";
+  enemyBoxLayer?.replaceChildren();
   input.shootHeld = false;
   input.aiming = false;
   world.weapon && (world.weapon.visible = false);
@@ -274,7 +280,7 @@ function enterFps(isSimulation = false, options = {}) {
                          (allowedWeapons.find((id) => id !== "melee") || allowedWeapons[0] || "pistol");
   const startAsMelee = randomMelee || startingWeapon === "melee";
   fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.stepTimer = 0; p.stepSide = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
-  game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.throwTimer = 0; game.throwBlockTimer = 0; game.throwKind = ""; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.smokeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0;
+  game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.throwTimer = 0; game.throwBlockTimer = 0; game.throwKind = ""; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.smokeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0; game.dashCooldown = 0; game.dashTimer = 0; game.grappleCooldown = 0; game.scopeAmount = 0; releaseGrapple?.();
   if (game.role === "solo") game.localIndex = 0;
   setupArena(); fps.players.forEach((p) => clampArenaPosition(p.pos, 0.5)); applyWeaponState(game.activeWeapon, game.primaryWeapon); syncPrimaryWeaponModel(); updateHud();
 }
