@@ -52,10 +52,13 @@ app.initNetworkLinks({
   showMenuScene: app.showMenuScene,
   drawLaser: app.drawLaser,
   drawMeleeSwipe: app.drawMeleeSwipe,
+  drawParryEffect: app.drawParryEffect,
+  startParryCooldownForPlayer: app.startParryCooldownForPlayer,
   showDamageTaken: app.showDamageTaken,
   showKilledBy: app.showKilledBy,
   weaponLabel: app.weaponLabel,
   showDamageDealt: app.showDamageDealt,
+  showHitMarker: app.showHitMarker,
   showEliminationNotice: app.showEliminationNotice
 });
 

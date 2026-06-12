@@ -41,6 +41,9 @@ export const game = {
   lastShotAt: 0,
   activeWeapon: "gun",
   meleeSwingTimer: 0,
+  parryCooldown: 0,
+  parryReloadTotal: 0,
+  parryAnimTimer: 0,
   primaryWeapon: "rifle",
   weaponSwapTimer: 0,
   weaponSwapCommitted: true,
@@ -136,8 +139,8 @@ export const world = {
 
 export const fps = {
   players: [
-    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 },
-    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 }
+    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", stepTimer: 0, stepSide: 0, airTime: 0 },
+    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", stepTimer: 0, stepSide: 0, airTime: 0 }
   ],
   arenaHalf: 56,
   gravity: -30,

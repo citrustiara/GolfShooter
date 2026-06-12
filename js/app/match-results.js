@@ -59,6 +59,10 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   game.result = { winner, reason, mapOver, mapTied, matchOver, matchWinner };
   game.fpsRoundWinner = winner;
   game.victoryLapStart = performance.now();
+  game.parryCooldown = 0;
+  game.parryReloadTotal = 0;
+  game.parryAnimTimer = 0;
+  document.getElementById("reloadProgress")?.classList.add("hidden");
   radarMarker.classList.add("hidden");
   if (winner !== game.localIndex) {
     damageVignette.classList.remove("active");

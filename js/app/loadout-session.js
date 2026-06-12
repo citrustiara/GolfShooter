@@ -6,6 +6,12 @@ function weaponLabelText(id = game.primaryWeapon) { return id === "melee" ? "Clu
 function freshAmmoState() { return Object.fromEntries(weaponIds.map((id) => [id, weaponMaxAmmo(id)])); }
 function chooseRandomTournamentWeapon() { return randomTournamentWeapons[Math.floor(Math.random() * randomTournamentWeapons.length)] || "heavySniper"; }
 function isRandomMeleeWeapon(id = game.randomWeapon) { return id === "melee"; }
+function activeFpsWeaponId(active = game.activeWeapon, primary = game.primaryWeapon) { return active === "melee" ? "melee" : primary; }
+function isParryWeaponId(id) { return id === "melee" || Boolean(weaponConfig(id).meleeAttack); }
+function parryReloadForWeapon(id = activeFpsWeaponId()) {
+  const cfg = weaponConfig(id);
+  return Math.max(0.1, Number(cfg.parryReload ?? (id === "katana" ? 0.62 : 1.1)) || 1.0);
+}
 function defaultWeaponList() { return [...standardWeaponIds, "melee"].filter((id, index, arr) => id && arr.indexOf(id) === index); }
 function defaultAbilityKeys() { return Object.fromEntries(ABILITY_CHOICES.map((ability) => [ability.id, ability.defaultKey])); }
 function defaultLoadout() { return { id: "standard", hp: 100, speed: 1.0, gravity: FPS_DEFAULT_GRAVITY, abilities: ["jump", "heal", "grenade", "smoke", "radar"], cooldowns: {}, weapons: defaultWeaponList(), abilityKeys: defaultAbilityKeys() }; }
@@ -79,7 +85,7 @@ function aimingSensitivityMultiplier() {
   // Standard shooter ADS scaling ("zoom ratio"): sensitivity follows the ratio
   // of the tangents of the half-FOVs, so a target moves across the screen at
   // the same perceived speed whether hip-firing or hard-scoped with a sniper.
-  const cfg = weaponConfig();
+  const cfg = weaponConfig(activeFpsWeaponId());
   const aimFov = cfg.aimFov || FPS_AIM_FOV;
   const baseFov = game.fov || FPS_DEFAULT_FOV;
   const ratio = Math.tan((aimFov * Math.PI) / 360) / Math.tan((baseFov * Math.PI) / 360);
@@ -268,7 +274,7 @@ function ensureFpsPlayers(count = game.playerCount) {
   const targetCount = Math.max(2, Math.floor(count || 2));
   game.playerCount = targetCount;
   while (fps.players.length < targetCount) {
-    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 });
+    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", stepTimer: 0, stepSide: 0, airTime: 0 });
   }
   if (fps.players.length > targetCount) fps.players.length = targetCount;
   for (const prop of ["fpsMapWins", "fpsKillWins"]) {
@@ -343,6 +349,9 @@ Object.assign(globalThis, {
   freshAmmoState,
   chooseRandomTournamentWeapon,
   isRandomMeleeWeapon,
+  activeFpsWeaponId,
+  isParryWeaponId,
+  parryReloadForWeapon,
   defaultWeaponList,
   defaultAbilityKeys,
   defaultLoadout,

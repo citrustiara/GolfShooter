@@ -35,7 +35,7 @@ function updateHud() {
   const bladeEquipped = game.activeWeapon === "gun" && Boolean(weaponConfig(game.primaryWeapon).meleeAttack);
   ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun" || bladeEquipped); if (game.activeWeapon === "gun" && !bladeEquipped) ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
   const progress = document.getElementById("reloadProgress");
-  if (progress && !game.reloading && game.radarTimer <= 0) progress.classList.add("hidden");
+  if (progress && !game.reloading && game.radarTimer <= 0 && game.parryCooldown <= 0) progress.classList.add("hidden");
 }
 function switchWeapon(wt) { if (game.radarTimer > 0) return; if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
 function selectPrimaryWeapon(wp, animate = false) { if (game.radarTimer > 0) return; if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }

@@ -172,6 +172,28 @@
   transition: transform 30ms linear;
 }
 
+.parry-impact-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.82) 0 4%, rgba(126, 226, 255, 0.34) 8%, transparent 22%),
+    repeating-linear-gradient(135deg, transparent 0 16px, rgba(255, 244, 168, 0.16) 16px 18px, transparent 18px 34px);
+}
+
+.parry-impact-frame.active {
+  animation: parryImpactFrame 180ms steps(2, end);
+}
+
+@keyframes parryImpactFrame {
+  0% { opacity: 0.95; filter: contrast(1.6) saturate(1.8); }
+  45% { opacity: 0.55; }
+  100% { opacity: 0; filter: contrast(1) saturate(1); }
+}
+
 .hit-marker {
   position: absolute;
   left: 50%;

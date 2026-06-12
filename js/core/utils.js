@@ -343,6 +343,13 @@ export function playSound(type, options = {}) {
     sweep(2400, 900, 0.12, 0.32, "sine");
     noise(0.1, 0.45, 5200, 1.6, 0, "highpass");
     noise(0.06, 0.25, 7600, 2.2, 0.02, "highpass");
+  } else if (type === "parry") {
+    // Metallic deflection: a hard spark transient plus a rising shimmer tail.
+    master.gain.setValueAtTime(0.28, now);
+    noise(0.035, 0.75, 7200, 2.4, 0, "highpass");
+    blip(3100, 0.055, 0.48, "triangle");
+    sweep(1200, 3600, 0.16, 0.32, "sine", 0.018);
+    noise(0.12, 0.22, 4600, 1.8, 0.035, "bandpass");
   } else if (type === "footstep" || type === "step") {
     const pitch = (Math.random() - 0.5) * 26;
     master.gain.setValueAtTime(0.18, now);

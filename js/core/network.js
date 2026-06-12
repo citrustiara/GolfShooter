@@ -95,10 +95,13 @@ export const networkLinks = {
   showMenuScene: null,
   drawLaser: null,
   drawMeleeSwipe: null,
+  drawParryEffect: null,
+  startParryCooldownForPlayer: null,
   showDamageTaken: null,
   showKilledBy: null,
   weaponLabel: null,
   showDamageDealt: null,
+  showHitMarker: null,
   showEliminationNotice: null
 };
 
@@ -263,6 +266,39 @@ function startRoundIfOnlyOneSurvivor() {
   else if (alive.length === 0) networkLinks.startVictoryLap(-1, "deathmatch", false);
 }
 
+function handleParryShotVisuals(message) {
+  const parry = message.parry;
+  if (!parry) return;
+  const values = [parry.x, parry.y, parry.z, parry.inDx, parry.inDy, parry.inDz, parry.outDx, parry.outDy, parry.outDz].map(Number);
+  if (!values.every(Number.isFinite)) return;
+  const impact = new THREE.Vector3(values[0], values[1], values[2]);
+  const incoming = new THREE.Vector3(values[3], values[4], values[5]);
+  const outgoing = new THREE.Vector3(values[6], values[7], values[8]);
+  networkLinks.drawParryEffect?.(impact, incoming, outgoing, parry.weapon || "melee", parry.parrier === game.localIndex);
+  networkLinks.drawLaser?.(impact, outgoing, parry.outLength || 32, Boolean(parry.outHit), true, "parry");
+  networkLinks.startParryCooldownForPlayer?.(parry.parrier, parry.weapon || "melee", parry.cooldown);
+  playSound("parry", { position: impact, volume: parry.parrier === game.localIndex ? 1 : 0.88, minDistance: 1.5, maxDistance: 65 });
+}
+
+function applyLocalParryCredit(message) {
+  const parry = message.parry;
+  if (!parry || parry.parrier !== game.localIndex || !Array.isArray(message.damages)) return;
+  for (const entry of message.damages) {
+    if (!entry?.parried || entry.target === game.localIndex) continue;
+    const target = fps.players[entry.target];
+    if (!target || target.health <= 0 || entry.damage <= 0) continue;
+    const wasAlive = target.health > 0;
+    target.health = Math.max(0, target.health - entry.damage);
+    const popPos = target.pos.clone().add(new THREE.Vector3(0, entry.headshot ? 1.85 : 1.1, 0));
+    networkLinks.showDamageDealt?.(entry.damage, popPos, Boolean(entry.headshot));
+    networkLinks.showHitMarker?.(Boolean(entry.headshot));
+    if (wasAlive && target.health <= 0) {
+      networkLinks.showEliminationNotice?.(entry.target, { weaponName: entry.weaponName || `Parried ${networkLinks.weaponLabel?.(message.weapon) || "Shot"}`, distance: entry.distance, headshot: Boolean(entry.headshot) });
+      startRoundIfOnlyOneSurvivor();
+    }
+  }
+}
+
 function shouldRelay(message) {
   return [
     "startTournament",
@@ -367,6 +403,9 @@ export function handleMessage(message, sourceConnection = null) {
     }
     if (message.sliding !== undefined) remote.sliding = message.sliding;
     if (message.weapon !== undefined) remote.weapon = message.weapon;
+    if (message.primaryWeapon !== undefined) remote.primaryWeapon = message.primaryWeapon;
+    if (message.aiming !== undefined) remote.aiming = Boolean(message.aiming);
+    if (message.parryCooldown !== undefined) remote.parryCooldown = Math.max(remote.parryCooldown || 0, Number(message.parryCooldown) || 0);
   }
 
   if (message.type === "fpsFootstep") {
@@ -392,17 +431,32 @@ export function handleMessage(message, sourceConnection = null) {
       } else {
         networkLinks.drawLaser(origin, direction, message.length, message.hit, true, message.weapon);
       }
+      handleParryShotVisuals(message);
+      applyLocalParryCredit(message);
     }
-    const localDamage = Array.isArray(message.damages) ? message.damages.find((entry) => entry.target === game.localIndex) : (message.target === game.localIndex ? message : null);
+    const localDamageEntries = Array.isArray(message.damages) ? message.damages.filter((entry) => entry.target === game.localIndex) : [];
+    const localDamage = localDamageEntries.length ? localDamageEntries.reduce((merged, entry) => ({
+      ...merged,
+      damage: (merged.damage || 0) + (Number(entry.damage) || 0),
+      headshot: Boolean(merged.headshot || entry.headshot),
+      distance: Math.min(merged.distance ?? Infinity, entry.distance ?? Infinity),
+      parried: Boolean(merged.parried || entry.parried),
+      parrier: entry.parried ? entry.parrier : merged.parrier,
+      weaponName: entry.parried ? entry.weaponName : merged.weaponName
+    }), { target: game.localIndex, damage: 0, distance: Infinity }) : (message.target === game.localIndex ? message : null);
+    if (localDamage && localDamage.distance === Infinity) localDamage.distance = message.distance;
     if (localDamage) {
       const dmg = localDamage.damage !== undefined ? localDamage.damage : 20;
       fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - dmg);
       networkLinks.showDamageTaken(dmg);
       if (fps.players[game.localIndex].health <= 0) {
-        networkLinks.showKilledBy(message.isMelee ? (message.weapon && message.weapon !== "melee" ? networkLinks.weaponLabel(message.weapon) : "Club") : networkLinks.weaponLabel(message.weapon), {
+        const killedBy = localDamage.parried
+          ? (localDamage.weaponName || `Parried ${networkLinks.weaponLabel(message.weapon)}`)
+          : (message.isMelee ? (message.weapon && message.weapon !== "melee" ? networkLinks.weaponLabel(message.weapon) : "Club") : networkLinks.weaponLabel(message.weapon));
+        networkLinks.showKilledBy(killedBy, {
           headshot: Boolean(localDamage.headshot ?? message.headshot),
           distance: localDamage.distance ?? message.distance,
-          killerIndex: message.player
+          killerIndex: localDamage.parried ? (localDamage.parrier ?? message.parry?.parrier) : message.player
         });
         startRoundIfOnlyOneSurvivor();
       }

@@ -499,6 +499,150 @@ function countObstaclesBeforeDistance(intersections, meshWallHit, distance) {
   if (meshWallHit && meshWallHit.distance < distance) count += 1;
   return count;
 }
+function fpsPlayerViewOrigin(player) {
+  return new THREE.Vector3(player.pos.x, player.pos.y + (player.currentCamHeight || 1.58), player.pos.z);
+}
+function fpsPlayerAimDirection(player, preferNetworkTarget = false) {
+  const yaw = preferNetworkTarget && Number.isFinite(player.targetYaw) ? player.targetYaw : (player.yaw || 0);
+  const pitch = preferNetworkTarget && Number.isFinite(player.targetPitch) ? player.targetPitch : (player.pitch || 0);
+  return directionFromAngles(yaw, pitch).normalize();
+}
+function parryWeaponForPlayer(index) {
+  const player = fps.players[index];
+  if (!player || player.health <= 0) return null;
+  const active = index === game.localIndex ? game.activeWeapon : (player.weapon || "gun");
+  const primary = index === game.localIndex ? game.primaryWeapon : (player.primaryWeapon || "pistol");
+  const weaponId = active === "melee" ? "melee" : primary;
+  return isParryWeaponId(weaponId) ? weaponId : null;
+}
+function startParryCooldownForPlayer(index, weaponId = parryWeaponForPlayer(index), cooldown = parryReloadForWeapon(weaponId || "melee")) {
+  const player = fps.players[index];
+  if (!player || !weaponId) return;
+  const total = Math.max(0.1, Number(cooldown) || parryReloadForWeapon(weaponId));
+  player.parryCooldown = total;
+  player.parryReloadTotal = total;
+  player.parryEffectTimer = 0.28;
+  player.parryWeapon = weaponId;
+  if (index === game.localIndex) {
+    game.parryCooldown = total;
+    game.parryReloadTotal = total;
+    game.parryAnimTimer = 0.28;
+  }
+}
+function parryAimHasLineOfSight(origin, point) {
+  const toPoint = point.clone().sub(origin);
+  const dist = toPoint.length();
+  if (dist < 0.45) return true;
+  const dir = toPoint.multiplyScalar(1 / dist);
+  const ray = new THREE.Raycaster(origin, dir, 0.1, Math.max(0.1, dist - 0.55));
+  if (ray.intersectObjects(world.obstacles, true).length) return false;
+  return !raycastTriangleMeshColliders(world.meshColliders, origin, dir, Math.max(0.1, dist - 0.55));
+}
+function canPlayerParryShot(parrierIndex, attackerIndex) {
+  const weaponId = parryWeaponForPlayer(parrierIndex);
+  const parrier = fps.players[parrierIndex], attacker = fps.players[attackerIndex];
+  if (!weaponId || !parrier || !attacker || attacker.health <= 0) return false;
+  const active = parrierIndex === game.localIndex ? game.activeWeapon : (parrier.weapon || "gun");
+  const aiming = parrierIndex === game.localIndex ? input.aiming : Boolean(parrier.aiming);
+  if (!aiming || (active !== "melee" && !(active === "gun" && weaponConfig(weaponId).meleeAttack))) return false;
+  const cooldown = parrierIndex === game.localIndex ? game.parryCooldown : (parrier.parryCooldown || 0);
+  if (cooldown > 0.02) return false;
+  const origin = fpsPlayerViewOrigin(parrier);
+  const aim = fpsPlayerAimDirection(parrier, parrierIndex !== game.localIndex);
+  const minDot = Math.cos(THREE.MathUtils.degToRad(weaponConfig(weaponId).parryAngle ?? 20));
+  for (const point of [playerBodyHitCenter(attacker), playerHeadHitCenter(attacker)]) {
+    const toTarget = point.clone().sub(origin);
+    if (toTarget.lengthSq() < 0.01) continue;
+    const dir = toTarget.normalize();
+    if (aim.dot(dir) >= minDot && parryAimHasLineOfSight(origin, point)) return true;
+  }
+  return false;
+}
+function parriedWeaponName(weaponId) {
+  return `Parried ${weaponLabelText(weaponId)}`;
+}
+function buildDeflectedShot(parrierIndex, impact, cfg, weaponId) {
+  const parrier = fps.players[parrierIndex];
+  const direction = fpsPlayerAimDirection(parrier, parrierIndex !== game.localIndex);
+  const maxRayDistance = cfg.range || 150;
+  const ray = new THREE.Raycaster(impact, direction, 0.08, maxRayDistance);
+  const intersects = ray.intersectObjects(world.obstacles, true);
+  const meshWallHit = raycastTriangleMeshColliders(world.meshColliders, impact, direction, maxRayDistance);
+  let wallHit = intersects.length > 0 ? intersects[0] : null;
+  if (meshWallHit && (!wallHit || meshWallHit.distance < wallHit.distance)) wallHit = meshWallHit;
+  let playerHitResult = null;
+  for (let i = 0; i < fps.players.length; i++) {
+    const candidate = fps.players[i];
+    if (i === parrierIndex || !candidate || candidate.health <= 0) continue;
+    const hit = rayHitsPlayer(impact, direction, candidate);
+    if (hit && hit.distance > 0.2 && (!playerHitResult || hit.distance < playerHitResult.distance)) {
+      playerHitResult = { ...hit, index: i, player: candidate };
+    }
+  }
+  let len = wallHit ? wallHit.distance : maxRayDistance;
+  let damageEntry = null;
+  if (playerHitResult) {
+    const wallsBefore = countObstaclesBeforeDistance(intersects, meshWallHit, playerHitResult.distance);
+    if (wallsBefore < 2) {
+      len = playerHitResult.distance;
+      const damage = Math.floor((cfg.damage || 1) * (playerHitResult.headshot ? (cfg.crit || 1) : 1) * (wallsBefore === 1 ? 0.5 : 1));
+      damageEntry = {
+        target: playerHitResult.index,
+        damage,
+        headshot: playerHitResult.headshot,
+        distance: len,
+        parried: true,
+        parrier: parrierIndex,
+        weaponName: parriedWeaponName(weaponId)
+      };
+    }
+  }
+  return { origin: impact.clone(), direction, length: len, hit: Boolean(damageEntry), damageEntry };
+}
+function applyLocalDeflectedDamage(entry, parryEvent) {
+  if (!entry || entry.target !== game.localIndex || entry.damage <= 0) return;
+  const me = fps.players[game.localIndex];
+  const wasAlive = me.health > 0;
+  me.health = Math.max(0, me.health - entry.damage);
+  showDamageTaken(entry.damage);
+  if (wasAlive && me.health <= 0) {
+    showKilledBy(entry.weaponName || "Parried Shot", { headshot: entry.headshot, distance: entry.distance, killerIndex: parryEvent?.parrier });
+    if (aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  }
+  updateHud();
+}
+function triggerParryForHit({ parrierIndex, attackerIndex, shotOrigin, incomingDirection, hitDistance, cfg, weaponId }) {
+  const parryWeapon = parryWeaponForPlayer(parrierIndex);
+  const cooldown = parryReloadForWeapon(parryWeapon);
+  startParryCooldownForPlayer(parrierIndex, parryWeapon, cooldown);
+  const impact = shotOrigin.clone().addScaledVector(incomingDirection, hitDistance);
+  const deflect = buildDeflectedShot(parrierIndex, impact, cfg, weaponId);
+  drawParryEffect(impact, incomingDirection, deflect.direction, parryWeapon, parrierIndex === game.localIndex);
+  drawLaser(deflect.origin, deflect.direction, deflect.length, deflect.hit, true, "parry");
+  playSound("parry", { position: impact, volume: parrierIndex === game.localIndex ? 1 : 0.88, minDistance: 1.5, maxDistance: 65 });
+  const event = {
+    parrier: parrierIndex,
+    attacker: attackerIndex,
+    weapon: parryWeapon,
+    cooldown,
+    x: impact.x,
+    y: impact.y,
+    z: impact.z,
+    inDx: incomingDirection.x,
+    inDy: incomingDirection.y,
+    inDz: incomingDirection.z,
+    outDx: deflect.direction.x,
+    outDy: deflect.direction.y,
+    outDz: deflect.direction.z,
+    outLength: deflect.length,
+    outHit: deflect.hit,
+    target: deflect.damageEntry?.target ?? null,
+    damage: deflect.damageEntry?.damage || 0,
+    headshot: Boolean(deflect.damageEntry?.headshot),
+    distance: deflect.damageEntry?.distance ?? deflect.length
+  };
+  return { event, damageEntry: deflect.damageEntry };
+}
 function fireHitscan() {
   if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
   if (game.phase !== "fps" || game.countdown > 0) return;
@@ -520,8 +664,9 @@ function fireHitscan() {
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   if (cfg.projectile) { fireProjectileWeapon(cfg); return; }
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
-  const shooter = fps.players[game.localIndex], origin = new THREE.Vector3(shooter.pos.x, shooter.pos.y + (shooter.currentCamHeight || 0.72), shooter.pos.z);
-  const pelletCount = cfg.pellets || 1, pellets = [], hitDamages = new Map(), hitHeadshots = new Map(), hitDistances = new Map(); let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null, hitTarget = null, hitWorldPos = null;
+  const shooter = fps.players[game.localIndex], origin = fpsPlayerViewOrigin(shooter);
+  const pelletCount = cfg.pellets || 1, pellets = [], hitDamages = new Map(), hitHeadshots = new Map(), hitDistances = new Map(), deflectDamages = [], parriedTargets = new Set();
+  let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null, hitTarget = null, parryEvent = null;
   for (let i = 0; i < pelletCount; i++) {
     const spread = input.aiming ? (cfg.aimSpread ?? 0) : (cfg.spread ?? 0);
     const direction = spread > 0 ? directionFromAngles(input.yaw + (Math.random() - 0.5) * spread * 2, input.pitch + (Math.random() - 0.5) * spread).normalize() : directionFromAngles(input.yaw, input.pitch).normalize();
@@ -544,7 +689,7 @@ function fireHitscan() {
       const hit = rayHitsPlayer(origin, direction, candidate.player);
       if (hit && (!playerHitResult || hit.distance < playerHitResult.distance)) playerHitResult = { ...hit, index: candidate.index, player: candidate.player };
     }
-    let pelletHit = false, pelletDmg = 0, pelletHS = false, len = cfg.range || 80;
+    let pelletHit = false, pelletParried = false, pelletDmg = 0, pelletHS = false, len = cfg.range || 80;
     if (playerHitResult) {
       const pDist = playerHitResult.distance;
       // Wallbang rule: a bullet punches through at most ONE obstacle (at half
@@ -553,20 +698,30 @@ function fireHitscan() {
       if (wallsBefore >= 2) {
         if (wallHit) len = wallHit.distance;
       } else {
-        pelletHit = true;
-        pelletHS = playerHitResult.headshot;
-        pelletDmg = Math.floor(cfg.damage * (pelletHS ? cfg.crit : 1) * (wallsBefore === 1 ? 0.5 : 1));
         len = pDist;
-        hitTarget ??= playerHitResult.index;
-        hitWorldPos ??= playerHitResult.player.pos.clone();
+        if (parriedTargets.has(playerHitResult.index)) {
+          pelletParried = true;
+        } else if (!parryEvent && canPlayerParryShot(playerHitResult.index, game.localIndex)) {
+          const parry = triggerParryForHit({ parrierIndex: playerHitResult.index, attackerIndex: game.localIndex, shotOrigin: origin, incomingDirection: direction, hitDistance: pDist, cfg, weaponId: game.primaryWeapon });
+          parryEvent = parry.event;
+          if (parry.damageEntry) deflectDamages.push(parry.damageEntry);
+          parriedTargets.add(playerHitResult.index);
+          pelletParried = true;
+        } else {
+          pelletHit = true;
+          pelletHS = playerHitResult.headshot;
+          pelletDmg = Math.floor(cfg.damage * (pelletHS ? cfg.crit : 1) * (wallsBefore === 1 ? 0.5 : 1));
+          hitTarget ??= playerHitResult.index;
+        }
       }
     } else if (wallHit) len = wallHit.distance;
-    drawLaser(origin, direction, len, pelletHit, false, game.primaryWeapon);
-    pellets.push({ dx: direction.x, dy: direction.y, dz: direction.z, length: len, hit: pelletHit });
+    drawLaser(origin, direction, len, pelletHit || pelletParried, false, game.primaryWeapon);
+    pellets.push({ dx: direction.x, dy: direction.y, dz: direction.z, length: len, hit: pelletHit || pelletParried, parried: pelletParried });
+    if (pelletParried) bestLength = Math.min(bestLength, len);
     if (pelletHit) { anyHit = true; anyHeadshot ||= pelletHS; totalDamage += pelletDmg; bestLength = Math.min(bestLength, len); hitDamages.set(playerHitResult.index, (hitDamages.get(playerHitResult.index) || 0) + pelletDmg); hitHeadshots.set(playerHitResult.index, Boolean(hitHeadshots.get(playerHitResult.index) || pelletHS)); hitDistances.set(playerHitResult.index, Math.min(hitDistances.get(playerHitResult.index) ?? Infinity, len)); }
   }
-  const damages = [...hitDamages.entries()].map(([target, damage]) => ({ target, damage, headshot: Boolean(hitHeadshots.get(target)), distance: hitDistances.get(target) }));
-  for (const entry of damages) {
+  const normalDamages = [...hitDamages.entries()].map(([target, damage]) => ({ target, damage, headshot: Boolean(hitHeadshots.get(target)), distance: hitDistances.get(target) }));
+  for (const entry of normalDamages) {
     const target = fps.players[entry.target];
     const wasAlive = target.health > 0;
     target.health = Math.max(0, target.health - entry.damage);
@@ -584,10 +739,14 @@ function fireHitscan() {
       }
     }
   }
+  for (const entry of deflectDamages) applyLocalDeflectedDamage(entry, parryEvent);
   if (anyHit) { showHitMarker(anyHeadshot); updateHud(); }
-  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: firstDirection.x, dy: firstDirection.y, dz: firstDirection.z, hit: anyHit, length: bestLength, damage: damages[0]?.damage || totalDamage, target: anyHit ? hitTarget : null, damages, headshot: anyHeadshot, weapon: game.primaryWeapon, pellets: pelletCount > 1 ? pellets : null });
-  if (anyHit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  const damages = [...normalDamages, ...deflectDamages];
+  const anyVisualHit = anyHit || Boolean(parryEvent);
+  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: firstDirection.x, dy: firstDirection.y, dz: firstDirection.z, hit: anyVisualHit, length: bestLength, damage: damages[0]?.damage || totalDamage, target: damages[0]?.target ?? (anyHit ? hitTarget : null), damages, headshot: anyHeadshot || Boolean(parryEvent?.headshot), weapon: game.primaryWeapon, pellets: pelletCount > 1 ? pellets : null, parry: parryEvent });
+  if ((anyHit || deflectDamages.some((entry) => entry.target === game.localIndex)) && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
+
 function isPointInsideProjectileBlocker(point, radius = 0.18) {
   const box = new THREE.Box3();
   for (const obstacle of world.obstacles) {
@@ -678,6 +837,7 @@ const TRACER_STYLES = {
   drumShotgun: { core: 0xffe9cc, glow: 0xff8a4d, width: 0.65 },
   laser: { core: 0xffffff, glow: 0xff3ea5, width: 1.1 },
   bouncer: { core: 0xeaffe9, glow: 0x6bf178, width: 1.2 },
+  parry: { core: 0xffffff, glow: 0x7ee2ff, width: 1.65 },
   spermShooter: { core: 0xffffff, glow: 0xfff9e6, width: 0.9 },
   heavySpermShooter: { core: 0xffffff, glow: 0xfff3c4, width: 1.15 },
   heaviestSpermShooter: { core: 0xffffff, glow: 0xffeda0, width: 1.45 }
@@ -781,6 +941,69 @@ function drawMeleeSwipe(origin, direction) {
   }
   world.arenaRoot.add(swipeGroup);
   world.lasers.push({ beam: swipeGroup, ttl: 0.18, maxTtl: 0.18, isSwipe: true });
+}
+function flashParryImpactFrame() {
+  let frame = document.getElementById("parryImpactFrame");
+  if (!frame) {
+    frame = document.createElement("div");
+    frame.id = "parryImpactFrame";
+    frame.className = "parry-impact-frame";
+    overlay?.appendChild(frame);
+  }
+  frame.classList.remove("active");
+  void frame.offsetWidth;
+  frame.classList.add("active");
+  window.setTimeout(() => frame.classList.remove("active"), 190);
+}
+function drawParryEffect(position, incomingDirection, outgoingDirection, weaponId = "melee", localImpact = false) {
+  const pos = position.clone();
+  const incoming = incomingDirection.clone().normalize();
+  const outgoing = outgoingDirection.clone().normalize();
+  const group = new THREE.Group();
+  const color = weaponId === "katana" ? 0x9ff7ff : 0xfff4a8;
+  const hot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 14, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  hot.position.copy(pos);
+  const halo = new THREE.Mesh(
+    new THREE.SphereGeometry(0.48, 18, 12),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  halo.position.copy(pos);
+  const normal = incoming.clone().negate().add(outgoing).normalize();
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.44, 0.035, 8, 28),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  ring.position.copy(pos);
+  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.lengthSq() > 0.001 ? normal : outgoing);
+  const flash = new THREE.Mesh(
+    new THREE.ConeGeometry(0.16, 0.62, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  flash.position.copy(pos).addScaledVector(outgoing, 0.26);
+  flash.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), outgoing);
+  group.add(halo, hot, ring, flash);
+  const right = new THREE.Vector3().crossVectors(outgoing, new THREE.Vector3(0, 1, 0));
+  if (right.lengthSq() < 0.01) right.set(1, 0, 0);
+  right.normalize();
+  const up = new THREE.Vector3().crossVectors(right, outgoing).normalize();
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const dir = right.clone().multiplyScalar(Math.cos(angle)).add(up.clone().multiplyScalar(Math.sin(angle))).add(outgoing.clone().multiplyScalar(0.55)).normalize();
+    const len = 0.28 + Math.random() * 0.42;
+    const spark = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.026, len, 5),
+      new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffffff : color, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    spark.position.copy(pos).addScaledVector(dir, len * 0.5);
+    spark.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    group.add(spark);
+  }
+  world.arenaRoot.add(group);
+  world.lasers.push({ beam: group, ttl: 0.24, maxTtl: 0.24, isParry: true });
+  if (localImpact) flashParryImpactFrame();
 }
 function updateLasers(dt) {
   for (let i = world.lasers.length - 1; i >= 0; i--) {
@@ -938,6 +1161,13 @@ function updatePlayerMeshes(dt = 1 / 60) {
         syncThirdPersonWeaponMesh(m, "melee");
         g.visible = player.weapon === "gun";
         m.visible = player.weapon === "melee";
+        const parryPulse = player.parryEffectTimer > 0 ? Math.sin((player.parryEffectTimer / 0.28) * Math.PI) : 0;
+        if (parryPulse > 0) {
+          const guard = player.weapon === "melee" ? m : g;
+          guard.rotation.z += -0.9 * parryPulse;
+          guard.rotation.x += 0.45 * parryPulse;
+          guard.position.y += 0.08 * parryPulse;
+        }
       }
     }
 
@@ -1013,6 +1243,11 @@ Object.assign(globalThis, {
   disposeGrenade,
   superchargeGrenade,
   grenadeRayHit,
+  fpsPlayerViewOrigin,
+  fpsPlayerAimDirection,
+  parryWeaponForPlayer,
+  startParryCooldownForPlayer,
+  canPlayerParryShot,
   fireHitscan,
   isPointInsideProjectileBlocker,
   firstPersonProjectileOrigin,
@@ -1026,6 +1261,7 @@ Object.assign(globalThis, {
   rayHitsPlayer,
   drawLaser,
   drawMeleeSwipe,
+  drawParryEffect,
   updateLasers,
   showHitMarker,
   showDamageDealt,

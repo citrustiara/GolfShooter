@@ -27,6 +27,21 @@ function updateFps(dt, now) {
     updateFpsMovement(dt);
   }
   updateWeaponSwap(dt);
+  if (game.parryCooldown > 0) game.parryCooldown = Math.max(0, game.parryCooldown - dt);
+  if (game.parryAnimTimer > 0) game.parryAnimTimer = Math.max(0, game.parryAnimTimer - dt);
+  for (let i = 0; i < fps.players.length; i++) {
+    const player = fps.players[i];
+    if (!player) continue;
+    if (i !== game.localIndex && player.parryCooldown > 0) player.parryCooldown = Math.max(0, player.parryCooldown - dt);
+    if (player.parryEffectTimer > 0) player.parryEffectTimer = Math.max(0, player.parryEffectTimer - dt);
+  }
+  const localPlayer = fps.players[game.localIndex];
+  if (localPlayer) {
+    localPlayer.aiming = input.aiming;
+    localPlayer.parryCooldown = game.parryCooldown;
+    localPlayer.parryReloadTotal = game.parryReloadTotal;
+    localPlayer.parryWeapon = activeFpsWeaponId();
+  }
   const bar = document.getElementById("reloadBar");
   const progress = document.getElementById("reloadProgress");
   if (game.reloading) {
@@ -60,9 +75,22 @@ function updateFps(dt, now) {
       bar.style.background = "#6bf178";
       bar.style.boxShadow = "none";
     }
+  } else if (game.parryCooldown > 0) {
+    const total = Math.max(0.1, game.parryReloadTotal || parryReloadForWeapon(activeFpsWeaponId()));
+    const pct = Math.max(0, Math.min(100, ((total - game.parryCooldown) / total) * 100));
+    if (bar && progress) {
+      progress.classList.remove("hidden");
+      bar.style.width = "100%";
+      bar.style.transform = `scaleX(${pct / 100})`;
+      bar.style.background = "linear-gradient(90deg, #7ee2ff, #fff4a8 55%, #ff6f61)";
+      bar.style.boxShadow = "0 0 12px rgba(126, 226, 255, 0.75)";
+    }
   } else {
     if (progress) progress.classList.add("hidden");
-    if (bar) bar.style.transform = "scaleX(0)";
+    if (bar) {
+      bar.style.transform = "scaleX(0)";
+      bar.style.boxShadow = "none";
+    }
   }
   if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.throwTimer > 0) game.throwTimer = Math.max(0, game.throwTimer - dt); if (game.throwBlockTimer > 0) game.throwBlockTimer = Math.max(0, game.throwBlockTimer - dt); if (game.throwTimer <= 0) game.throwKind = ""; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt; if (game.dashCooldown > 0) game.dashCooldown -= dt; if (game.dashTimer > 0) game.dashTimer -= dt; if (game.grappleCooldown > 0) game.grappleCooldown -= dt;
   if (game.radarTimer > 0) {
@@ -93,14 +121,14 @@ function updateFps(dt, now) {
     game.roundEndGrace = 0;
   }
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
-  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon }); }
+  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming, parryCooldown: game.parryCooldown }); }
   updateHud();
 }
 function updateFpsCamera(dt) {
   const p = fps.players[game.localIndex]; p.yaw = input.yaw; p.pitch = input.pitch; p.currentCamHeight = moveTowards(p.currentCamHeight || 1.58, p.sliding ? 0.8 : 1.58, dt * 2.5);
   game.visualRecoil = moveTowards(game.visualRecoil, 0, dt * 9);
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
-  const cfg = weaponConfig(game.primaryWeapon);
+  const cfg = weaponConfig(activeFpsWeaponId());
   const baseFov = game.fov || FPS_DEFAULT_FOV;
   camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix();
   updateScopeState(cfg, baseFov);
@@ -232,6 +260,7 @@ function updateWeaponModel(dt, p) {
   // Golf-club slash: quick wind-up over the right shoulder, then a diagonal
   // strike across the view with a forward lunge, easing back to rest.
   let meleeSwing = 0;
+  let parryGuard = 0;
   const swingingBlade = game.activeWeapon === "melee" || (game.activeWeapon === "gun" && cfg.meleeAttack);
   if (!isRadarActive && swingingBlade && game.meleeSwingTimer > 0) {
     const swingDuration = 0.32;
@@ -245,6 +274,14 @@ function updateWeaponModel(dt, p) {
       .add(right.clone().multiplyScalar(windup * 0.34 - arc * 0.62))
       .add(up.clone().multiplyScalar(windup * 0.3 - arc * 0.5 + recover * 0.2))
       .add(camDir.clone().multiplyScalar(arc * 0.42 - windup * 0.1));
+  } else if (!isRadarActive && swingingBlade && game.parryAnimTimer > 0) {
+    const parryDuration = 0.28;
+    const progress = 1 - Math.max(0, game.parryAnimTimer) / parryDuration;
+    parryGuard = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
+    offset
+      .add(right.clone().multiplyScalar(-0.28 * parryGuard))
+      .add(up.clone().multiplyScalar(0.22 * parryGuard))
+      .add(camDir.clone().multiplyScalar(0.22 * parryGuard));
   }
 
   weapon.position.copy(camera.position).add(offset).add(up.clone().multiplyScalar(animY));
@@ -282,6 +319,10 @@ function updateWeaponModel(dt, p) {
     weapon.rotateZ((windup * 0.55 - arc * 1.85) * settle);
     weapon.rotateX((-windup * 0.5 + arc * 1.15) * settle);
     weapon.rotateY((windup * 0.25 - arc * 0.45) * settle);
+  } else if (parryGuard > 0) {
+    weapon.rotateZ(-0.95 * parryGuard);
+    weapon.rotateX(0.55 * parryGuard);
+    weapon.rotateY(-0.24 * parryGuard);
   } else if (throwArc > 0) {
     weapon.rotateX(-0.55 * throwArc);
     weapon.rotateZ(0.35 * throwArc);
