@@ -21,7 +21,7 @@ function updateFps(dt, now) {
   }
   weaponSelectOverlay.classList.add("hidden");
   const isWinner = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
-  if (isWinner && game.countdown <= 0) {
+  if (isWinner && game.countdown <= 0 && !game.finalKillCinematicActive) {
     if (game.radarTimer > 0 || game.throwBlockTimer > 0) input.aiming = false;
     updateFpsCamera(dt);
     updateFpsMovement(dt);
@@ -74,7 +74,7 @@ function updateFps(dt, now) {
     }
     updateRadarMarker();
   }
-  updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt); updateGrappleRope(); updateScopeEnemyBoxes();
+  updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt); updateGrappleRope(); updateScopeEnemyBoxes(); updateGrappleReticle();
   // Round-end watchdog: if every kill/death message path failed (dropped
   // packet, race with phase changes), a round with <=1 survivors must still
   // end. The short grace period lets the normal paths win first.

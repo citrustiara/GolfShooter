@@ -100,8 +100,13 @@
         </div>
         <div class="final-kill-copy" aria-live="polite">
           <div class="final-kill-target">TARGET</div>
-          <div class="final-kill-eliminated">ELIMINATED</div>
-          <div class="final-kill-status" id="finalKillStatus">YOU WON</div>
+          <div class="final-kill-eliminated">EXECUTED</div>
+          <div class="final-kill-status-row">
+            <button class="final-kill-nav final-kill-back hidden" id="finalKillBackBtn" type="button">&lt; back</button>
+            <div class="final-kill-status" id="finalKillStatus">YOU WON</div>
+            <button class="final-kill-nav final-kill-replay hidden" id="finalKillReplayBtn" type="button">replay &gt;</button>
+          </div>
+          <div class="final-kill-host-note hidden" id="finalKillHostNote"></div>
         </div>
       </div>
     </div>
@@ -229,6 +234,7 @@
       <div class="scope-hair scope-hair-v"></div>
     </div>
     <div id="enemyBoxLayer" aria-hidden="true"></div>
+    <div class="grapple-reticle" id="grappleReticle" aria-hidden="true"></div>
     <div class="crosshair" id="crosshair"></div>
     <div class="reload-progress hidden" id="reloadProgress"><div class="reload-bar" id="reloadBar"></div></div>
     <div class="hit-marker" id="hitMarker"></div>

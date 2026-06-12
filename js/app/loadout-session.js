@@ -2,7 +2,7 @@ import "./globals.js";
 
 function weaponConfig(id = game.primaryWeapon) { return weaponCatalog[id] || weaponCatalog.pistol; }
 function weaponMaxAmmo(id = game.primaryWeapon) { return weaponConfig(id).ammo; }
-function weaponLabelText(id = game.primaryWeapon) { return id === "melee" ? "Club" : weaponConfig(id).label; }
+function weaponLabelText(id = game.primaryWeapon) { return id === "melee" ? "Club" : (id === "grapple" ? "Grapple Hook" : weaponConfig(id).label); }
 function freshAmmoState() { return Object.fromEntries(weaponIds.map((id) => [id, weaponMaxAmmo(id)])); }
 function chooseRandomTournamentWeapon() { return randomTournamentWeapons[Math.floor(Math.random() * randomTournamentWeapons.length)] || "heavySniper"; }
 function isRandomMeleeWeapon(id = game.randomWeapon) { return id === "melee"; }
@@ -87,8 +87,49 @@ function aimingSensitivityMultiplier() {
 }
 let finalKillRevealTimeout = null;
 let finalKillSoundTimeout = null;
+const FINAL_KILL_BLACK_MS = 2000;
+const TARGET_ELIMINATED_AUDIO_LEAD_MS = 400;
+
+function setFinalKillActionNote(text = "") {
+  if (!finalKillHostNote) return;
+  finalKillHostNote.textContent = text;
+  finalKillHostNote.classList.toggle("hidden", !text);
+}
+
+function resetFinalKillControls(root = document.getElementById("finalKillOverlay")) {
+  root?.classList.remove("controls");
+  finalKillBackBtn?.classList.add("hidden");
+  finalKillReplayBtn?.classList.add("hidden");
+  if (finalKillBackBtn) {
+    finalKillBackBtn.disabled = false;
+    finalKillBackBtn.textContent = "< back";
+  }
+  if (finalKillReplayBtn) {
+    finalKillReplayBtn.disabled = false;
+    finalKillReplayBtn.textContent = "replay >";
+  }
+  setFinalKillActionNote("");
+}
+
+function revealFinalKillMatchControls(root, result = game.result) {
+  game.finalKillResultReady = true;
+  input.shootHeld = false;
+  input.aiming = false;
+  input.keys.clear();
+  document.exitPointerLock?.();
+  input.pointerLocked = false;
+  root?.classList.add("controls");
+  finalKillBackBtn?.classList.remove("hidden");
+  finalKillReplayBtn?.classList.remove("hidden");
+  if (game.role === "guest") {
+    setFinalKillActionNote("You won as guest — choices route through the host.");
+  } else {
+    setFinalKillActionNote("");
+  }
+}
 
 function clearFinalKillCinematic() {
+  const wasActive = game.finalKillCinematicActive;
   if (finalKillRevealTimeout) {
     clearTimeout(finalKillRevealTimeout);
     finalKillRevealTimeout = null;
@@ -99,11 +140,17 @@ function clearFinalKillCinematic() {
   }
   game.finalKillCinematicActive = false;
   game.finalKillCinematicRevealed = false;
+  game.finalKillResultReady = false;
   overlay?.classList.remove("final-kill-running");
   const root = document.getElementById("finalKillOverlay");
+  resetFinalKillControls(root);
+  if (wasActive) {
+    silenceGameAudio();
+    resumeGameAudio();
+  }
   if (!root) return;
   root.classList.add("hidden");
-  root.classList.remove("active", "revealed");
+  root.classList.remove("active", "revealed", "controls");
   root.setAttribute("aria-hidden", "true");
 }
 
@@ -144,30 +191,45 @@ function showFinalKillCinematic(result = game.result) {
   if (!root) return false;
   document.getElementById("victoryBanner")?.remove();
   clearFinalKillCinematic();
+  silenceGameAudio();
   game.finalKillCinematicActive = true;
   game.finalKillCinematicRevealed = false;
+  game.finalKillResultReady = false;
+  input.shootHeld = false;
+  input.aiming = false;
   hideKillNotice();
   damageVignette?.classList.remove("active");
   hitMarker?.classList.remove("active", "headshot");
+  game.reloading = false;
+  game.reloadTimer = 0;
+  game.reloadWeapon = null;
+  document.getElementById("reloadProgress")?.classList.add("hidden");
+  world.weapon && (world.weapon.visible = false);
+  world.meleeWeapon && (world.meleeWeapon.visible = false);
+  world.radarDevice && (world.radarDevice.visible = false);
+  scopeOverlay?.classList.add("hidden");
   const status = document.getElementById("finalKillStatus");
   if (status) status.textContent = finalKillStatusText(result);
+  resetFinalKillControls(root);
   overlay?.classList.add("final-kill-running");
   root.classList.remove("hidden");
   root.classList.add("active");
-  root.classList.remove("revealed");
+  root.classList.remove("revealed", "controls");
   root.setAttribute("aria-hidden", "false");
   void root.offsetWidth;
   finalKillSoundTimeout = window.setTimeout(() => {
     finalKillSoundTimeout = null;
     if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
     playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
-  }, 1100);
+  }, Math.max(0, FINAL_KILL_BLACK_MS - TARGET_ELIMINATED_AUDIO_LEAD_MS));
   finalKillRevealTimeout = window.setTimeout(() => {
     finalKillRevealTimeout = null;
     if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
     game.finalKillCinematicRevealed = true;
     root.classList.add("revealed");
-  }, 1500);
+    resumeGameAudio();
+    if (result?.matchOver && result.matchWinner === game.localIndex) revealFinalKillMatchControls(root, result);
+  }, FINAL_KILL_BLACK_MS);
   return true;
 }
 
@@ -179,7 +241,11 @@ function hideKillNotice() { game.killNoticeTimer = 0; killNotice.classList.add("
 function resultOverlayVisible() { return game.phase === "result" || game.finalKillCinematicActive; }
 function victoryComicMonochromeAmount(now = performance.now()) {
   if (game.phase !== "fpsVictoryLap" || game.result?.reason !== "deathmatch") return 0;
-  return 0;
+  // The final-kill cinematic replaces the comic flash on map/match-winning kills.
+  if (game.finalKillCinematicActive) return 0;
+  const elapsed = Math.max(0, (now - game.victoryLapStart) / 1000);
+  if (elapsed < 1.25) return 1;
+  return Math.max(0, 1 - (elapsed - 1.25) / 0.95);
 }
 function activeGolfPlayerIndex() { return game.role === "solo" ? game.currentPlayer : game.localIndex; }
 function golfBallForPlayer(index = activeGolfPlayerIndex()) { return world.golfBalls[index] || world.golfBalls[0]; }
@@ -202,7 +268,7 @@ function ensureFpsPlayers(count = game.playerCount) {
   const targetCount = Math.max(2, Math.floor(count || 2));
   game.playerCount = targetCount;
   while (fps.players.length < targetCount) {
-    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol" });
+    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 });
   }
   if (fps.players.length > targetCount) fps.players.length = targetCount;
   for (const prop of ["fpsMapWins", "fpsKillWins"]) {
@@ -295,6 +361,7 @@ Object.assign(globalThis, {
   abilityCooldown,
   jumpAbilityStrength,
   aimingSensitivityMultiplier,
+  setFinalKillActionNote,
   clearFinalKillCinematic,
   willFpsKillWinMapOrMatch,
   showFinalKillCinematic,

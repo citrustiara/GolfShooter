@@ -237,6 +237,37 @@ function activateDashAbility() {
   playSound("dash", { volume: 0.9 });
   updateHud();
 }
+// Finds the closest grapple anchor along a ray: world geometry, mesh colliders,
+// the arena floor, or an enemy player. Returns { point, distance, targetPlayer }
+// (targetPlayer is the player index when the hook lands on an enemy) or null.
+function findGrappleTarget(origin, dir, range = GRAPPLE_RANGE) {
+  let point = null, distance = Infinity, targetPlayer = null;
+  const hits = new THREE.Raycaster(origin, dir, 0.2, range).intersectObjects(world.obstacles, true);
+  if (hits.length) { point = hits[0].point.clone(); distance = hits[0].distance; }
+  const meshHit = raycastTriangleMeshColliders(world.meshColliders, origin, dir, range);
+  if (meshHit && meshHit.distance < distance) { point = meshHit.point.clone(); distance = meshHit.distance; }
+  // Arena floors are not real obstacle meshes, so intersect their planes
+  // analytically and accept hits only inside an actual floor footprint.
+  const floors = Array.isArray(world.arenaFloors) ? world.arenaFloors : [];
+  if (world.arenaFloorCollision !== false && floors.length && dir.y < -1e-4) {
+    for (const floor of floors) {
+      const floorY = Number(floor.y || 0);
+      const t = (floorY - origin.y) / dir.y;
+      if (t > 0.2 && t < range && t < distance) {
+        const gp = origin.clone().addScaledVector(dir, t);
+        if (isPointInsideArena(gp, [floor])) { point = gp.clone(); distance = t; targetPlayer = null; }
+      }
+    }
+  }
+  // Enemy players: only grabbable if nothing solid is closer along the ray.
+  for (const { player, index } of opposingFpsPlayers()) {
+    const hit = rayHitsPlayer(origin, dir, player);
+    if (hit && hit.distance > 0.2 && hit.distance < range && hit.distance < distance) {
+      point = playerBodyHitCenter(player); distance = hit.distance; targetPlayer = index;
+    }
+  }
+  return point ? { point, distance, targetPlayer } : null;
+}
 function activateGrappleAbility() {
   if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
   // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
@@ -246,23 +277,53 @@ function activateGrappleAbility() {
   const p = fps.players[game.localIndex];
   const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const ray = new THREE.Raycaster(origin, dir, 0.2, GRAPPLE_RANGE);
-  const hits = ray.intersectObjects(world.obstacles, true);
-  let point = hits.length ? hits[0].point.clone() : null;
-  let distance = hits.length ? hits[0].distance : Infinity;
-  const meshHit = raycastTriangleMeshColliders(world.meshColliders, origin, dir, GRAPPLE_RANGE);
-  if (meshHit && meshHit.distance < distance) { point = meshHit.point.clone(); distance = meshHit.distance; }
-  if (!point) {
+  const target = findGrappleTarget(origin, dir);
+  if (!target) {
     // Whiffed hook: short tap on the cooldown so it can be retried quickly.
     game.grappleCooldown = 0.8;
     playSound("grapple", { volume: 0.4 });
     updateHud();
     return;
   }
-  game.grapple = { active: true, point };
+  game.grapple = { active: true, point: target.point.clone(), targetPlayer: target.targetPlayer };
+  if (target.targetPlayer != null) grappleHitPlayer(target.targetPlayer);
   game.grappleCooldown = abilityCooldown("grapple", GRAPPLE_COOLDOWN);
   playSound("grapple", { volume: 0.9 });
   updateHud();
+}
+// Latching the hook onto an enemy deals a fixed chunk of damage (and reels you
+// in via the grapple pull). Damage is applied locally and mirrored to the peer.
+function grappleHitPlayer(index) {
+  const target = fps.players[index];
+  if (!target || index === game.localIndex) return;
+  const wasAlive = target.health > 0;
+  if (!wasAlive) return;
+  target.health = Math.max(0, target.health - GRAPPLE_PLAYER_DAMAGE);
+  const popPos = playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
+  showDamageDealt(GRAPPLE_PLAYER_DAMAGE, popPos, false);
+  showHitMarker(false);
+  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: GRAPPLE_PLAYER_DAMAGE });
+  if (wasAlive && target.health === 0) {
+    const aliveAfterKill = aliveFpsPlayerIndexes();
+    const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
+    if (!cinematicKill) showEliminationNotice(index, { weapon: "grapple", distance: 0, headshot: false });
+    if (aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  }
+  updateHud();
+}
+// Faint ring around the crosshair when the player is looking at something the
+// grapple hook can grab; it turns red when that something is an enemy player.
+function updateGrappleReticle() {
+  if (!grappleReticle) return;
+  const ready = game.phase === "fps" && game.countdown <= 0 && game.radarTimer <= 0
+    && abilityAllowed("grapple") && !game.grapple?.active && game.grappleCooldown <= 0;
+  if (!ready) { grappleReticle.classList.remove("active", "enemy"); return; }
+  const p = fps.players[game.localIndex];
+  const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const target = findGrappleTarget(origin, dir);
+  grappleReticle.classList.toggle("active", Boolean(target));
+  grappleReticle.classList.toggle("enemy", Boolean(target && target.targetPlayer != null));
 }
 function releaseGrapple() {
   game.grapple = null;
@@ -458,7 +519,7 @@ function fireHitscan() {
   if (game.reloading || game.ammo[game.primaryWeapon] <= 0) { if (game.ammo[game.primaryWeapon] <= 0) startReload(); return; }
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   if (cfg.projectile) { fireProjectileWeapon(cfg); return; }
-  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon === "heavySniper" ? "sniper" : game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
+  game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : (game.primaryWeapon === "minigun" ? 0.18 : game.primaryWeapon === "shotgun" ? 0.7 : 0.42); game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(game.primaryWeapon); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload(); updateHud();
   const shooter = fps.players[game.localIndex], origin = new THREE.Vector3(shooter.pos.x, shooter.pos.y + (shooter.currentCamHeight || 0.72), shooter.pos.z);
   const pelletCount = cfg.pellets || 1, pellets = [], hitDamages = new Map(), hitHeadshots = new Map(), hitDistances = new Map(); let totalDamage = 0, anyHit = false, anyHeadshot = false, bestLength = cfg.range || 80, firstDirection = null, hitTarget = null, hitWorldPos = null;
   for (let i = 0; i < pelletCount; i++) {
@@ -777,14 +838,19 @@ function syncThirdPersonWeaponMesh(group, weaponId) {
   group.scale.setScalar(thirdPersonWeaponScale(weaponId));
 }
 
-function enemyVisibleToCamera(player) {
+function enemyInCameraFrustum(player) {
   // FOV gate: the enemy must intersect the camera frustum.
   camera.updateMatrixWorld();
   const center = player.pos.clone().add(new THREE.Vector3(0, 1.0, 0));
   const frustum = new THREE.Frustum().setFromProjectionMatrix(
     new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
   );
-  if (!frustum.intersectsSphere(new THREE.Sphere(center, 1.1))) return false;
+  return frustum.intersectsSphere(new THREE.Sphere(center, 1.1));
+}
+
+function enemyVisibleToCamera(player) {
+  const center = player.pos.clone().add(new THREE.Vector3(0, 1.0, 0));
+  if (!enemyInCameraFrustum(player)) return false;
   // Line-of-sight gate: body or head must be reachable without crossing walls.
   for (const target of [center, playerHeadHitCenter(player)]) {
     const dir = target.clone().sub(camera.position);
@@ -805,12 +871,19 @@ function scopeHighlightActive() {
 
 function updateScopeEnemyBoxes() {
   if (!enemyBoxLayer) return;
-  const active = scopeHighlightActive();
+  const scoped = scopeHighlightActive();
+  // The radar pings enemies through walls, so it draws the same red boxes but
+  // skips the line-of-sight gate the scope requires.
+  const radar = game.phase === "fps" && game.radarTimer > 0;
+  const active = scoped || radar;
   const used = new Set();
   if (active) {
     for (const { player, index } of opposingFpsPlayers()) {
       const mesh = world.playerMeshes[index];
-      if (!mesh?.visible || !enemyVisibleToCamera(player)) continue;
+      if (!mesh?.visible) continue;
+      // Radar uses the same screen-space red boxes as the sniper scope, but it
+      // only skips the line-of-sight portion of the scope visibility test.
+      if (radar ? !enemyInCameraFrustum(player) : !enemyVisibleToCamera(player)) continue;
       const drop = playerSlideHitboxDrop(player);
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, behind = false;
       for (const ox of [-0.62, 0.62]) {
@@ -915,8 +988,12 @@ Object.assign(globalThis, {
   activateHealAbility,
   activateDashAbility,
   activateGrappleAbility,
+  findGrappleTarget,
+  grappleHitPlayer,
+  updateGrappleReticle,
   releaseGrapple,
   updateGrappleRope,
+  enemyInCameraFrustum,
   enemyVisibleToCamera,
   scopeHighlightActive,
   updateScopeEnemyBoxes,

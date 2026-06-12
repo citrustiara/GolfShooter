@@ -90,6 +90,7 @@ export const networkLinks = {
   removeRemoteGrenadesNear: null,
   startVictoryLap: null,
   restartTournament: null,
+  replayFpsMatch: null,
   showLobby: null,
   showMenuScene: null,
   drawLaser: null,
@@ -274,6 +275,7 @@ function shouldRelay(message) {
     "fpsState",
     "fpsFootstep",
     "fpsShot",
+    "fpsGrappleHit",
     "fpsGrenadeThrow",
     "fpsGrenadeExplode",
     "fpsGrenadeShot",
@@ -371,7 +373,7 @@ export function handleMessage(message, sourceConnection = null) {
     if (message.player === game.localIndex || (game.phase !== "fps" && game.phase !== "fpsVictoryLap")) return;
     const pos = new THREE.Vector3(message.x, message.y, message.z);
     if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return;
-    const volume = Math.max(0.04, Math.min(0.28, Number(message.volume) || 0.15));
+    const volume = Math.max(0.04, Math.min(0.32, Number(message.volume) || 0.16));
     playSound("footstep", { position: pos, volume, minDistance: 2.0, maxDistance: 42 });
   }
 
@@ -404,6 +406,18 @@ export function handleMessage(message, sourceConnection = null) {
         });
         startRoundIfOnlyOneSurvivor();
       }
+    }
+  }
+
+  if (message.type === "fpsGrappleHit" && message.target === game.localIndex) {
+    const dmg = message.damage !== undefined ? message.damage : 50;
+    const me = fps.players[game.localIndex];
+    const wasAlive = me.health > 0;
+    me.health = Math.max(0, me.health - dmg);
+    networkLinks.showDamageTaken(dmg);
+    if (wasAlive && me.health <= 0) {
+      networkLinks.showKilledBy(networkLinks.weaponLabel("grapple"), { headshot: false, distance: 0, killerIndex: message.player });
+      startRoundIfOnlyOneSurvivor();
     }
   }
 
@@ -463,6 +477,14 @@ export function handleMessage(message, sourceConnection = null) {
   if (message.type === "matchResult") {
     networkLinks.applyFpsDuelState(message.fpsState);
     networkLinks.startVictoryLap(message.winner, message.reason, false, Boolean(message.fpsState));
+  }
+
+  if (message.type === "postMatchAction" && game.role === "host") {
+    const requestedBy = Number.isInteger(message.player) ? message.player : -1;
+    const winner = game.fpsMatchWinner ?? game.result?.matchWinner ?? game.result?.winner;
+    if (Number.isInteger(winner) && winner !== -1 && requestedBy !== -1 && requestedBy !== winner) return;
+    if (message.action === "replayFps") networkLinks.replayFpsMatch?.(true);
+    else if (message.action === "lobby") networkLinks.restartTournament?.(true);
   }
 
   if (message.type === "restart") {

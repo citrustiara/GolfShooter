@@ -47,6 +47,7 @@ app.initNetworkLinks({
   removeRemoteGrenadesNear: app.removeRemoteGrenadesNear,
   startVictoryLap: app.startVictoryLap,
   restartTournament: app.restartTournament,
+  replayFpsMatch: app.replayFpsMatch,
   showLobby: app.showLobby,
   showMenuScene: app.showMenuScene,
   drawLaser: app.drawLaser,

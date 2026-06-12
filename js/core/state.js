@@ -31,10 +31,12 @@ export const game = {
   fpsCompletedMaps: 0,
   fpsMatchWinner: null,
   fpsMatchOver: false,
+  fpsReplaySnapshot: null,
   countdown: 0,
   result: null,
   finalKillCinematicActive: false,
   finalKillCinematicRevealed: false,
+  finalKillResultReady: false,
   lastSend: 0,
   lastShotAt: 0,
   activeWeapon: "gun",
@@ -134,8 +136,8 @@ export const world = {
 
 export const fps = {
   players: [
-    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0 },
-    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0 }
+    { pos: new THREE.Vector3(-42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 },
+    { pos: new THREE.Vector3(42, 1, 0), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: Math.PI, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, primaryWeapon: "pistol", stepTimer: 0, stepSide: 0, airTime: 0 }
   ],
   arenaHalf: 56,
   gravity: -30,

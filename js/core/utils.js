@@ -4,6 +4,8 @@ import { camera } from "./engine.js";
 
 let audioContext = null;
 let cachedNoiseBuffer = null;
+let sfxMasterGain = null;
+let gameAudioSilenced = false;
 
 const TARGET_ELIMINATED_AUDIO_URL = new URL("../../assets/audio/low-honor-rdr-2.mp3", import.meta.url).href;
 let targetEliminatedAudio = null;
@@ -19,6 +21,24 @@ function targetEliminatedAudioElement() {
 
 function preloadTargetEliminatedSound() {
   targetEliminatedAudioElement()?.load?.();
+}
+
+function stopTargetEliminatedSound() {
+  if (!targetEliminatedAudio) return;
+  try {
+    targetEliminatedAudio.pause();
+    targetEliminatedAudio.currentTime = 0;
+  } catch {}
+}
+
+function ensureSfxMasterGain() {
+  if (!audioContext) return null;
+  if (!sfxMasterGain) {
+    sfxMasterGain = audioContext.createGain();
+    sfxMasterGain.gain.setValueAtTime(gameAudioSilenced ? 0.0001 : 1, audioContext.currentTime);
+    sfxMasterGain.connect(audioContext.destination);
+  }
+  return sfxMasterGain;
 }
 
 function playTargetEliminatedSound(options = {}) {
@@ -38,9 +58,32 @@ function playTargetEliminatedSound(options = {}) {
 export function ensureAudio() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    ensureSfxMasterGain();
     preloadTargetEliminatedSound();
   }
   if (audioContext.state === "suspended") audioContext.resume();
+  ensureSfxMasterGain();
+}
+
+export function silenceGameAudio() {
+  gameAudioSilenced = true;
+  stopTargetEliminatedSound();
+  const master = ensureSfxMasterGain();
+  if (!audioContext || !master) return;
+  const t = audioContext.currentTime;
+  master.gain.cancelScheduledValues(t);
+  master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), t);
+  master.gain.linearRampToValueAtTime(0.0001, t + 0.035);
+}
+
+export function resumeGameAudio() {
+  gameAudioSilenced = false;
+  const master = ensureSfxMasterGain();
+  if (!audioContext || !master) return;
+  const t = audioContext.currentTime;
+  master.gain.cancelScheduledValues(t);
+  master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), t);
+  master.gain.linearRampToValueAtTime(1, t + 0.08);
 }
 
 function noiseBuffer() {
@@ -55,6 +98,7 @@ function noiseBuffer() {
 export function playSound(type, options = {}) {
   if (!audioContext) return;
   if (typeof options === "number") options = { volume: options };
+  if (gameAudioSilenced && type !== "targetEliminated") return;
   if (type === "targetEliminated") {
     playTargetEliminatedSound(options);
     return;
@@ -62,6 +106,7 @@ export function playSound(type, options = {}) {
   const now = audioContext.currentTime;
   const master = audioContext.createGain();
   const output = audioContext.createGain();
+  const destination = ensureSfxMasterGain() || audioContext.destination;
   const volume = Math.max(0, Math.min(3, Number(options.volume ?? 1) || 0));
   let distanceGain = 1;
   let panValue = 0;
@@ -83,9 +128,9 @@ export function playSound(type, options = {}) {
   if (audioContext.createStereoPanner) {
     const panner = audioContext.createStereoPanner();
     panner.pan.setValueAtTime(panValue, now);
-    master.connect(panner).connect(output).connect(audioContext.destination);
+    master.connect(panner).connect(output).connect(destination);
   } else {
-    master.connect(output).connect(audioContext.destination);
+    master.connect(output).connect(destination);
   }
 
   const blip = (frequency, duration, gain, wave = "sine", detune = 0, delay = 0) => {
@@ -140,69 +185,100 @@ export function playSound(type, options = {}) {
     frequencies.forEach((freq, index) => blip(freq, noteDuration, gain, wave, 0, index * gap));
   };
 
+  const shotPitch = 1 + (Math.random() - 0.5) * 0.045;
+  const shotFreq = (frequency) => Math.max(20, frequency * shotPitch);
+  const gunTransient = (frequency = 4200, gain = 0.55, delay = 0) => {
+    noise(0.026, gain, frequency, 1.1, delay, "bandpass");
+    noise(0.018, gain * 0.28, frequency * 1.9, 1.7, delay + 0.006, "highpass");
+  };
+
   if (type === "pistol") {
-    master.gain.setValueAtTime(0.24, now);
-    blip(220, 0.09, 0.8, "square");
-    noise(0.06, 0.5, 3200, 0.7);
+    master.gain.setValueAtTime(0.23, now);
+    gunTransient(4300, 0.56);
+    blip(shotFreq(178), 0.07, 0.64, "square", -100);
+    noise(0.105, 0.18, 760, 0.55, 0.014, "lowpass");
+    sweep(shotFreq(680), shotFreq(230), 0.06, 0.09, "triangle", 0.012);
   } else if (type === "rifle") {
     master.gain.setValueAtTime(0.18, now);
-    blip(180, 0.055, 0.7, "square");
-    noise(0.05, 0.45, 2800, 0.7);
+    gunTransient(5200, 0.5);
+    blip(shotFreq(138), 0.046, 0.54, "square", -60);
+    noise(0.074, 0.14, 980, 0.6, 0.01, "lowpass");
+    sweep(shotFreq(900), shotFreq(360), 0.045, 0.07, "triangle", 0.006);
   } else if (type === "sniper") {
     master.gain.setValueAtTime(0.34, now);
-    blip(110, 0.18, 0.95, "square");
-    noise(0.16, 0.6, 1900, 0.6);
-    noise(0.3, 0.2, 500, 0.5, 0.04);
+    gunTransient(3600, 0.76);
+    blip(shotFreq(86), 0.17, 0.88, "square", -80);
+    blip(shotFreq(48), 0.22, 0.36, "triangle", 0, 0.035);
+    noise(0.28, 0.32, 420, 0.5, 0.024, "lowpass");
+    noise(0.18, 0.18, 1450, 0.7, 0.055);
   } else if (type === "heavySniper") {
-    master.gain.setValueAtTime(0.46, now);
-    blip(72, 0.26, 1.0, "square");
-    noise(0.2, 0.7, 1500, 0.6);
-    noise(0.42, 0.26, 380, 0.5, 0.05);
+    master.gain.setValueAtTime(0.44, now);
+    gunTransient(3200, 0.84);
+    blip(shotFreq(62), 0.26, 0.94, "square", -120);
+    blip(shotFreq(38), 0.34, 0.5, "triangle", 0, 0.045);
+    noise(0.42, 0.34, 330, 0.5, 0.035, "lowpass");
+    noise(0.24, 0.22, 980, 0.65, 0.075);
   } else if (type === "minigun") {
-    master.gain.setValueAtTime(0.16, now);
-    blip(150, 0.045, 0.52, "square");
-    noise(0.035, 0.4, 3400, 0.8);
+    master.gain.setValueAtTime(0.145, now);
+    gunTransient(5600, 0.42);
+    blip(shotFreq(128), 0.036, 0.42, "square", -80);
+    noise(0.052, 0.1, 880, 0.6, 0.007, "lowpass");
   } else if (type === "laser") {
-    master.gain.setValueAtTime(0.14, now);
-    blip(980, 0.045, 0.65, "sawtooth");
-    blip(1450, 0.03, 0.22, "triangle");
+    master.gain.setValueAtTime(0.15, now);
+    sweep(shotFreq(860), shotFreq(1700), 0.055, 0.46, "sawtooth");
+    blip(shotFreq(2450), 0.03, 0.2, "triangle", 0, 0.018);
+    noise(0.035, 0.08, 6200, 1.6, 0.006, "highpass");
   } else if (type === "spermShooter") {
-    master.gain.setValueAtTime(0.16, now);
-    blip(520, 0.05, 0.6, "triangle");
-    blip(980, 0.03, 0.25, "sine");
+    master.gain.setValueAtTime(0.155, now);
+    sweep(shotFreq(420), shotFreq(920), 0.06, 0.42, "triangle");
+    blip(shotFreq(1160), 0.035, 0.2, "sine", 0, 0.018);
+    noise(0.04, 0.06, 1800, 0.9, 0.004);
   } else if (type === "heavySpermShooter") {
-    master.gain.setValueAtTime(0.20, now);
-    blip(390, 0.07, 0.7, "triangle");
-    blip(780, 0.04, 0.3, "sine");
+    master.gain.setValueAtTime(0.195, now);
+    sweep(shotFreq(310), shotFreq(760), 0.075, 0.48, "triangle");
+    blip(shotFreq(980), 0.042, 0.24, "sine", 0, 0.022);
+    noise(0.052, 0.07, 1500, 0.9, 0.006);
   } else if (type === "heaviestSpermShooter") {
-    master.gain.setValueAtTime(0.24, now);
-    blip(280, 0.09, 0.8, "triangle");
-    blip(560, 0.05, 0.4, "sine");
+    master.gain.setValueAtTime(0.235, now);
+    sweep(shotFreq(230), shotFreq(560), 0.095, 0.58, "triangle");
+    blip(shotFreq(740), 0.052, 0.3, "sine", 0, 0.025);
+    noise(0.066, 0.08, 1200, 0.85, 0.008);
   } else if (type === "shotgun") {
     master.gain.setValueAtTime(0.34, now);
-    blip(96, 0.18, 0.92, "square");
-    noise(0.14, 0.75, 1300, 0.5);
+    gunTransient(3000, 0.66);
+    blip(shotFreq(82), 0.16, 0.78, "square", -80);
+    noise(0.13, 0.7, 1180, 0.52);
+    noise(0.19, 0.26, 460, 0.55, 0.022, "lowpass");
   } else if (type === "rocket") {
     master.gain.setValueAtTime(0.3, now);
-    blip(82, 0.24, 0.72, "sawtooth");
-    noise(0.34, 0.4, 700, 0.4);
-    sweep(420, 160, 0.3, 0.2, "triangle");
+    blip(shotFreq(76), 0.24, 0.68, "sawtooth", -80);
+    noise(0.24, 0.36, 520, 0.45, 0, "lowpass");
+    sweep(shotFreq(460), shotFreq(145), 0.34, 0.22, "triangle");
+    noise(0.18, 0.16, 1600, 0.8, 0.025);
   } else if (type === "desertEagle") {
-    master.gain.setValueAtTime(0.38, now);
-    blip(140, 0.14, 0.95, "square");
-    noise(0.1, 0.6, 2100, 0.6);
+    master.gain.setValueAtTime(0.36, now);
+    gunTransient(3500, 0.78);
+    blip(shotFreq(112), 0.14, 0.9, "square", -80);
+    noise(0.16, 0.24, 540, 0.55, 0.02, "lowpass");
+    sweep(shotFreq(620), shotFreq(210), 0.08, 0.1, "triangle", 0.012);
   } else if (type === "ak47") {
-    master.gain.setValueAtTime(0.24, now);
-    blip(140, 0.075, 0.8, "square");
-    noise(0.06, 0.5, 2600, 0.7);
+    master.gain.setValueAtTime(0.22, now);
+    gunTransient(4800, 0.58);
+    blip(shotFreq(132), 0.06, 0.64, "square", -70);
+    noise(0.088, 0.16, 860, 0.62, 0.012, "lowpass");
+    noise(0.044, 0.16, 2300, 0.75, 0.018);
   } else if (type === "drumShotgun") {
-    master.gain.setValueAtTime(0.34, now);
-    blip(96, 0.18, 0.92, "square");
-    noise(0.14, 0.75, 1100, 0.5);
+    master.gain.setValueAtTime(0.32, now);
+    gunTransient(3100, 0.62);
+    blip(shotFreq(88), 0.13, 0.7, "square", -70);
+    noise(0.115, 0.62, 1050, 0.52);
+    noise(0.16, 0.21, 430, 0.55, 0.02, "lowpass");
   } else if (type === "tacticalSniper") {
-    master.gain.setValueAtTime(0.12, now);
-    blip(420, 0.05, 0.35, "sine");
-    blip(180, 0.08, 0.15, "triangle");
+    master.gain.setValueAtTime(0.2, now);
+    gunTransient(4400, 0.52);
+    blip(shotFreq(154), 0.08, 0.5, "square", -60);
+    noise(0.12, 0.14, 720, 0.55, 0.018, "lowpass");
+    blip(shotFreq(680), 0.045, 0.18, "triangle", 0, 0.018);
   } else if (type === "hit") {
     master.gain.setValueAtTime(0.18, now);
     blip(1180, 0.06, 0.62, "triangle");
@@ -240,11 +316,13 @@ export function playSound(type, options = {}) {
     noise(0.5, 0.65, 320, 0.4, 0, "lowpass");
     noise(0.16, 0.45, 2400, 0.6);
   } else if (type === "jump") {
-    master.gain.setValueAtTime(0.14, now);
-    blip(320, 0.12, 0.34, "triangle", 180);
+    master.gain.setValueAtTime(0.065, now);
+    sweep(260, 520, 0.11, 0.16, "triangle");
+    noise(0.055, 0.08, 1200, 0.7, 0, "highpass");
   } else if (type === "land") {
-    master.gain.setValueAtTime(0.2, now);
-    blip(74, 0.16, 0.65, "square");
+    master.gain.setValueAtTime(0.08, now);
+    blip(86, 0.09, 0.28, "triangle");
+    noise(0.045, 0.09, 420, 0.8, 0, "lowpass");
   } else if (type === "slide") {
     master.gain.setValueAtTime(0.12, now);
     blip(210, 0.18, 0.24, "sawtooth", -220);

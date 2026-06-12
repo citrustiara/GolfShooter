@@ -90,6 +90,7 @@ function showEliminationNotice(victimIndex, details = {}) {
 }
 
 function weaponLabel(wp) {
+  if (wp === "grapple") return "Grapple Hook";
   if (weaponCatalog[wp]) return weaponCatalog[wp].label;
   return "Club";
 }

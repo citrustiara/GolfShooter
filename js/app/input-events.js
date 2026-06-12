@@ -1,7 +1,7 @@
 import "./globals.js";
 
-function onMouseMove(e) { if (!input.pointerLocked) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
-function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
+function onMouseMove(e) { if (!input.pointerLocked || game.finalKillCinematicActive) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
+function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (game.finalKillCinematicActive) { input.shootHeld = false; input.aiming = false; return; } if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
 function onMouseUp(e) { if (e.button === 2) input.aiming = false; if (e.button === 0) input.shootHeld = false; }
 function onClick(e) { if (game.phase === "fps" && e.target === canvas && !input.pointerLocked) requestPointerLockSafe(); }
 function pointerGroundPoint(e) {
@@ -121,23 +121,26 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    const victoryHold = game.finalKillCinematicActive ? 10.9 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
-    if (elapsed >= victoryHold) { if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel(); else finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason); }
+    const victoryHold = game.finalKillCinematicActive ? 11.4 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
+    if (elapsed >= victoryHold) {
+      if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel();
+      else if (!(game.finalKillCinematicActive && game.result.matchOver && game.result.matchWinner === game.localIndex)) finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason);
+    }
   }
   const comicMono = victoryComicMonochromeAmount(now);
   const finalKillCinematic = Boolean(game.finalKillCinematicActive);
   const radarMono = !finalKillCinematic && game.radarTimer > 0 && game.phase === "fps";
   // Scoped sniper view: fully desaturated (black-and-white) with the red channel boosted so highlighted enemies pop.
-  const scopeMono = game.phase === "fps" ? (game.scopeAmount || 0) * 1.0 : 0;
-  const monoAmount = radarMono ? 1.0 : comicMono;
+  const scopeMono = !finalKillCinematic && game.phase === "fps" ? (game.scopeAmount || 0) * 1.0 : 0;
+  const monoAmount = finalKillCinematic ? 1.0 : (radarMono ? 1.0 : comicMono);
   renderScene(now * 0.001, {
     grayscale: monoAmount,
-    desaturate: scopeMono,
-    inkStrength: radarMono ? 1.18 : 0.92 + comicMono * 0.2,
-    colorSteps: radarMono ? 2 : (comicMono > 0.01 ? 4 : 5),
-    contrast: radarMono ? 1.85 : 1.18 + comicMono * 0.18,
-    brightness: radarMono ? 0.08 : 0.06,
-    redHighlight: radarMono ? 1.0 : (scopeMono > 0.3 ? 1.0 : 0.0)
+    desaturate: finalKillCinematic ? 1.0 : scopeMono,
+    inkStrength: finalKillCinematic ? 1.08 : (radarMono ? 1.18 : 0.92 + comicMono * 0.2),
+    colorSteps: finalKillCinematic ? 3 : (radarMono ? 2 : (comicMono > 0.01 ? 4 : 5)),
+    contrast: finalKillCinematic ? 1.48 : (radarMono ? 1.85 : 1.18 + comicMono * 0.18),
+    brightness: finalKillCinematic ? 0.0 : (radarMono ? 0.08 : 0.06),
+    redHighlight: finalKillCinematic ? 0.0 : (radarMono ? 1.0 : (scopeMono > 0.3 ? 1.0 : 0.0))
   });
   requestAnimationFrame(animate);
 }
@@ -155,6 +158,7 @@ window.addEventListener("keydown", (e) => {
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();
   if ((game.phase === "fps" || game.phase === "fpsVictoryLap") && c.startsWith("Arrow")) e.preventDefault();
   if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
+    if (game.finalKillCinematicActive) return;
     if (!input.pointerLocked) return;
     if (game.countdown <= 0) {
       const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
@@ -210,12 +214,14 @@ startFpsBtn.addEventListener("click", () => {
     resetFpsDuelState(false);
     game.fpsMatchConfig = buildFpsMatchConfigFromUi();
     applyFpsMatchMapSlot(0);
+    captureFpsReplaySnapshot();
     send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); 
     enterFps(false, { preserveFpsMatch: true }); 
   } 
 });
-startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { if (game.role === "solo") syncPlayerCountFromUi(); resetFpsDuelState(true); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
+startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { if (game.role === "solo") syncPlayerCountFromUi(); resetFpsDuelState(true); captureFpsReplaySnapshot(); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
 leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
+finalKillBackBtn?.addEventListener("click", () => finalKillBackToLobby()); finalKillReplayBtn?.addEventListener("click", () => replayFpsMatch());
 settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidden")); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); menuSensitivityInput?.addEventListener("input", () => syncSensitivity(menuSensitivityInput.value));
 practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
 practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());
@@ -271,7 +277,7 @@ mapUploadInput?.addEventListener("change", (e) => {
     reader.readAsDataURL(file);
   }
 });
-window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
+window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
 phraseInput.value = generatePhrase(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");

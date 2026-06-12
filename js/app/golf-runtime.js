@@ -378,6 +378,7 @@ function nextHole() {
     if (winner === -1 && game.role !== "solo") {
       if (game.role === "host") {
         resetFpsDuelState(true);
+        captureFpsReplaySnapshot();
         send({ type: "phaseFps", fpsState: serializeFpsDuelState() });
         enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout });
       }

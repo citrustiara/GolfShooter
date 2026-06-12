@@ -1,15 +1,15 @@
 {
   "version": 1,
   "id": "needle-corridor",
-  "name": "Needle Corridor",
-  "sky": 791584,
-  "fog": 791584,
-  "fogNear": 80,
-  "fogFar": 260,
+  "name": "Needle Street",
+  "sky": 12575733,
+  "fog": 12575733,
+  "fogNear": 120,
+  "fogFar": 340,
   "shape": "corridor",
   "bounds": {
-    "x": 124,
-    "z": 18
+    "x": 126,
+    "z": 22
   },
   "spawnPoints": [
     {
@@ -25,14 +25,14 @@
     {
       "x": 0,
       "z": 0,
-      "sx": 248,
-      "sz": 36
+      "sx": 252,
+      "sz": 44
     }
   ],
-  "floor": 2503229,
-  "gridA": 10414335,
-  "gridB": 4017501,
-  "edge": 4878732,
+  "floor": 4672596,
+  "gridA": 5923179,
+  "gridB": 4212045,
+  "edge": 7041664,
   "boxes": {
     "$include": [
       "needle-corridor/boxes-01.json",
@@ -42,110 +42,82 @@
   },
   "platforms": [
     {
+      "name": "footbridge-deck",
       "x": 0,
-      "y": 17.8,
+      "y": 5.8,
       "z": 0,
-      "sx": 42,
-      "sy": 0.45,
-      "sz": 5.2,
-      "color": 5943551
+      "sx": 4.6,
+      "sy": 0.4,
+      "sz": 21,
+      "color": 5078696
+    }
+  ],
+  "ramps": [
+    {
+      "name": "bridge-stair-n",
+      "x": -7.55,
+      "y": 0,
+      "z": -8.6,
+      "width": 2.8,
+      "length": 10.5,
+      "height": 6.2,
+      "rot": 1.571,
+      "color": 5078696
     },
     {
-      "x": 0,
-      "y": 35.8,
-      "z": 0,
-      "sx": 30,
-      "sy": 0.45,
-      "sz": 4.4,
-      "color": 16740193
+      "name": "bridge-stair-s",
+      "x": 7.55,
+      "y": 0,
+      "z": 8.6,
+      "width": 2.8,
+      "length": 10.5,
+      "height": 6.2,
+      "rot": -1.571,
+      "color": 5078696
     },
     {
-      "x": -66,
-      "y": 9.2,
-      "z": 0,
-      "sx": 18,
-      "sy": 0.45,
-      "sz": 4.4,
-      "color": 8315560
+      "name": "roof-stair-n7",
+      "x": 22,
+      "y": 0,
+      "z": -10.3,
+      "width": 2.6,
+      "length": 16,
+      "height": 8,
+      "rot": 1.571,
+      "color": 9279394
     },
     {
-      "x": 66,
-      "y": 9.2,
-      "z": 0,
-      "sx": 18,
-      "sy": 0.45,
-      "sz": 4.4,
-      "color": 16765286
-    },
-    {
-      "x": -76,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 5943551
-    },
-    {
-      "x": -50,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 5943551
-    },
-    {
-      "x": -16,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 5943551
-    },
-    {
-      "x": 20,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 16740193
-    },
-    {
-      "x": 54,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 16740193
-    },
-    {
-      "x": 80,
-      "y": 6.4,
-      "z": 0,
-      "sx": 12,
-      "sy": 0.45,
-      "sz": 3.4,
-      "color": 16740193
+      "name": "roof-stair-s3",
+      "x": -70,
+      "y": 0,
+      "z": 11.3,
+      "width": 2.6,
+      "length": 16,
+      "height": 8,
+      "rot": -1.571,
+      "color": 9279394
     }
   ],
   "collision": [],
-  "decor": [],
+  "decor": {
+    "$include": [
+      "needle-corridor/decor-01.json",
+      "needle-corridor/decor-02.json"
+    ]
+  },
   "assets": [],
-  "ramps": [
-    { "name": "spine-ramp-west", "x": -87, "y": 0, "z": 0, "width": 3, "length": 10, "height": 6.85, "rot": 1.571, "color": 5943551 },
-    { "name": "spine-ramp-east", "x": 91, "y": 0, "z": 0, "width": 3, "length": 10, "height": 6.85, "rot": -1.571, "color": 16740193 },
-    { "name": "spine-connector-west", "x": -70, "y": 6.85, "z": 0, "width": 2.4, "length": 6, "height": 2.8, "rot": 1.571, "color": 8315560 },
-    { "name": "spine-connector-east", "x": 70, "y": 6.85, "z": 0, "width": 2.4, "length": 6, "height": 2.8, "rot": -1.571, "color": 16765286 },
-    { "name": "gantry-east-ramp", "x": 36.5, "y": 0, "z": 10, "width": 3, "length": 14, "height": 7.5, "rot": 1.571, "color": 5943551 },
-    { "name": "gantry-west-ramp", "x": -36.5, "y": 0, "z": -10, "width": 3, "length": 14, "height": 7.5, "rot": -1.571, "color": 16740193 }
-  ],
   "config": {
     "hp": 100,
-    "abilities": ["jump", "radar", "smoke"],
-    "weapons": ["sniper", "rifle", "melee"]
+    "abilities": [
+      "jump",
+      "radar",
+      "smoke",
+      "grapple"
+    ],
+    "weapons": [
+      "sniper",
+      "rifle",
+      "melee"
+    ]
   }
 }

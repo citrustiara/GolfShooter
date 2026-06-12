@@ -99,6 +99,55 @@
   box-shadow: 0 0 0 1px rgba(14, 14, 17, 0.6);
 }
 
+/* Grapple-target reticle: a faint ring + corner ticks that fades in around the
+   crosshair when the player is aiming at something the grapple hook can grab.
+   Turns red when the target is an enemy (a grapple-kill pull is available). */
+.grapple-reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 9;
+  border: 1.5px solid rgba(238, 244, 250, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(238, 244, 250, 0.35), inset 0 0 4px rgba(238, 244, 250, 0.22);
+  opacity: 0;
+  transition: opacity 90ms ease, width 90ms ease, height 90ms ease, border-color 90ms ease;
+}
+
+.grapple-reticle.active {
+  opacity: 0.85;
+  width: 26px;
+  height: 26px;
+}
+
+/* Four faint corner ticks just outside the ring. */
+.grapple-reticle::before,
+.grapple-reticle::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px dashed currentColor;
+  color: rgba(238, 244, 250, 0.4);
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+
+.grapple-reticle.active::before { opacity: 0.55; }
+
+.grapple-reticle.enemy {
+  border-color: rgba(255, 56, 56, 0.92);
+  box-shadow: 0 0 8px rgba(255, 30, 30, 0.55), inset 0 0 5px rgba(255, 30, 30, 0.3);
+}
+
+.grapple-reticle.enemy::before { color: rgba(255, 56, 56, 0.6); }
+
+.grapple-reticle.hidden { display: none; }
+
 .reload-progress {
   position: absolute;
   left: 50%;
@@ -424,6 +473,10 @@
   font-family: "Cinzel", Georgia, "Times New Roman", serif;
 }
 
+.final-kill-overlay.controls {
+  pointer-events: auto;
+}
+
 .final-kill-black {
   position: absolute;
   inset: 0;
@@ -498,10 +551,17 @@
   white-space: nowrap;
 }
 
-.final-kill-status {
-  width: min(720px, 74vw);
-  min-height: 20px;
+.final-kill-status-row {
+  width: min(940px, 84vw);
   margin: clamp(18px, 3vw, 34px) auto 0;
+  display: grid;
+  grid-template-columns: minmax(112px, 0.42fr) minmax(260px, 720px) minmax(112px, 0.42fr);
+  align-items: center;
+  gap: clamp(10px, 2vw, 24px);
+}
+
+.final-kill-status {
+  min-height: 20px;
   display: grid;
   place-items: center;
   padding: 3px 18px 4px;
@@ -512,6 +572,78 @@
   letter-spacing: 0.42em;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.9), 0 0 54px rgba(255, 255, 255, 0.28);
+}
+
+.final-kill-nav {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+  font-size: clamp(11px, 1.1vw, 15px);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: none;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.86), 0 0 32px rgba(255, 255, 255, 0.38);
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.final-kill-nav:hover {
+  background: transparent;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.final-kill-back {
+  justify-self: end;
+  text-align: right;
+}
+
+.final-kill-replay {
+  justify-self: start;
+  text-align: left;
+}
+
+.final-kill-host-note {
+  margin: 12px auto 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+  font-size: clamp(8px, 0.9vw, 11px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+}
+
+@media (max-width: 720px) {
+  .final-kill-status-row {
+    width: min(520px, 92vw);
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .final-kill-status {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .final-kill-back {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+    text-align: center;
+  }
+
+  .final-kill-replay {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+    text-align: center;
+  }
 }
 
 .final-kill-corner {
@@ -545,8 +677,8 @@
   0% { opacity: 0.98; }
   16% { opacity: 0.95; }
   40% { opacity: 0.78; }
-  72% { opacity: 0.34; }
-  100% { opacity: 0; }
+  72% { opacity: 0.48; }
+  100% { opacity: 0.36; }
 }
 
 @keyframes final-kill-glow-falloff {

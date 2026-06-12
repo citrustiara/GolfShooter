@@ -67,9 +67,9 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   }
   if (game.randomTournament && mapOver && !matchOver && announce) applyRandomTournamentCombination(game.fpsMapIndex);
   const localWonRound = winner === game.localIndex;
-  const localWonMatch = matchWinner === game.localIndex;
+  const localWonMatch = matchOver && matchWinner === game.localIndex;
   const mapWinner = mapOver ? scoreLeader(game.fpsKillWins) : null;
-  const localWonMap = mapWinner === game.localIndex;
+  const localWonMap = mapOver && !mapTied && mapWinner === game.localIndex;
   const toast = reason === "deathmatch" && !matchOver
     ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
@@ -158,6 +158,14 @@ function finishMatch(winner, reason) {
   resultPanel.classList.remove("hidden");
   updateHud();
 }
+function finalKillBackToLobby() {
+  if (game.role === "guest") {
+    send({ type: "postMatchAction", action: "lobby", player: game.localIndex });
+    setFinalKillActionNote?.("Request sent — waiting for the host.");
+    return;
+  }
+  restartTournament();
+}
 function restartTournament(announce = true) { if (announce && game.role === "guest") return; resultPanel.classList.add("hidden"); if (announce) { send({ type: "restart" }); showLobby(); } else showLobby(); }
 
 Object.assign(globalThis, {
@@ -167,5 +175,6 @@ Object.assign(globalThis, {
   activateRadar,
   updateRadarMarker,
   finishMatch,
+  finalKillBackToLobby,
   restartTournament
 });

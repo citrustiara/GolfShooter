@@ -7,6 +7,8 @@ function updateFpsMovement(dt) {
   if (input.keys.has("KeyW")) move.add(forward); if (input.keys.has("KeyS")) move.sub(forward); if (input.keys.has("KeyA")) move.sub(right); if (input.keys.has("KeyD")) move.add(right); if (move.lengthSq() > 0) move.normalize();
   const wasGrounded = p.grounded;
   const wasGroundSurface = p.groundSurface || null;
+  if (!wasGrounded) p.airTime = (p.airTime || 0) + dt;
+  else p.airTime = 0;
 
   // Process jump immediately so p.grounded updates before speed clamping/friction (enables bunny hopping)
   if (input.keys.has("Space") && p.grounded) { p.vel.y = 10.4; p.grounded = false; playSound("jump"); }
@@ -68,6 +70,12 @@ function updateFpsMovement(dt) {
     // (handled on keyup) or dies — so holding the button keeps you attached, and
     // once you reach the anchor you simply hang there until you let go.
     const g = game.grapple;
+    // When hooked onto an enemy, keep the anchor glued to their live position so
+    // the pull homes in on them as they move.
+    if (g.targetPlayer != null) {
+      const enemy = fps.players[g.targetPlayer];
+      if (enemy && enemy.health > 0) g.point.set(enemy.pos.x, enemy.pos.y + 1.2, enemy.pos.z);
+    }
     const anchorOffset = new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z);
     const toAnchor = g.point.clone().sub(anchorOffset);
     const anchorDist = toAnchor.length();
@@ -78,7 +86,7 @@ function updateFpsMovement(dt) {
       p.vel.multiplyScalar(Math.pow(0.7, dt * 60));
       p.grounded = false;
     } else {
-      p.vel.lerp(toAnchor.normalize().multiplyScalar(GRAPPLE_SPEED), Math.min(1, dt * 9));
+      p.vel.lerp(toAnchor.normalize().multiplyScalar(GRAPPLE_SPEED), Math.min(1, dt * 11));
       p.grounded = false;
     }
   } else {
@@ -174,7 +182,9 @@ function updateFpsMovement(dt) {
   }
   
   if (!wasGrounded && p.grounded) {
-    playSound("land");
+    const landingAirTime = p.airTime || 0;
+    if (landingAirTime > 0.10) playSound("land", { volume: Math.min(0.9, 0.45 + landingAirTime * 0.45) });
+    p.airTime = 0;
     const landSlideKey = input.keys.has("ShiftLeft") || input.keys.has("ControlLeft");
     const spaceHeld = input.keys.has("Space");
     if (landSlideKey && !spaceHeld && move.lengthSq() > 0 && game.slideCooldown <= 0) {
@@ -214,7 +224,7 @@ function updateFootstepAudio(player, dt, move) {
   if (speed < 1.9 || player.stepTimer > 0) return;
   const loadoutSpeed = Math.max(0.45, activeLoadout().speed || 1);
   const speedRatio = Math.max(0, Math.min(1, speed / (FPS_WALK_MAX_SPEED * loadoutSpeed)));
-  const volume = 0.14 + speedRatio * 0.07;
+  const volume = 0.16 + speedRatio * 0.08;
   player.stepSide = player.stepSide ? 0 : 1;
   playSound("footstep", { volume });
   if (game.connected) {
