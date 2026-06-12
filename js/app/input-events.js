@@ -1,7 +1,7 @@
 import "./globals.js";
 
-function onMouseMove(e) { if (!input.pointerLocked || game.finalKillCinematicActive) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
-function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (game.finalKillCinematicActive) { input.shootHeld = false; input.aiming = false; return; } if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
+function onMouseMove(e) { if (!input.pointerLocked || game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
+function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) { input.shootHeld = false; input.aiming = false; return; } if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
 function onMouseUp(e) { if (e.button === 2) input.aiming = false; if (e.button === 0) input.shootHeld = false; }
 function onClick(e) { if (game.phase === "fps" && e.target === canvas && !input.pointerLocked) requestPointerLockSafe(); }
 function pointerGroundPoint(e) {
@@ -83,6 +83,7 @@ function placeBuildBox() {
   setupArena();
 }
 function tryActivateAbilityKey(code) {
+  if (fps.players[game.localIndex]?.health <= 0) return false;
   const handlers = [
     ["jump", activateJumpAbility],
     ["heal", activateHealAbility],
@@ -121,7 +122,10 @@ function animate(now = performance.now()) {
       world.weapon.visible = world.meleeWeapon.visible = false;
     }
     const m = world.playerMeshes[game.result.winner]; if (m) { const g = m.getObjectByName("gun"), ml = m.getObjectByName("melee"); if (g && ml) { g.visible = (target.weapon === "gun"); ml.visible = (target.weapon === "melee"); } }
-    const victoryHold = game.finalKillCinematicActive ? 11.4 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
+    // Remote winners can be watching the same TARGET EXECUTED cinematic;
+    // keep the host from advancing the map before that reveal finishes.
+    const finalKillHold = game.finalKillCinematicActive || fpsResultHasFinalKillCinematic(game.result);
+    const victoryHold = finalKillHold ? 11.4 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
     if (elapsed >= victoryHold) {
       if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel();
       else if (!(game.finalKillCinematicActive && game.result.matchOver && game.result.matchWinner === game.localIndex)) finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason);
@@ -162,7 +166,7 @@ window.addEventListener("keydown", (e) => {
     if (!input.pointerLocked) return;
     if (game.countdown <= 0) {
       const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
-      if (isW) {
+      if (isW && fps.players[game.localIndex]?.health > 0) {
         if (c === "KeyR") startReload();
         else if (c === "ArrowLeft") { if (game.randomTournament) cycleActiveWeapon(-1); else cycleWeaponCard(-1); }
         else if (c === "ArrowRight") { if (game.randomTournament) cycleActiveWeapon(1); else cycleWeaponCard(1); }
@@ -277,7 +281,7 @@ mapUploadInput?.addEventListener("change", (e) => {
     reader.readAsDataURL(file);
   }
 });
-window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
+window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive || fps.players[game.localIndex]?.health <= 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
 phraseInput.value = generatePhrase(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");

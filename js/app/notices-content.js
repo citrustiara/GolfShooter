@@ -1,5 +1,7 @@
 import "./globals.js";
 
+const battleLogRecent = new Map();
+
 function showDamageTaken(amount) {
   damageVignette.classList.remove("active");
   void damageVignette.offsetWidth;
@@ -25,12 +27,35 @@ function replayKillNoticeAnimation() {
   killNotice.style.animation = "";
 }
 
-function setKillNoticeCard({ badge, main, weaponName, distance, headshot = false, death = false, victimIndex = null, detailed = false, resultLabel = null }) {
+function normalizePlayerIndex(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+function playerKillFeedName(index, fallback = "WORLD") {
+  const n = normalizePlayerIndex(index);
+  return n === null ? fallback : `P${n + 1}`;
+}
+
+function killWeaponName(details = {}) {
+  if (details.weaponName) return details.weaponName;
+  if (details.weapon) return weaponLabelText(details.weapon);
+  return "Unknown";
+}
+
+function isRoundFinalKill(details = {}) {
+  if (details.finalKill !== undefined) return Boolean(details.finalKill);
+  if (game.phase !== "fps") return false;
+  return aliveFpsPlayerIndexes().length <= 1;
+}
+
+function setKillNoticeCard({ badge, main, weaponName, distance, headshot = false, death = false, victimIndex = null, detailed = false, resultLabel = null, compact = false }) {
   if (resultOverlayVisible()) { hideKillNotice(); return; }
-  game.killNoticeTimer = 5.1;
+  game.killNoticeTimer = compact ? 2.8 : 5.1;
   killNotice.dataset.victim = victimIndex === null || victimIndex === undefined ? "" : String(victimIndex);
   killNotice.dataset.detailed = detailed ? "1" : "0";
-  killNotice.className = `kill-notice${headshot ? " headshot" : ""}${death ? " death" : ""}`;
+  killNotice.className = `kill-notice${headshot ? " headshot" : ""}${death ? " death" : ""}${compact ? " compact" : ""}`;
   killNotice.replaceChildren();
 
   const badgeEl = document.createElement("div");
@@ -58,7 +83,81 @@ function setKillNoticeCard({ badge, main, weaponName, distance, headshot = false
   replayKillNoticeAnimation();
 }
 
+function showBattleLogElimination(victimIndex, details = {}) {
+  if (!battleLog || resultOverlayVisible()) return;
+  const victim = normalizePlayerIndex(victimIndex);
+  if (victim === null) return;
+  const killer = normalizePlayerIndex(details.killerIndex ?? details.killer ?? details.player);
+  const weaponName = killWeaponName(details);
+  const headshot = Boolean(details.headshot);
+  const now = performance.now();
+  const key = `${killer ?? "world"}|${victim}|${weaponName}|${headshot ? 1 : 0}`;
+  const previous = battleLogRecent.get(key) || 0;
+  if (now - previous < 1400) return;
+  battleLogRecent.set(key, now);
+
+  const entry = document.createElement("div");
+  entry.className = `battle-log-entry${headshot ? " headshot" : ""}${killer === game.localIndex ? " local-kill" : ""}${victim === game.localIndex ? " local-death" : ""}`;
+
+  const badge = document.createElement("div");
+  badge.className = "battle-log-badge";
+  badge.textContent = headshot ? "HEADSHOT" : "ELIMINATION";
+
+  const main = document.createElement("div");
+  main.className = "battle-log-main";
+  const killerName = details.killerName || playerKillFeedName(killer, "WORLD");
+  const victimName = details.enemyName || details.victimName || playerKillFeedName(victim);
+  main.textContent = killer === null ? `${victimName} DOWN` : `${killerName} → ${victimName}`;
+
+  const meta = document.createElement("div");
+  meta.className = "battle-log-meta";
+  for (const [text, hot] of [[weaponName, false], [formatKillDistance(details.distance), false], [headshot ? "HEADSHOT" : (details.resultLabel || "ELIMINATED"), headshot]]) {
+    const span = document.createElement("span");
+    if (hot) span.className = "kill-hot";
+    span.textContent = text;
+    meta.appendChild(span);
+  }
+
+  entry.append(badge, main, meta);
+  battleLog.prepend(entry);
+  battleLog.classList.remove("hidden");
+  while (battleLog.children.length > 7) battleLog.lastElementChild?.remove();
+  window.setTimeout(() => {
+    entry.classList.add("expired");
+    window.setTimeout(() => {
+      entry.remove();
+      if (!battleLog.children.length) battleLog.classList.add("hidden");
+    }, 260);
+  }, 6200);
+}
+
+function clearBattleLog() {
+  battleLog?.replaceChildren();
+  battleLog?.classList.add("hidden");
+  battleLogRecent.clear();
+}
+
+function broadcastKillEvent(victimIndex, details = {}, weaponName = killWeaponName(details), finalKill = isRoundFinalKill(details)) {
+  if (details.broadcast === false || game.phase !== "fps" || !game.connected) return;
+  const victim = normalizePlayerIndex(victimIndex);
+  const killer = normalizePlayerIndex(details.killerIndex ?? game.localIndex);
+  if (victim === null || killer !== game.localIndex) return;
+  send({
+    type: "fpsKillEvent",
+    killer,
+    victim,
+    weapon: details.weapon || null,
+    weaponName,
+    distance: details.distance,
+    headshot: Boolean(details.headshot),
+    finalKill
+  });
+}
+
 function showKilledBy(weaponName, details = {}) {
+  input.shootHeld = false;
+  input.aiming = false;
+  releaseGrapple?.();
   setKillNoticeCard({
     badge: details.headshot ? "HEADSHOT DEATH" : "YOU WERE ELIMINATED",
     main: `KILLED BY ${weaponName}`,
@@ -68,6 +167,9 @@ function showKilledBy(weaponName, details = {}) {
     death: true,
     detailed: killNoticeHasDetail(details)
   });
+  if (details.killerIndex !== undefined || details.killer !== undefined || details.player !== undefined) {
+    showBattleLogElimination(game.localIndex, { ...details, weaponName });
+  }
 }
 
 function showEliminationNotice(victimIndex, details = {}) {
@@ -77,16 +179,21 @@ function showEliminationNotice(victimIndex, details = {}) {
   const alreadyShowingVictim = killNotice.dataset.victim === String(victimIndex) && game.killNoticeTimer > 0;
   if (!alreadyShowingVictim) playSound("kill");
   const weaponName = hasDetail ? (details.weaponName || (details.weapon ? weaponLabelText(details.weapon) : weaponLabelText(game.primaryWeapon))) : "Unknown";
+  const finalKill = isRoundFinalKill(details);
   setKillNoticeCard({
-    badge: "ELIMINATION",
+    badge: details.headshot ? "HEADSHOT" : "ELIMINATION",
     main: `${details.enemyName || `P${victimIndex + 1}`} DOWN`,
     weaponName,
     distance: details.distance,
-    headshot: false,
+    headshot: Boolean(details.headshot),
     victimIndex,
     detailed: hasDetail,
-    resultLabel: "ELIMINATED"
+    resultLabel: details.headshot ? "HEADSHOT" : "ELIMINATED",
+    compact: !finalKill
   });
+  const logDetails = { ...details, killerIndex: details.killerIndex ?? game.localIndex, weaponName };
+  showBattleLogElimination(victimIndex, logDetails);
+  broadcastKillEvent(victimIndex, details, weaponName, finalKill);
 }
 
 function weaponLabel(wp) {
@@ -143,6 +250,9 @@ Object.assign(globalThis, {
   killNoticeHasDetail,
   replayKillNoticeAnimation,
   setKillNoticeCard,
+  showBattleLogElimination,
+  clearBattleLog,
+  broadcastKillEvent,
   showKilledBy,
   showEliminationNotice,
   weaponLabel,

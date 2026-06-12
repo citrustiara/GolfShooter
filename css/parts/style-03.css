@@ -416,6 +416,133 @@
   100% { opacity: 0; transform: translate(-50%, 20px) rotate(-3deg) scale(0.94); }
 }
 
+.kill-notice.compact {
+  bottom: 112px;
+  min-width: min(320px, calc(100vw - 36px));
+  max-width: min(390px, calc(100vw - 36px));
+  padding: 10px 16px 12px;
+  border-width: 3px;
+  opacity: 0.84;
+  box-shadow: 4px 4px 0 rgba(126, 226, 168, 0.72), 8px 8px 0 rgba(14, 14, 17, 0.72);
+  animation: kill-card-compact-in 2.65s cubic-bezier(0.18, 0.9, 0.22, 1) both;
+}
+
+.kill-notice.compact .kill-badge {
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.kill-notice.compact .kill-main {
+  margin-top: 5px;
+  font-size: clamp(18px, 2.8vw, 28px);
+  text-shadow: 2px 2px 0 var(--lime);
+}
+
+.kill-notice.headshot.compact .kill-main { text-shadow: 2px 2px 0 var(--red); }
+
+.kill-notice.compact .kill-meta {
+  gap: 5px;
+  margin-top: 7px;
+  font-size: 9px;
+}
+
+.kill-notice.compact .kill-meta span {
+  padding: 2px 6px 3px;
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+@keyframes kill-card-compact-in {
+  0% { opacity: 0; transform: translate(-50%, 16px) rotate(-4deg) scale(0.66); }
+  11% { opacity: 0.9; transform: translate(-50%, -3px) rotate(0.6deg) scale(0.84); }
+  20% { opacity: 0.84; transform: translate(-50%, 0) rotate(-0.8deg) scale(0.78); }
+  76% { opacity: 0.78; transform: translate(-50%, 0) rotate(-0.8deg) scale(0.78); }
+  100% { opacity: 0; transform: translate(-50%, 10px) rotate(-2deg) scale(0.72); }
+}
+
+/* ---------------- battle log / kill feed ---------------- */
+.battle-log {
+  position: absolute;
+  top: clamp(88px, 13vh, 136px);
+  right: 18px;
+  width: min(380px, calc(100vw - 36px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 17;
+}
+
+.battle-log-entry {
+  max-width: 100%;
+  padding: 8px 10px 9px;
+  border: 3px solid var(--ink);
+  background: rgba(238, 244, 250, 0.86);
+  color: var(--ink);
+  text-align: right;
+  text-transform: uppercase;
+  font-weight: 900;
+  box-shadow: 4px 4px 0 rgba(14, 14, 17, 0.72);
+  transform-origin: right center;
+  animation: battle-log-in 6.2s ease both;
+}
+
+.battle-log-entry.headshot {
+  background: rgba(255, 244, 168, 0.92);
+  box-shadow: 4px 4px 0 rgba(255, 111, 97, 0.85), 7px 7px 0 rgba(14, 14, 17, 0.72);
+}
+
+.battle-log-entry.local-kill { border-color: var(--lime); }
+.battle-log-entry.local-death { border-color: var(--red); }
+.battle-log-entry.expired { opacity: 0; transform: translateX(14px) scale(0.95); transition: opacity 220ms ease, transform 220ms ease; }
+
+.battle-log-badge {
+  display: inline-block;
+  margin-bottom: 3px;
+  padding: 2px 6px;
+  background: var(--ink);
+  color: var(--lime);
+  font-family: var(--display);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.battle-log-main {
+  font-family: var(--display);
+  font-size: clamp(16px, 2.3vw, 23px);
+  line-height: 0.92;
+  text-shadow: 1px 1px 0 var(--paper);
+}
+
+.battle-log-meta {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+
+.battle-log-meta span {
+  padding: 2px 5px;
+  border: 2px solid var(--ink);
+  background: var(--cyan);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.battle-log-meta span:nth-child(2) { background: var(--yellow); }
+.battle-log-meta .kill-hot { background: var(--red) !important; color: var(--paper); }
+
+@keyframes battle-log-in {
+  0% { opacity: 0; transform: translateX(22px) scale(0.9) rotate(1.5deg); }
+  6% { opacity: 1; transform: translateX(-3px) scale(1.02) rotate(-0.5deg); }
+  12% { transform: translateX(0) scale(1) rotate(0deg); }
+  86% { opacity: 1; transform: translateX(0) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translateX(14px) scale(0.95) rotate(0.5deg); }
+}
+
 /* ---------------- round / map toast banner ---------------- */
 .victory-banner {
   position: absolute;
@@ -479,6 +606,7 @@
 .overlay.final-kill-running .reload-progress,
 .overlay.final-kill-running .hit-marker,
 .overlay.final-kill-running .kill-notice,
+.overlay.final-kill-running .battle-log,
 .overlay.final-kill-running .damage-vignette,
 .overlay.final-kill-running #damageLayer,
 .overlay.final-kill-running #enemyBoxLayer {

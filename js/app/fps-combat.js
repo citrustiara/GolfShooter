@@ -1,5 +1,9 @@
 import "./globals.js";
 
+function localFpsPlayerCanFight() {
+  return game.phase === "fps" && fps.players[game.localIndex]?.health > 0;
+}
+
 function updateGrenades(dt) {
   for (let i = world.grenades.length - 1; i >= 0; i--) {
     const g = world.grenades[i];
@@ -189,7 +193,7 @@ function firstPersonThrowOrigin(direction) {
   return camPos.clone().addScaledVector(direction, 0.18);
 }
 function throwGrenade() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
+  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
   game.grenadeCooldown = abilityCooldown("grenade", GRENADE_COOLDOWN);
   const p = fps.players[game.localIndex];
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
@@ -202,7 +206,7 @@ function throwGrenade() {
   updateHud();
 }
 function throwSmokeGrenade() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.smokeCooldown > 0 || !abilityAllowed("smoke")) return;
+  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.smokeCooldown > 0 || !abilityAllowed("smoke")) return;
   game.smokeCooldown = abilityCooldown("smoke", SMOKE_GRENADE_COOLDOWN);
   const p = fps.players[game.localIndex];
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
@@ -216,9 +220,9 @@ function throwSmokeGrenade() {
   send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
   updateHud();
 }
-function activateJumpAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
+function activateJumpAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
 function activateDashAbility() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("dash") || game.dashCooldown > 0) return;
+  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("dash") || game.dashCooldown > 0) return;
   const p = fps.players[game.localIndex];
   const forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw));
   const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
@@ -269,7 +273,7 @@ function findGrappleTarget(origin, dir, range = GRAPPLE_RANGE) {
   return point ? { point, distance, targetPlayer } : null;
 }
 function activateGrappleAbility() {
-  if (game.phase !== "fps" || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
+  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
   // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
   // current hook; release happens on keyup. Don't re-fire while attached.
   if (game.grapple?.active) return;
@@ -302,11 +306,13 @@ function grappleHitPlayer(index) {
   const popPos = playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
   showDamageDealt(GRAPPLE_PLAYER_DAMAGE, popPos, false);
   showHitMarker(false);
-  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: GRAPPLE_PLAYER_DAMAGE });
-  if (wasAlive && target.health === 0) {
+  const killed = wasAlive && target.health === 0;
+  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: GRAPPLE_PLAYER_DAMAGE, killed });
+  if (killed) {
     const aliveAfterKill = aliveFpsPlayerIndexes();
     const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
-    if (!cinematicKill) showEliminationNotice(index, { weapon: "grapple", distance: 0, headshot: false });
+    if (cinematicKill) broadcastKillEvent(index, { weapon: "grapple", distance: 0, headshot: false, finalKill: true });
+    else showEliminationNotice(index, { weapon: "grapple", distance: 0, headshot: false, finalKill: aliveAfterKill.length <= 1 });
     if (aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
   }
   updateHud();
@@ -316,6 +322,7 @@ function grappleHitPlayer(index) {
 function updateGrappleReticle() {
   if (!grappleReticle) return;
   const ready = game.phase === "fps" && game.countdown <= 0 && game.radarTimer <= 0
+    && fps.players[game.localIndex]?.health > 0
     && abilityAllowed("grapple") && !game.grapple?.active && game.grappleCooldown <= 0;
   if (!ready) { grappleReticle.classList.remove("active", "enemy"); return; }
   const p = fps.players[game.localIndex];
@@ -359,7 +366,7 @@ function updateGrappleRope() {
   const head = world.grappleRope.getObjectByName("hookHead");
   if (head) { head.position.set(0, 0.5, 0); head.scale.set(1, 1 / length, 1); }
 }
-function activateHealAbility() { if (game.phase !== "fps" || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
+function activateHealAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
 function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
@@ -386,15 +393,18 @@ function explodeGrenade(g) {
       const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g));
       if (dmg > 0) {
         const killDistance = ownerPos ? ownerPos.distanceTo(target.pos) : dist;
-        damages.push({ target: i, damage: dmg, headshot: false, distance: killDistance, weaponName });
+        const damageEntry = { target: i, damage: dmg, headshot: false, distance: killDistance, weaponName, killed: false };
+        damages.push(damageEntry);
         const wasAlive = target.health > 0;
         target.health = Math.max(0, target.health - dmg);
+        damageEntry.killed = wasAlive && target.health === 0;
         if (g.owner === game.localIndex) showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
         if (i === game.localIndex) showDamageTaken(dmg);
-        if (wasAlive && target.health === 0 && i !== game.localIndex && g.owner === game.localIndex) {
+        if (damageEntry.killed && i !== game.localIndex && g.owner === game.localIndex) {
           const aliveAfterKill = aliveFpsPlayerIndexes();
           const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === g.owner && willFpsKillWinMapOrMatch(g.owner);
-          if (!cinematicKill) showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false });
+          if (cinematicKill) broadcastKillEvent(i, { weaponName, distance: killDistance, headshot: false, finalKill: true });
+          else showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false, finalKill: aliveAfterKill.length <= 1 });
         }
       }
     }
@@ -644,8 +654,8 @@ function triggerParryForHit({ parrierIndex, attackerIndex, shotOrigin, incomingD
   return { event, damageEntry: deflect.damageEntry };
 }
 function fireHitscan() {
-  if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
-  if (game.phase !== "fps" || game.countdown > 0) return;
+  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0) return;
+  if (game.countdown > 0) return;
   const cfg = weaponConfig();
   if (cfg.meleeAttack) {
     // Blade weapons in the gun slot (katana): no ammo, no reload, fast swings.
@@ -725,18 +735,20 @@ function fireHitscan() {
     const target = fps.players[entry.target];
     const wasAlive = target.health > 0;
     target.health = Math.max(0, target.health - entry.damage);
+    entry.killed = wasAlive && target.health === 0;
     const popPos = entry.headshot ? playerHeadHitCenter(target).add(new THREE.Vector3(0, 0.18, 0)) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
     showDamageDealt(entry.damage, popPos, entry.headshot);
-    if (wasAlive && target.health === 0 && entry.target !== game.localIndex) {
+    if (entry.killed && entry.target !== game.localIndex) {
       const aliveAfterKill = aliveFpsPlayerIndexes();
       const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
-      if (!cinematicKill) {
-        showEliminationNotice(entry.target, {
-          weapon: game.primaryWeapon,
-          distance: entry.distance ?? origin.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.9, 0))),
-          headshot: entry.headshot
-        });
-      }
+      const killDetails = {
+        weapon: game.primaryWeapon,
+        distance: entry.distance ?? origin.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.9, 0))),
+        headshot: entry.headshot,
+        finalKill: aliveAfterKill.length <= 1
+      };
+      if (cinematicKill) broadcastKillEvent(entry.target, { ...killDetails, finalKill: true });
+      else showEliminationNotice(entry.target, killDetails);
     }
   }
   for (const entry of deflectDamages) applyLocalDeflectedDamage(entry, parryEvent);
@@ -774,6 +786,7 @@ function firstPersonProjectileOrigin(direction) {
   return camPos.clone().addScaledVector(direction, 0.16);
 }
 function fireProjectileWeapon(cfg) {
+  if (!localFpsPlayerCanFight()) return;
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : (cfg.projectile === "bouncer" ? "bouncerShot" : "grenade")); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
   const shooter = fps.players[game.localIndex];
@@ -807,7 +820,7 @@ function playerBodyHitCenter(player) {
   return player.pos.clone().add(new THREE.Vector3(0, FPS_BODY_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
 }
 function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDuration = 0.32, minDelay = 320, sound = "melee", weaponId = "melee" } = {}) {
-  if (game.radarTimer > 0 || game.throwBlockTimer > 0) return;
+  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0) return;
   const now = performance.now(); if (now - game.lastShotAt < minDelay) return; game.lastShotAt = now; game.meleeSwingTimer = swingDuration; playSound(sound);
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
@@ -817,8 +830,9 @@ function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDura
     if (dH < targetDist && dH < range && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
     else if (dB < targetDist && dB < range && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (wasAlive && opp.health === 0 && targetIndex !== game.localIndex) { const aliveAfterKill = aliveFpsPlayerIndexes(); const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex); if (!cinematicKill) showEliminationNotice(targetIndex, { weapon: weaponId, distance: targetDist, headshot: hs }); } }
-  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, isMelee: true, weapon: weaponId, headshot: hs, distance: hit ? targetDist : null }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+  let killed = false;
+  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); killed = wasAlive && opp.health === 0; showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (killed && targetIndex !== game.localIndex) { const aliveAfterKill = aliveFpsPlayerIndexes(); const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex); const killDetails = { weapon: weaponId, distance: targetDist, headshot: hs, finalKill: aliveAfterKill.length <= 1 }; if (cinematicKill) broadcastKillEvent(targetIndex, { ...killDetails, finalKill: true }); else showEliminationNotice(targetIndex, killDetails); } }
+  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, damages: hit ? [{ target: targetIndex, damage: dmg, headshot: hs, distance: targetDist, killed }] : [], isMelee: true, weapon: weaponId, headshot: hs, distance: hit ? targetDist : null, killed }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
 function fireMelee() { meleeStrike(); }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
@@ -1210,6 +1224,7 @@ function updatePlayerMeshes(dt = 1 / 60) {
 }
 
 Object.assign(globalThis, {
+  localFpsPlayerCanFight,
   updateGrenades,
   spawnGrenade,
   throwGrenade,

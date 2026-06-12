@@ -186,6 +186,13 @@ function willFpsKillWinMapOrMatch(winner = game.localIndex) {
   return (mapWinner === winner) || (matchWinner === winner);
 }
 
+function fpsResultHasFinalKillCinematic(result = game.result) {
+  if (!result || result.reason !== "deathmatch" || !Number.isInteger(result.winner) || result.winner < 0) return false;
+  const wonMap = result.mapOver && !result.mapTied && fpsScoreLeader(game.fpsKillWins) === result.winner;
+  const wonMatch = result.matchOver && result.matchWinner === result.winner;
+  return Boolean(wonMap || wonMatch);
+}
+
 function finalKillStatusText(result = game.result) {
   if (result?.matchOver && result.matchWinner === game.localIndex) return "YOU WON THE MATCH";
   if (result?.mapOver && !result.mapTied && fpsScoreLeader(game.fpsKillWins) === game.localIndex) return "YOU WON THE MAP";
@@ -373,6 +380,7 @@ Object.assign(globalThis, {
   setFinalKillActionNote,
   clearFinalKillCinematic,
   willFpsKillWinMapOrMatch,
+  fpsResultHasFinalKillCinematic,
   showFinalKillCinematic,
   clearVictoryBanner,
   hideKillNotice,

@@ -59,7 +59,8 @@ app.initNetworkLinks({
   weaponLabel: app.weaponLabel,
   showDamageDealt: app.showDamageDealt,
   showHitMarker: app.showHitMarker,
-  showEliminationNotice: app.showEliminationNotice
+  showEliminationNotice: app.showEliminationNotice,
+  showBattleLogElimination: app.showBattleLogElimination
 });
 
 app.animate();

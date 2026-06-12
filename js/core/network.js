@@ -102,7 +102,8 @@ export const networkLinks = {
   weaponLabel: null,
   showDamageDealt: null,
   showHitMarker: null,
-  showEliminationNotice: null
+  showEliminationNotice: null,
+  showBattleLogElimination: null
 };
 
 export function initNetworkLinks(links) {
@@ -266,6 +267,29 @@ function startRoundIfOnlyOneSurvivor() {
   else if (alive.length === 0) networkLinks.startVictoryLap(-1, "deathmatch", false);
 }
 
+function messagePlayerIndex(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+function knownRemotePlayerIsDead(index) {
+  return index !== null && index !== game.localIndex && fps.players[index] && fps.players[index].health <= 0;
+}
+
+function showKillEventInBattleLog(message) {
+  const victim = messagePlayerIndex(message.victim ?? message.target);
+  if (victim === null) return;
+  networkLinks.showBattleLogElimination?.(victim, {
+    killerIndex: messagePlayerIndex(message.killer ?? message.player ?? message.owner),
+    weapon: message.weapon || null,
+    weaponName: message.weaponName,
+    distance: message.distance,
+    headshot: Boolean(message.headshot),
+    finalKill: Boolean(message.finalKill)
+  });
+}
+
 function handleParryShotVisuals(message) {
   const parry = message.parry;
   if (!parry) return;
@@ -317,6 +341,7 @@ function shouldRelay(message) {
     "fpsGrenadeShot",
     "fpsGrenadeSupercharge",
     "fpsSmokeDeploy",
+    "fpsKillEvent",
     "matchResult",
     "restart"
   ].includes(message.type);
@@ -383,6 +408,16 @@ export function handleMessage(message, sourceConnection = null) {
     });
   }
 
+  if (message.type === "fpsKillEvent") {
+    const victim = messagePlayerIndex(message.victim);
+    const killer = messagePlayerIndex(message.killer);
+    if (victim !== null) {
+      if (victim !== game.localIndex && fps.players[victim]) fps.players[victim].health = 0;
+      if (killer !== game.localIndex) showKillEventInBattleLog(message);
+      if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
+    }
+  }
+
   if (message.type === "fpsWeaponChoice") {
     const remoteIdx = Number.isInteger(message.player) ? message.player : 1 - game.localIndex;
     if (remoteIdx === game.localIndex) return;
@@ -394,11 +429,17 @@ export function handleMessage(message, sourceConnection = null) {
     if (!remote || message.player === game.localIndex) return;
     networkLinks.applyRemoteFpsState(remote, message);
     const wasAlive = remote.health > 0;
-    remote.health = message.health;
+    const incomingHealth = Number(message.health);
+    if (Number.isFinite(incomingHealth)) {
+      // Once a player is dead in this round, do not let an older in-flight
+      // health packet resurrect the invisible ragdoll as an active shooter.
+      if (!(game.phase === "fps" && remote.health <= 0 && incomingHealth > 0)) {
+        remote.health = incomingHealth;
+      }
+    }
     if (wasAlive && remote.health <= 0) {
-      if (networkLinks.showEliminationNotice) networkLinks.showEliminationNotice(message.player);
-      // The killer's matchResult can be lost or arrive late; the periodic
-      // health sync is the reliable signal, so end the round from here too.
+      // Do not show the center elimination popup here. Only the killer gets
+      // that; everyone else gets fpsKillEvent in the side battle log.
       if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
     }
     if (message.sliding !== undefined) remote.sliding = message.sliding;
@@ -417,6 +458,8 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "fpsShot") {
+    const shooterIndex = messagePlayerIndex(message.player);
+    if (knownRemotePlayerIsDead(shooterIndex)) return;
     const origin = new THREE.Vector3(message.ox, message.oy, message.oz);
     const direction = new THREE.Vector3(message.dx, message.dy, message.dz);
     if (message.isMelee) {
@@ -447,9 +490,12 @@ export function handleMessage(message, sourceConnection = null) {
     if (localDamage && localDamage.distance === Infinity) localDamage.distance = message.distance;
     if (localDamage) {
       const dmg = localDamage.damage !== undefined ? localDamage.damage : 20;
-      fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - dmg);
+      const me = fps.players[game.localIndex];
+      const wasAlive = me.health > 0;
+      if (!wasAlive) return;
+      me.health = Math.max(0, me.health - dmg);
       networkLinks.showDamageTaken(dmg);
-      if (fps.players[game.localIndex].health <= 0) {
+      if (wasAlive && me.health <= 0) {
         const killedBy = localDamage.parried
           ? (localDamage.weaponName || `Parried ${networkLinks.weaponLabel(message.weapon)}`)
           : (message.isMelee ? (message.weapon && message.weapon !== "melee" ? networkLinks.weaponLabel(message.weapon) : "Club") : networkLinks.weaponLabel(message.weapon));
@@ -463,19 +509,30 @@ export function handleMessage(message, sourceConnection = null) {
     }
   }
 
-  if (message.type === "fpsGrappleHit" && message.target === game.localIndex) {
-    const dmg = message.damage !== undefined ? message.damage : 50;
-    const me = fps.players[game.localIndex];
-    const wasAlive = me.health > 0;
-    me.health = Math.max(0, me.health - dmg);
-    networkLinks.showDamageTaken(dmg);
-    if (wasAlive && me.health <= 0) {
-      networkLinks.showKilledBy(networkLinks.weaponLabel("grapple"), { headshot: false, distance: 0, killerIndex: message.player });
-      startRoundIfOnlyOneSurvivor();
+  if (message.type === "fpsGrappleHit") {
+    const attackerIndex = messagePlayerIndex(message.player);
+    const targetIndex = messagePlayerIndex(message.target);
+    if (knownRemotePlayerIsDead(attackerIndex)) return;
+    if (message.target === game.localIndex) {
+      const dmg = message.damage !== undefined ? message.damage : 50;
+      const me = fps.players[game.localIndex];
+      const wasAlive = me.health > 0;
+      if (!wasAlive) return;
+      me.health = Math.max(0, me.health - dmg);
+      networkLinks.showDamageTaken(dmg);
+      if (wasAlive && me.health <= 0) {
+        networkLinks.showKilledBy(networkLinks.weaponLabel("grapple"), { headshot: false, distance: 0, killerIndex: message.player });
+        startRoundIfOnlyOneSurvivor();
+      }
+    } else if (message.killed && targetIndex !== null) {
+      if (fps.players[targetIndex]) fps.players[targetIndex].health = 0;
+      if (attackerIndex !== game.localIndex) showKillEventInBattleLog({ ...message, victim: targetIndex, killer: attackerIndex, weaponName: networkLinks.weaponLabel?.("grapple") || "Grapple Hook" });
+      if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
     }
   }
 
   if (message.type === "fpsGrenadeThrow") {
+    if (knownRemotePlayerIsDead(messagePlayerIndex(message.owner))) return;
     playSound(message.kind === "smoke" ? "smoke" : (message.kind === "bouncer" ? "bouncerShot" : (message.kind === "rocket" ? "rocket" : "grenade")));
     networkLinks.spawnGrenade(
       new THREE.Vector3(message.x, message.y, message.z),
@@ -497,9 +554,12 @@ export function handleMessage(message, sourceConnection = null) {
     networkLinks.removeRemoteGrenadesNear(new THREE.Vector3(message.x, message.y, message.z));
     const localDamage = Array.isArray(message.damages) ? message.damages.find((entry) => entry.target === game.localIndex) : (message.target === game.localIndex ? message : null);
     if (localDamage && localDamage.damage > 0) {
-      fps.players[game.localIndex].health = Math.max(0, fps.players[game.localIndex].health - localDamage.damage);
+      const me = fps.players[game.localIndex];
+      const wasAlive = me.health > 0;
+      if (!wasAlive) return;
+      me.health = Math.max(0, me.health - localDamage.damage);
       networkLinks.showDamageTaken(localDamage.damage);
-      if (fps.players[game.localIndex].health <= 0) {
+      if (wasAlive && me.health <= 0) {
         const weaponName = localDamage.weaponName || message.weaponName || (message.weapon ? networkLinks.weaponLabel(message.weapon) : "Grenade");
         networkLinks.showKilledBy(weaponName, { distance: localDamage.distance, headshot: false, killerIndex: message.owner });
         startRoundIfOnlyOneSurvivor();

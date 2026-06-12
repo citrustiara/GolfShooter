@@ -1,7 +1,12 @@
 import "./globals.js";
 
 function updateFpsMovement(dt) {
-  const p = fps.players[game.localIndex], theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw)), right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(), move = new THREE.Vector3();
+  const p = fps.players[game.localIndex];
+  if (!p || p.health <= 0) {
+    if (p) { p.vel.set(0, 0, 0); p.sliding = false; }
+    return;
+  }
+  const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0], forward = new THREE.Vector3(Math.sin(p.yaw), 0, -Math.cos(p.yaw)), right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(), move = new THREE.Vector3();
   const previousPosition = p.pos.clone();
   const previousY = previousPosition.y;
   if (input.keys.has("KeyW")) move.add(forward); if (input.keys.has("KeyS")) move.sub(forward); if (input.keys.has("KeyA")) move.sub(right); if (input.keys.has("KeyD")) move.add(right); if (move.lengthSq() > 0) move.normalize();

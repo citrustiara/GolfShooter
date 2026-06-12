@@ -733,9 +733,121 @@ export function getArenaFloorDefs(theme = fpsArenaThemes[game.fpsMapIndex] || fp
   return [{ x: 0, z: 0, sx: map.bounds.x * 2, sz: map.bounds.z * 2 }];
 }
 
+function spawnCandidateInsideFloor(point, floor, margin = 3.2) {
+  if (floor.type === "circle") return Math.hypot(point.x - floor.x, point.z - floor.z) <= Math.max(0, (floor.r || 0) - margin);
+  return point.x >= floor.x - floor.sx / 2 + margin && point.x <= floor.x + floor.sx / 2 - margin &&
+    point.z >= floor.z - floor.sz / 2 + margin && point.z <= floor.z + floor.sz / 2 - margin;
+}
+
+function spawnCandidateInRotatedBox(point, item, margin = 1.4) {
+  const rot = Number(item.rot ?? item.rotY ?? 0);
+  const dx = point.x - Number(item.x || 0);
+  const dz = point.z - Number(item.z || 0);
+  const c = Math.cos(-rot);
+  const s = Math.sin(-rot);
+  const localX = dx * c - dz * s;
+  const localZ = dx * s + dz * c;
+  return Math.abs(localX) <= Number(item.sx || 0) / 2 + margin &&
+    Math.abs(localZ) <= Number(item.sz || 0) / 2 + margin;
+}
+
+function spawnCandidateBlockedByMap(point, map) {
+  const blocks = [];
+  if (Array.isArray(map.boxes)) blocks.push(...map.boxes);
+  if (Array.isArray(map.collision)) blocks.push(...map.collision);
+  if (Array.isArray(map.platforms)) blocks.push(...map.platforms);
+  if (Array.isArray(map.decor)) blocks.push(...map.decor.filter((item) => item.collidable || item.isPlatform));
+  for (const item of blocks) {
+    if (!item || item.collidable === false || item.spawnPassable) continue;
+    const y = Number(item.y || 0);
+    const sy = Number(item.sy || 0);
+    if (point.y !== undefined && y + sy <= point.y + 0.2) continue;
+    // High walkable decks/roofs can be valid spawn surfaces; ground-level
+    // solids (buildings, cars, crates) must not overlap a generated spawn.
+    const highWalkable = (item.platformOnly || item.isPlatform) && y > 1.5;
+    if (!highWalkable && y <= 2.2 && sy > 0.25 && spawnCandidateInRotatedBox(point, item)) return true;
+  }
+  return false;
+}
+
+function spawnGenerationFloors(map) {
+  if (Array.isArray(map.floors) && map.floors.length) return map.floors;
+  if (Array.isArray(map.platforms) && map.platforms.length) {
+    return map.platforms
+      .filter((platform) => platform && Number(platform.sx || 0) >= 3 && Number(platform.sz || 0) >= 3)
+      .map((platform) => ({
+        x: Number(platform.x || 0),
+        z: Number(platform.z || 0),
+        sx: Number(platform.sx || 1),
+        sz: Number(platform.sz || 1),
+        y: Number(platform.y || 0) + Number(platform.sy || 0) + 0.05
+      }));
+  }
+  if (map.shape === "circle") return [{ type: "circle", x: 0, z: 0, r: map.bounds?.x || 42 }];
+  return [{ x: 0, z: 0, sx: (map.bounds?.x || 42) * 2, sz: (map.bounds?.z || 42) * 2 }];
+}
+
+function generateAdditionalSpawnPoints(map, baseSpawns, desiredCount) {
+  const floors = spawnGenerationFloors(map);
+  const candidates = [];
+  const addCandidate = (x, z, y = undefined) => {
+    const point = { x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) };
+    if (Number.isFinite(y)) point.y = Number(y.toFixed(2));
+    if (!floors.some((floor) => spawnCandidateInsideFloor(point, floor))) return;
+    if (baseSpawns.some((spawn) => Math.hypot(point.x - Number(spawn.x || 0), point.z - Number(spawn.z || 0)) < 7.5)) return;
+    if (spawnCandidateBlockedByMap(point, map)) return;
+    candidates.push(point);
+  };
+  for (const floor of floors) {
+    if (floor.type === "circle") {
+      const r = Math.max(5, (floor.r || 42) - 4);
+      addCandidate(floor.x || 0, floor.z || 0, floor.y);
+      for (const ring of [0.42, 0.72, 0.92]) {
+        const count = Math.max(6, Math.ceil(r * ring / 8));
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2 + ring;
+          addCandidate((floor.x || 0) + Math.cos(a) * r * ring, (floor.z || 0) + Math.sin(a) * r * ring, floor.y);
+        }
+      }
+    } else {
+      const cols = Math.max(3, Math.min(9, Math.ceil((floor.sx || 84) / 28)));
+      const rows = Math.max(3, Math.min(7, Math.ceil((floor.sz || 84) / 22)));
+      for (let ix = 0; ix < cols; ix++) {
+        for (let iz = 0; iz < rows; iz++) {
+          const x = (floor.x || 0) - floor.sx / 2 + ((ix + 0.5) / cols) * floor.sx;
+          const z = (floor.z || 0) - floor.sz / 2 + ((iz + 0.5) / rows) * floor.sz;
+          addCandidate(x, z, floor.y);
+        }
+      }
+      addCandidate(floor.x || 0, floor.z || 0, floor.y);
+    }
+  }
+  const selected = [];
+  const used = [...baseSpawns];
+  while (baseSpawns.length + selected.length < desiredCount && candidates.length) {
+    let bestIndex = -1;
+    let bestScore = -Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const minDist = Math.min(...used.map((spawn) => Math.hypot(candidate.x - Number(spawn.x || 0), candidate.z - Number(spawn.z || 0))));
+      if (minDist > bestScore) { bestScore = minDist; bestIndex = i; }
+    }
+    if (bestIndex < 0 || bestScore < 6) break;
+    const [chosen] = candidates.splice(bestIndex, 1);
+    selected.push(chosen);
+    used.push(chosen);
+  }
+  return selected;
+}
+
 export function getArenaSpawnPoints(theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]) {
   const map = (game.fpsCustomMapActive && game.fpsCustomMap) ? game.fpsCustomMap : theme;
-  return map.spawnPoints || [{ x: -42, z: 0 }, { x: 42, z: 0 }];
+  const baseSpawns = (Array.isArray(map.spawnPoints) && map.spawnPoints.length)
+    ? map.spawnPoints
+    : [{ x: -42, z: 0 }, { x: 42, z: 0 }];
+  const desiredCount = Math.max(2, game.playerCount || 2);
+  if (baseSpawns.length >= desiredCount) return baseSpawns;
+  return [...baseSpawns, ...generateAdditionalSpawnPoints(map, baseSpawns, desiredCount)];
 }
 
 export function isPointInsideArena(point, floors = world.arenaFloors, margin = 0) {

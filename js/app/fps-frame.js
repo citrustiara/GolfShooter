@@ -20,13 +20,33 @@ function updateFps(dt, now) {
     }
   }
   weaponSelectOverlay.classList.add("hidden");
+  const localPlayer = fps.players[game.localIndex];
+  const localAlive = Boolean(localPlayer && localPlayer.health > 0);
   const isWinner = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner);
-  if (isWinner && game.countdown <= 0 && !game.finalKillCinematicActive) {
+  if (isWinner && localAlive && game.countdown <= 0 && !game.finalKillCinematicActive) {
     if (game.radarTimer > 0 || game.throwBlockTimer > 0) input.aiming = false;
     updateFpsCamera(dt);
     updateFpsMovement(dt);
+  } else if (!localAlive && game.phase === "fps") {
+    input.shootHeld = false;
+    input.aiming = false;
+    releaseGrapple?.();
+    game.reloading = false;
+    game.reloadTimer = 0;
+    game.scopeAmount = 0;
+    scopeOverlay?.classList.add("hidden");
+    if (crosshairEl) crosshairEl.style.opacity = "";
+    document.getElementById("reloadProgress")?.classList.add("hidden");
+    if (world.weapon) world.weapon.visible = false;
+    if (world.meleeWeapon) world.meleeWeapon.visible = false;
+    if (world.radarDevice) world.radarDevice.visible = false;
   }
   updateWeaponSwap(dt);
+  if (!localAlive && game.phase === "fps") {
+    if (world.weapon) world.weapon.visible = false;
+    if (world.meleeWeapon) world.meleeWeapon.visible = false;
+    if (world.radarDevice) world.radarDevice.visible = false;
+  }
   if (game.parryCooldown > 0) game.parryCooldown = Math.max(0, game.parryCooldown - dt);
   if (game.parryAnimTimer > 0) game.parryAnimTimer = Math.max(0, game.parryAnimTimer - dt);
   for (let i = 0; i < fps.players.length; i++) {
@@ -35,9 +55,8 @@ function updateFps(dt, now) {
     if (i !== game.localIndex && player.parryCooldown > 0) player.parryCooldown = Math.max(0, player.parryCooldown - dt);
     if (player.parryEffectTimer > 0) player.parryEffectTimer = Math.max(0, player.parryEffectTimer - dt);
   }
-  const localPlayer = fps.players[game.localIndex];
   if (localPlayer) {
-    localPlayer.aiming = input.aiming;
+    localPlayer.aiming = localAlive && input.aiming;
     localPlayer.parryCooldown = game.parryCooldown;
     localPlayer.parryReloadTotal = game.parryReloadTotal;
     localPlayer.parryWeapon = activeFpsWeaponId();

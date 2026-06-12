@@ -77,7 +77,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   const toast = reason === "deathmatch" && !matchOver
     ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
-  const useFinalKillCinematic = reason === "deathmatch" && winner === game.localIndex && winner !== -1 && (localWonMap || localWonMatch);
+  const useFinalKillCinematic = winner === game.localIndex && fpsResultHasFinalKillCinematic(game.result);
   if (useFinalKillCinematic && showFinalKillCinematic(game.result)) {
     // The cinematic handles its own delayed stinger and result text.
   } else {
@@ -92,7 +92,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   updateHud();
 }
 function activateRadar() {
-  if (game.phase !== "fps" || game.countdown > 0) return;
+  if (game.phase !== "fps" || game.countdown > 0 || fps.players[game.localIndex]?.health <= 0) return;
   if (!abilityAllowed("radar")) return;
   
   if (game.radarTimer > 0) {
@@ -124,6 +124,7 @@ function finishMatch(winner, reason) {
   damageLayer.replaceChildren();
   damageVignette.classList.remove("active");
   killNotice.classList.add("hidden");
+  clearBattleLog?.();
   radarMarker.classList.add("hidden");
   world.weapon.visible = false;
   world.meleeWeapon.visible = false;
