@@ -260,6 +260,10 @@ function survivingFpsPlayerIndexes() {
 }
 
 function startRoundIfOnlyOneSurvivor() {
+  // Ignore stale death/kill packets while the next round countdown is already
+  // running. Late health=0 fpsState packets from the previous victory lap can
+  // otherwise be counted as a brand-new round win on only one peer.
+  if (game.phase !== "fps" || game.countdown > 0) return;
   const alive = survivingFpsPlayerIndexes();
   if (alive.length === 1) networkLinks.startVictoryLap(alive[0], "deathmatch", false);
   // Everyone died in the same instant (trade kill / shared explosion): the
@@ -427,9 +431,13 @@ export function handleMessage(message, sourceConnection = null) {
   if (message.type === "fpsState") {
     const remote = fps.players[message.player];
     if (!remote || message.player === game.localIndex) return;
+    const incomingHealth = Number(message.health);
+    const staleCountdownDeath = Number.isFinite(incomingHealth) && game.phase === "fps" && game.countdown > 0 && incomingHealth <= 0;
+    // Do not let a late health=0 packet from the previous victory lap kill or
+    // move the remote player during the next round's countdown.
+    if (staleCountdownDeath) return;
     networkLinks.applyRemoteFpsState(remote, message);
     const wasAlive = remote.health > 0;
-    const incomingHealth = Number(message.health);
     if (Number.isFinite(incomingHealth)) {
       // Once a player is dead in this round, do not let an older in-flight
       // health packet resurrect the invisible ragdoll as an active shooter.
