@@ -18,6 +18,7 @@ const comicFragmentShader = `
 precision highp float;
 uniform sampler2D tDiffuse;
 uniform vec2 resolution;
+uniform vec2 patternRes;
 uniform float time;
 uniform float grayscale;
 uniform float desaturate;
@@ -42,7 +43,10 @@ vec3 sampleScene(vec2 uv) {
 }
 
 void main() {
-  vec2 texel = 1.0 / max(resolution, vec2(1.0));
+  // Edge/halftone sampling runs off a fixed reference resolution (patternRes,
+  // set from a 1080p-equivalent grid) instead of the real buffer size, so the
+  // ink outlines are the same visual thickness on any display or browser zoom.
+  vec2 texel = 1.0 / max(patternRes, vec2(1.0));
   vec3 source = texture2D(tDiffuse, vUv).rgb;
   vec3 raw = clamp((source - 0.5) * contrast + 0.5 + brightness, 0.0, 1.0);
   float center = luma(raw);
@@ -63,8 +67,8 @@ void main() {
   float down2 = luma(sampleScene(vUv + vec2(0.0, -t2.y)));
   float edgeNear = abs(left - right) + abs(up - down) + abs(diagA - diagB) * 0.55;
   float edgeWide = abs(left2 - right2) + abs(up2 - down2);
-  float edge = max(edgeNear * 2.85, edgeWide * 2.1);
-  edge = smoothstep(0.028, 0.165, edge) * inkStrength;
+  float edge = max(edgeNear * 2.15, edgeWide * 1.5);
+  edge = smoothstep(0.044, 0.196, edge) * inkStrength;
 
   float steps = max(2.0, colorSteps);
   vec3 boosted = clamp(raw * 1.34 + 0.10, 0.0, 1.0);
@@ -72,10 +76,10 @@ void main() {
   float posterLuma = luma(poster);
   poster = mix(vec3(posterLuma), poster, 1.12);
 
-  vec2 grid = vUv * resolution / 7.5;
+  vec2 grid = vUv * patternRes / 7.5;
   vec2 cell = fract(grid) - 0.5;
   float shadowDots = (1.0 - smoothstep(0.20, 0.48, length(cell))) * (1.0 - smoothstep(0.22, 0.82, center));
-  float hatch = smoothstep(0.46, 0.50, abs(fract((vUv.x + vUv.y) * resolution.x * 0.038) - 0.5)) * (1.0 - smoothstep(0.20, 0.72, center));
+  float hatch = smoothstep(0.46, 0.50, abs(fract((vUv.x + vUv.y) * patternRes.x * 0.038) - 0.5)) * (1.0 - smoothstep(0.20, 0.72, center));
   vec3 comic = poster - shadowDots * 0.044 * inkStrength - hatch * 0.021 * inkStrength;
   comic = mix(clamp(raw * 1.20 + 0.10, 0.0, 1.0), comic, 0.72);
 
@@ -89,7 +93,7 @@ void main() {
 
   float shadowLift = (1.0 - smoothstep(0.12, 0.44, center)) * (1.0 - clamp(edge * 1.35, 0.0, 1.0)) * (1.0 - monoMix);
   comic = mix(comic, max(comic, vec3(0.28)), shadowLift * 0.48);
-  comic *= 1.0 - edge * (0.86 + monoMix * 0.10);
+  comic *= 1.0 - edge * (0.56 + monoMix * 0.10);
 
   float vignette = 1.0 - smoothstep(0.34, 0.82, distance(vUv, vec2(0.5))) * (0.035 + monoMix * 0.035);
   comic *= vignette;
@@ -98,7 +102,7 @@ void main() {
   comic = mix(comic, vec3(luma(comic)), desaturate);
   float redMask = smoothstep(0.18, 0.62, raw.r - max(raw.g, raw.b)) * smoothstep(0.34, 0.88, raw.r);
   comic = mix(comic, vec3(1.0, 0.025, 0.015), clamp(redHighlight * redMask, 0.0, 1.0));
-  comic += (grain(vUv * resolution + time * 31.0) - 0.5) * (0.008 + monoMix * 0.018);
+  comic += (grain(vUv * patternRes + time * 31.0) - 0.5) * (0.008 + monoMix * 0.018);
 
   gl_FragColor = vec4(clamp(comic, 0.0, 1.0), 1.0);
 }
@@ -107,6 +111,7 @@ void main() {
 const comicUniforms = {
   tDiffuse: { value: null },
   resolution: { value: new THREE.Vector2(1, 1) },
+  patternRes: { value: new THREE.Vector2(1920, 1080) },
   time: { value: 0 },
   grayscale: { value: 0 },
   desaturate: { value: 0 },
@@ -141,6 +146,13 @@ function syncComicRenderTarget() {
     comicRenderTarget.setSize(width, height);
   }
   comicUniforms.resolution.value.set(width, height);
+  // Drive all screen-space comic patterns (ink edges, halftone dots, hatching,
+  // grain) off a fixed 1080p-equivalent grid that only tracks aspect ratio, so
+  // the look is independent of the real pixel count, devicePixelRatio and the
+  // browser's page-zoom level.
+  const aspect = width / Math.max(1, height);
+  const refHeight = 1080;
+  comicUniforms.patternRes.value.set(refHeight * aspect, refHeight);
 }
 
 export function renderScene(timeSeconds = 0, options = {}) {

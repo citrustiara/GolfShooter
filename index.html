@@ -30,6 +30,15 @@
       </div>
     </div>
 
+    <div class="fps-scoreboard hidden" id="fpsScoreboard" aria-hidden="true">
+      <div class="fps-score-side" id="fpsScoreLeft"></div>
+      <div class="fps-score-center">
+        <div class="fps-score-timer" id="fpsScoreTimer">5:00</div>
+        <div class="fps-score-maps" id="fpsScoreMaps"></div>
+      </div>
+      <div class="fps-score-side" id="fpsScoreRight"></div>
+    </div>
+
     <div class="fps-hud" id="fpsHud">
       <div class="ability-container hidden" id="abilityContainer">
         <div class="ability-slot" id="radarAbility">
@@ -78,6 +87,7 @@
           <span class="key-hint">F</span>
           <div class="cooldown-overlay" id="grappleOverlay"></div>
           <span class="cooldown-text" id="grappleCDText"></span>
+          <span class="charge-badge" id="grappleCharges"></span>
           <span class="ability-icon">🪝</span>
         </div>
       </div>
@@ -87,6 +97,11 @@
     </div>
     <div class="kill-notice hidden" id="killNotice"></div>
     <div class="battle-log hidden" id="battleLog" aria-live="polite"></div>
+    <div class="spectate-banner hidden" id="spectateBanner" aria-live="polite">
+      <span class="spectate-banner-label">Spectating</span>
+      <span class="spectate-banner-name" id="spectateBannerName"></span>
+      <span class="spectate-banner-sub" id="spectateBannerSub"></span>
+    </div>
     <div class="final-kill-overlay hidden" id="finalKillOverlay" aria-hidden="true">
       <div class="final-kill-black"></div>
       <div class="final-kill-frame">
@@ -108,6 +123,28 @@
             <button class="final-kill-nav final-kill-replay hidden" id="finalKillReplayBtn" type="button">replay &gt;</button>
           </div>
           <div class="final-kill-host-note hidden" id="finalKillHostNote"></div>
+        </div>
+      </div>
+    </div>
+    <div class="defeat-overlay hidden" id="defeatOverlay" aria-hidden="true">
+      <div class="defeat-black"></div>
+      <div class="defeat-frame">
+        <div class="defeat-corner defeat-corner-left">
+          <span>SIGNAL LOST</span>
+          <span>NO REVIVE</span>
+        </div>
+        <div class="defeat-corner defeat-corner-right">
+          <span>MATCH OVER</span>
+        </div>
+        <div class="defeat-copy" aria-live="polite">
+          <div class="defeat-killedby" id="defeatKilledBy">ELIMINATED</div>
+          <div class="defeat-headline">YOU LOSE</div>
+          <div class="defeat-status" id="defeatStatus"></div>
+          <div class="defeat-status-row">
+            <button class="defeat-nav defeat-back" id="defeatBackBtn" type="button">&lt; menu</button>
+            <button class="defeat-nav defeat-replay" id="defeatReplayBtn" type="button">replay &gt;</button>
+          </div>
+          <div class="defeat-host-note hidden" id="defeatHostNote"></div>
         </div>
       </div>
     </div>
@@ -235,11 +272,13 @@
       <div class="scope-hair scope-hair-v"></div>
     </div>
     <div id="enemyBoxLayer" aria-hidden="true"></div>
+    <div class="grapple-lock-box hidden" id="grappleLockBox" aria-hidden="true"></div>
     <div class="grapple-reticle" id="grappleReticle" aria-hidden="true"></div>
     <div class="crosshair" id="crosshair"></div>
     <div class="reload-progress hidden" id="reloadProgress"><div class="reload-bar" id="reloadBar"></div></div>
     <div class="hit-marker" id="hitMarker"></div>
     <div class="damage-vignette" id="damageVignette"></div>
+    <div class="heal-vignette" id="healVignette"></div>
     <div id="damageLayer"></div>
     <div class="weapon-select-overlay hidden" id="weaponSelectOverlay">
       <h2>CHOOSE YOUR WEAPON</h2>

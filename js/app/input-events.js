@@ -136,7 +136,11 @@ function animate(now = performance.now()) {
   const radarMono = !finalKillCinematic && game.radarTimer > 0 && game.phase === "fps";
   // Scoped sniper view: fully desaturated (black-and-white) with the red channel boosted so highlighted enemies pop.
   const scopeMono = !finalKillCinematic && game.phase === "fps" ? (game.scopeAmount || 0) * 1.0 : 0;
-  const monoAmount = finalKillCinematic ? 1.0 : (radarMono ? 1.0 : comicMono);
+  // Low-health: the view drains toward grayscale, then fades back as the timer runs out.
+  const lowHpMono = (!finalKillCinematic && game.phase === "fps" && fps.players[game.localIndex]?.health > 0)
+    ? Math.min(LOW_HP_MAX_GRAY, (game.lowHpEffectTimer / LOW_HP_EFFECT_DURATION) * LOW_HP_MAX_GRAY)
+    : 0;
+  const monoAmount = finalKillCinematic ? 1.0 : (radarMono ? 1.0 : Math.max(comicMono, lowHpMono));
   renderScene(now * 0.001, {
     grayscale: monoAmount,
     desaturate: finalKillCinematic ? 1.0 : scopeMono,
@@ -226,6 +230,8 @@ startFpsBtn.addEventListener("click", () => {
 startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { if (game.role === "solo") syncPlayerCountFromUi(); resetFpsDuelState(true); captureFpsReplaySnapshot(); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
 leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
 finalKillBackBtn?.addEventListener("click", () => finalKillBackToLobby()); finalKillReplayBtn?.addEventListener("click", () => replayFpsMatch());
+defeatBackBtn?.addEventListener("click", () => finalKillBackToLobby());
+defeatReplayBtn?.addEventListener("click", () => replayFpsMatch());
 settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidden")); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); menuSensitivityInput?.addEventListener("input", () => syncSensitivity(menuSensitivityInput.value));
 practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
 practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());

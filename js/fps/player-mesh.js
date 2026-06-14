@@ -1,13 +1,23 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 import { FPS_HEAD_VISUAL_HEIGHT } from "../core/constants.js";
+import { buildPlayerOutline } from "./player-outline.js";
 
-// Full humanoid soldier model. The group contract is fixed: a child named
-// "headGroup" pivots with pitch and carries the "gun" and "melee" attach
-// groups (their transforms are driven by syncThirdPersonWeaponMesh each
-// frame). The `material` argument is the shared per-player team material —
-// it is used as-is and never mutated.
+// Full humanoid soldier model. The group contract is fixed:
+//   * a child named "headGroup" pivots with pitch and carries the "gun" and
+//     "melee" attach groups (driven by syncThirdPersonWeaponMesh each frame);
+//   * the limbs hang off hip/shoulder pivot groups exposed on
+//     `group.userData.rig` ({ legL, legR, armL, armR, gun }) so
+//     player-animation.js can drive a walk/idle/reload cycle.
+// The `material` argument is the shared per-player team material — it is used
+// as-is and never mutated; its colour also seeds the team-coloured outline.
+const HIP_Y = 1.0;        // hip pivot height (top of the thigh)
+const SHOULDER_Y = 1.55;  // shoulder pivot height
+
 export function makePlayerMesh(material) {
   const group = new THREE.Group();
+  const rig = {};
+  group.userData.rig = rig;
+
   const armorMat = new THREE.MeshStandardMaterial({ color: 0x1b232b, roughness: 0.5, metalness: 0.3 });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1114, roughness: 0.55, metalness: 0.4 });
   const strapMat = new THREE.MeshStandardMaterial({ color: 0x2a323b, roughness: 0.62, metalness: 0.18 });
@@ -25,16 +35,21 @@ export function makePlayerMesh(material) {
     return mesh;
   };
 
-  // ---- Legs ----
+  // ---- Legs (hung off a hip pivot so they can swing) ----
   for (const side of [-1, 1]) {
     const x = side * 0.19;
-    addMesh(group, new THREE.BoxGeometry(0.2, 0.14, 0.34), darkMat, x, 0.07, -0.03);
-    addMesh(group, new THREE.BoxGeometry(0.17, 0.09, 0.1), armorMat, x, 0.06, -0.22);
-    addMesh(group, new THREE.CylinderGeometry(0.075, 0.095, 0.42, 10), strapMat, x, 0.38, 0);
-    addMesh(group, new THREE.SphereGeometry(0.1, 10, 8), armorMat, x, 0.6, -0.03, { scale: [1, 0.8, 1] });
-    addMesh(group, new THREE.CylinderGeometry(0.11, 0.09, 0.42, 10), darkMat, x, 0.82, 0);
+    const leg = new THREE.Group();
+    leg.position.set(x, HIP_Y, 0);
+    group.add(leg);
+    // Parts re-expressed relative to the hip pivot (subtract HIP_Y; x carried by pivot).
+    addMesh(leg, new THREE.BoxGeometry(0.2, 0.14, 0.34), darkMat, 0, 0.07 - HIP_Y, -0.03);
+    addMesh(leg, new THREE.BoxGeometry(0.17, 0.09, 0.1), armorMat, 0, 0.06 - HIP_Y, -0.22);
+    addMesh(leg, new THREE.CylinderGeometry(0.075, 0.095, 0.42, 10), strapMat, 0, 0.38 - HIP_Y, 0);
+    addMesh(leg, new THREE.SphereGeometry(0.1, 10, 8), armorMat, 0, 0.6 - HIP_Y, -0.03, { scale: [1, 0.8, 1] });
+    addMesh(leg, new THREE.CylinderGeometry(0.11, 0.09, 0.42, 10), darkMat, 0, 0.82 - HIP_Y, 0);
     // Team-color thigh stripe so the player palette reads from a distance.
-    addMesh(group, new THREE.BoxGeometry(0.05, 0.3, 0.05), material, x + side * 0.1, 0.82, -0.08);
+    addMesh(leg, new THREE.BoxGeometry(0.05, 0.3, 0.05), material, side * 0.1, 0.82 - HIP_Y, -0.08);
+    if (side < 0) rig.legL = leg; else rig.legR = leg;
   }
 
   // ---- Pelvis & belt ----
@@ -52,17 +67,28 @@ export function makePlayerMesh(material) {
   addMesh(group, new THREE.BoxGeometry(0.07, 0.34, 0.05), strapMat, -0.16, 1.52, -0.2, { rot: [0.15, 0, 0.08] });
   addMesh(group, new THREE.BoxGeometry(0.07, 0.34, 0.05), strapMat, 0.16, 1.52, -0.2, { rot: [0.15, 0, -0.08] });
 
-  // ---- Shoulders & arms (weapon-ready pose, facing -z) ----
+  // ---- Shoulder pads (stay on the torso) ----
   addMesh(group, new THREE.SphereGeometry(0.15, 12, 8), armorMat, -0.42, 1.56, 0, { scale: [1.2, 0.78, 1] });
   addMesh(group, new THREE.SphereGeometry(0.15, 12, 8), armorMat, 0.42, 1.56, 0, { scale: [1.2, 0.78, 1] });
+
+  // ---- Arms (weapon-ready pose, facing -z), hung off shoulder pivots ----
   // Right arm: extended forward toward the gun.
-  addMesh(group, new THREE.CylinderGeometry(0.068, 0.06, 0.34, 10), material, 0.4, 1.47, -0.17, { rot: [-1.1, 0, -0.12] });
-  addMesh(group, new THREE.CylinderGeometry(0.055, 0.05, 0.3, 10), strapMat, 0.37, 1.41, -0.42, { rot: [-1.5, 0, -0.06] });
-  addMesh(group, new THREE.SphereGeometry(0.075, 10, 8), gloveMat, 0.36, 1.4, -0.56);
+  const armR = new THREE.Group();
+  armR.position.set(0.41, SHOULDER_Y, -0.05);
+  group.add(armR);
+  addMesh(armR, new THREE.CylinderGeometry(0.068, 0.06, 0.34, 10), material, -0.01, 1.47 - SHOULDER_Y, -0.12, { rot: [-1.1, 0, -0.12] });
+  addMesh(armR, new THREE.CylinderGeometry(0.055, 0.05, 0.3, 10), strapMat, -0.04, 1.41 - SHOULDER_Y, -0.37, { rot: [-1.5, 0, -0.06] });
+  addMesh(armR, new THREE.SphereGeometry(0.075, 10, 8), gloveMat, -0.05, 1.4 - SHOULDER_Y, -0.51);
+  rig.armR = armR;
+
   // Left arm: bent across, supporting the foregrip.
-  addMesh(group, new THREE.CylinderGeometry(0.068, 0.06, 0.32, 10), material, -0.39, 1.45, -0.12, { rot: [-0.85, 0, 0.45] });
-  addMesh(group, new THREE.CylinderGeometry(0.055, 0.05, 0.3, 10), strapMat, -0.22, 1.4, -0.36, { rot: [-1.35, -0.55, 0.1] });
-  addMesh(group, new THREE.SphereGeometry(0.075, 10, 8), gloveMat, -0.1, 1.39, -0.49);
+  const armL = new THREE.Group();
+  armL.position.set(-0.41, SHOULDER_Y, -0.05);
+  group.add(armL);
+  addMesh(armL, new THREE.CylinderGeometry(0.068, 0.06, 0.32, 10), material, 0.02, 1.45 - SHOULDER_Y, -0.07, { rot: [-0.85, 0, 0.45] });
+  addMesh(armL, new THREE.CylinderGeometry(0.055, 0.05, 0.3, 10), strapMat, 0.19, 1.4 - SHOULDER_Y, -0.31, { rot: [-1.35, -0.55, 0.1] });
+  addMesh(armL, new THREE.SphereGeometry(0.075, 10, 8), gloveMat, 0.31, 1.39 - SHOULDER_Y, -0.44);
+  rig.armL = armL;
 
   // ---- Neck & head ----
   addMesh(group, new THREE.CylinderGeometry(0.085, 0.1, 0.14, 10), darkMat, 0, 1.6, 0);
@@ -89,6 +115,7 @@ export function makePlayerMesh(material) {
   gunPart.position.set(0.32, -0.08, -0.3);
   gunPart.rotation.set(0.05, -0.1, 0.08);
   headGroup.add(gunPart);
+  rig.gun = gunPart;
 
   const meleePart = new THREE.Group();
   meleePart.name = "melee";
@@ -98,28 +125,9 @@ export function makePlayerMesh(material) {
   headGroup.add(meleePart);
 
   // ---- Enemy visibility outline ----
-  // Double inverted-hull rim around every body part: a bright white halo
-  // hugging the body with a hot magenta contour outside it, so enemies read
-  // as a comic-sticker silhouette against any map color or lighting. Hulls
-  // share materials and are flagged so nothing tries to outline an outline.
-  const outlineInnerMat = new THREE.MeshBasicMaterial({ color: 0xfffdf5, side: THREE.BackSide, toneMapped: false });
-  const outlineOuterMat = new THREE.MeshBasicMaterial({ color: 0xff2d78, side: THREE.BackSide, toneMapped: false });
-  const outlineTargets = [];
-  group.traverse((child) => {
-    if (child.isMesh && !child.userData.isPlayerOutline && !child.userData.skipOutline) outlineTargets.push(child);
-  });
-  for (const mesh of outlineTargets) {
-    const inner = new THREE.Mesh(mesh.geometry, outlineInnerMat);
-    inner.scale.setScalar(1.08);
-    const outer = new THREE.Mesh(mesh.geometry, outlineOuterMat);
-    outer.scale.setScalar(1.16);
-    for (const hull of [inner, outer]) {
-      hull.userData.isPlayerOutline = true;
-      hull.castShadow = false;
-      hull.receiveShadow = false;
-      mesh.add(hull);
-    }
-  }
+  // A subtle team-coloured rim, hidden by default and toggled on by the combat
+  // loop only while the enemy is on screen (see player-outline.js).
+  buildPlayerOutline(group, material.color?.getHex?.() ?? 0xffffff);
 
   return group;
 }

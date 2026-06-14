@@ -272,42 +272,79 @@ function findGrappleTarget(origin, dir, range = GRAPPLE_RANGE) {
   }
   return point ? { point, distance, targetPlayer } : null;
 }
+// Two-charge plumbing: how many hooks can be banked and how fast each refills.
+function grappleMaxCharges() { return GRAPPLE_MAX_CHARGES; }
+function grappleRechargeTime() { return abilityCooldown("grapple", GRAPPLE_COOLDOWN); }
+// Aim-assist lock: the in-range enemy closest to the aim line (within a tight
+// cone and with clear line of sight) that the hook will snap onto. Returns
+// { index, point, distance } or null. A lock guarantees the hook connects, but
+// at reduced damage compared with a pixel-perfect direct hit.
+function findGrappleLockTarget(origin, dir, range = GRAPPLE_RANGE) {
+  const minDot = Math.cos(THREE.MathUtils.degToRad(GRAPPLE_LOCK_CONE_DEG));
+  let best = null, bestDot = minDot;
+  for (const { player, index } of opposingFpsPlayers()) {
+    if (!player || player.health <= 0) continue;
+    const point = playerBodyHitCenter(player);
+    const toTarget = point.clone().sub(origin);
+    const dist = toTarget.length();
+    if (dist < 0.4 || dist > range) continue;
+    const aimDot = toTarget.multiplyScalar(1 / dist).dot(dir);
+    if (aimDot < bestDot) continue;
+    if (!parryAimHasLineOfSight(origin, point)) continue;
+    best = { index, point: point.clone(), distance: dist };
+    bestDot = aimDot;
+  }
+  return best;
+}
 function activateGrappleAbility() {
   if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
   // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
   // current hook; release happens on keyup. Don't re-fire while attached.
   if (game.grapple?.active) return;
-  if (game.grappleCooldown > 0) return;
+  // Need a banked charge, and respect the short gap between consecutive throws
+  // so both hooks can't be spent on the same frame.
+  if (game.grappleCharges <= 0 || game.grappleGapTimer > 0) return;
   const p = fps.players[game.localIndex];
   const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const target = findGrappleTarget(origin, dir);
-  if (!target) {
-    // Whiffed hook: short tap on the cooldown so it can be retried quickly.
-    game.grappleCooldown = 0.8;
+  const lock = findGrappleLockTarget(origin, dir);
+  const target = lock ? null : findGrappleTarget(origin, dir);
+  if (!lock && !target) {
+    // Whiffed hook: short retry gap, but no charge is spent.
+    game.grappleGapTimer = Math.max(game.grappleGapTimer, 0.5);
     playSound("grapple", { volume: 0.4 });
     updateHud();
     return;
   }
-  game.grapple = { active: true, point: target.point.clone(), targetPlayer: target.targetPlayer };
-  if (target.targetPlayer != null) grappleHitPlayer(target.targetPlayer);
-  game.grappleCooldown = abilityCooldown("grapple", GRAPPLE_COOLDOWN);
+  // Spend a charge and (re)start the background refill toward the next one.
+  game.grappleCharges = Math.max(0, game.grappleCharges - 1);
+  game.grappleGapTimer = GRAPPLE_QUICK_GAP;
+  if (game.grappleChargeTimer <= 0) game.grappleChargeTimer = grappleRechargeTime();
+  if (lock) {
+    game.grapple = { active: true, point: lock.point.clone(), targetPlayer: lock.index, locked: true };
+    grappleHitPlayer(lock.index, GRAPPLE_LOCK_DAMAGE);
+  } else {
+    game.grapple = { active: true, point: target.point.clone(), targetPlayer: target.targetPlayer, locked: false };
+    if (target.targetPlayer != null) grappleHitPlayer(target.targetPlayer, GRAPPLE_PLAYER_DAMAGE);
+  }
   playSound("grapple", { volume: 0.9 });
   updateHud();
 }
-// Latching the hook onto an enemy deals a fixed chunk of damage (and reels you
-// in via the grapple pull). Damage is applied locally and mirrored to the peer.
-function grappleHitPlayer(index) {
+// Latching the hook onto an enemy deals a chunk of damage (and reels you in via
+// the grapple pull). Damage is applied locally and mirrored to the peer; a
+// locked-on hook deals less than a precise direct hit.
+function grappleHitPlayer(index, damage = GRAPPLE_PLAYER_DAMAGE) {
   const target = fps.players[index];
   if (!target || index === game.localIndex) return;
   const wasAlive = target.health > 0;
   if (!wasAlive) return;
-  target.health = Math.max(0, target.health - GRAPPLE_PLAYER_DAMAGE);
+  const dmg = Math.max(0, Math.round(Number(damage) || 0));
+  target.health = Math.max(0, target.health - dmg);
   const popPos = playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
-  showDamageDealt(GRAPPLE_PLAYER_DAMAGE, popPos, false);
+  showDamageDealt(dmg, popPos, false);
   showHitMarker(false);
   const killed = wasAlive && target.health === 0;
-  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: GRAPPLE_PLAYER_DAMAGE, killed });
+  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: dmg, killed });
   if (killed) {
     const aliveAfterKill = aliveFpsPlayerIndexes();
     const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
@@ -323,14 +360,51 @@ function updateGrappleReticle() {
   if (!grappleReticle) return;
   const ready = game.phase === "fps" && game.countdown <= 0 && game.radarTimer <= 0
     && fps.players[game.localIndex]?.health > 0
-    && abilityAllowed("grapple") && !game.grapple?.active && game.grappleCooldown <= 0;
-  if (!ready) { grappleReticle.classList.remove("active", "enemy"); return; }
+    && abilityAllowed("grapple") && !game.grapple?.active
+    && game.grappleCharges > 0 && game.grappleGapTimer <= 0;
+  if (!ready) { grappleReticle.classList.remove("active", "enemy"); setGrappleLockBox(null); return; }
   const p = fps.players[game.localIndex];
   const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const target = findGrappleTarget(origin, dir);
-  grappleReticle.classList.toggle("active", Boolean(target));
-  grappleReticle.classList.toggle("enemy", Boolean(target && target.targetPlayer != null));
+  const lock = findGrappleLockTarget(origin, dir);
+  const target = lock ? null : findGrappleTarget(origin, dir);
+  grappleReticle.classList.toggle("active", Boolean(lock || target));
+  // The red enemy cue now lives on the locked enemy (a box around them), so the
+  // crosshair ring stays neutral whenever a lock is held.
+  grappleReticle.classList.remove("enemy");
+  setGrappleLockBox(lock ? fps.players[lock.index] : null);
+}
+// Screen-space bounding rect of an enemy's hitbox, or null if off-screen/behind.
+function enemyScreenRect(player) {
+  const drop = playerSlideHitboxDrop(player);
+  const viewDir = directionFromAngles(input.yaw, input.pitch);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, behind = false;
+  for (const ox of [-0.62, 0.62]) {
+    for (const oy of [0.05, 1.95 - drop]) {
+      for (const oz of [-0.62, 0.62]) {
+        const corner = new THREE.Vector3(player.pos.x + ox, player.pos.y + oy, player.pos.z + oz);
+        if (corner.clone().sub(camera.position).dot(viewDir) < 0.2) { behind = true; break; }
+        const screen = toScreen(corner);
+        minX = Math.min(minX, screen.x); maxX = Math.max(maxX, screen.x);
+        minY = Math.min(minY, screen.y); maxY = Math.max(maxY, screen.y);
+      }
+      if (behind) break;
+    }
+    if (behind) break;
+  }
+  if (behind || !Number.isFinite(minX)) return null;
+  return { left: minX, top: minY, width: Math.max(8, maxX - minX), height: Math.max(8, maxY - minY) };
+}
+// Red lock-on box drawn around the enemy the grapple has acquired.
+function setGrappleLockBox(player) {
+  if (!grappleLockBox) return;
+  const rect = player ? enemyScreenRect(player) : null;
+  if (!rect) { grappleLockBox.classList.add("hidden"); return; }
+  grappleLockBox.style.left = `${rect.left}px`;
+  grappleLockBox.style.top = `${rect.top}px`;
+  grappleLockBox.style.width = `${rect.width}px`;
+  grappleLockBox.style.height = `${rect.height}px`;
+  grappleLockBox.classList.remove("hidden");
 }
 function releaseGrapple() {
   game.grapple = null;
@@ -366,7 +440,7 @@ function updateGrappleRope() {
   const head = world.grappleRope.getObjectByName("hookHead");
   if (head) { head.position.set(0, 0.5, 0); head.scale.set(1, 1 / length, 1); }
 }
-function activateHealAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); updateHud(); }
+function activateHealAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); showHealed(); updateHud(); }
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
 function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
@@ -628,6 +702,10 @@ function triggerParryForHit({ parrierIndex, attackerIndex, shotOrigin, incomingD
   const impact = shotOrigin.clone().addScaledVector(incomingDirection, hitDistance);
   const deflect = buildDeflectedShot(parrierIndex, impact, cfg, weaponId);
   drawParryEffect(impact, incomingDirection, deflect.direction, parryWeapon, parrierIndex === game.localIndex);
+  // The shooter whose shot was just reflected should see the impact frame too,
+  // so both players are certain the parry landed. The parrier's own frame fires
+  // from drawParryEffect; this covers the attacker side.
+  if (attackerIndex === game.localIndex) flashParryImpactFrame();
   drawLaser(deflect.origin, deflect.direction, deflect.length, deflect.hit, true, "parry");
   playSound("parry", { position: impact, volume: parrierIndex === game.localIndex ? 1 : 0.88, minDistance: 1.5, maxDistance: 65 });
   const event = {
@@ -967,7 +1045,7 @@ function flashParryImpactFrame() {
   frame.classList.remove("active");
   void frame.offsetWidth;
   frame.classList.add("active");
-  window.setTimeout(() => frame.classList.remove("active"), 190);
+  window.setTimeout(() => frame.classList.remove("active"), 380);
 }
 function drawParryEffect(position, incomingDirection, outgoingDirection, weaponId = "melee", localImpact = false) {
   const pos = position.clone();
@@ -1121,22 +1199,8 @@ function updateScopeEnemyBoxes() {
       // Radar uses the same screen-space red boxes as the sniper scope, but it
       // only skips the line-of-sight portion of the scope visibility test.
       if (radar ? !enemyInCameraFrustum(player) : !enemyVisibleToCamera(player)) continue;
-      const drop = playerSlideHitboxDrop(player);
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, behind = false;
-      for (const ox of [-0.62, 0.62]) {
-        for (const oy of [0.05, 1.95 - drop]) {
-          for (const oz of [-0.62, 0.62]) {
-            const corner = new THREE.Vector3(player.pos.x + ox, player.pos.y + oy, player.pos.z + oz);
-            if (corner.clone().sub(camera.position).dot(directionFromAngles(input.yaw, input.pitch)) < 0.2) { behind = true; break; }
-            const screen = toScreen(corner);
-            minX = Math.min(minX, screen.x); maxX = Math.max(maxX, screen.x);
-            minY = Math.min(minY, screen.y); maxY = Math.max(maxY, screen.y);
-          }
-          if (behind) break;
-        }
-        if (behind) break;
-      }
-      if (behind || !Number.isFinite(minX)) continue;
+      const rect = enemyScreenRect(player);
+      if (!rect) continue;
       used.add(String(index));
       let el = enemyBoxLayer.querySelector(`[data-enemy="${index}"]`);
       if (!el) {
@@ -1145,10 +1209,10 @@ function updateScopeEnemyBoxes() {
         el.dataset.enemy = String(index);
         enemyBoxLayer.appendChild(el);
       }
-      el.style.left = `${minX}px`;
-      el.style.top = `${minY}px`;
-      el.style.width = `${Math.max(8, maxX - minX)}px`;
-      el.style.height = `${Math.max(8, maxY - minY)}px`;
+      el.style.left = `${rect.left}px`;
+      el.style.top = `${rect.top}px`;
+      el.style.width = `${rect.width}px`;
+      el.style.height = `${rect.height}px`;
     }
   }
   for (const el of [...enemyBoxLayer.children]) {
@@ -1159,6 +1223,9 @@ function updateScopeEnemyBoxes() {
 function updatePlayerMeshes(dt = 1 / 60) {
   const isRadarActive = game.radarTimer > 0;
   const scopeActive = scopeHighlightActive();
+  // While spectating a player in first person, hide their body so we aren't
+  // looking out from inside their own mesh.
+  const spectatedIdx = (game.phase === "fps" && (fps.players[game.localIndex]?.health ?? 1) <= 0) ? game.spectateTarget : -1;
   for (let i = 0; i < world.playerMeshes.length; i++) {
     const mesh = world.playerMeshes[i], player = fps.players[i];
     player.visualSlide = moveTowards(player.visualSlide || 0, player.sliding ? 1 : 0, dt * 8.0);
@@ -1185,15 +1252,25 @@ function updatePlayerMeshes(dt = 1 / 60) {
       }
     }
 
-    mesh.visible = player.health > 0 && (game.phase === "fps" ? i !== game.localIndex : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
+    mesh.visible = player.health > 0 && (game.phase === "fps" ? (i !== game.localIndex && i !== spectatedIdx) : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
 
-    // Scope highlight: while hard-scoped, enemies inside the view frustum with
-    // line of sight burn bright red (depth-tested — never through walls).
-    const scopeHighlight = scopeActive && mesh.visible && i !== game.localIndex && enemyVisibleToCamera(player);
+    // Procedural body animation (walk / idle / slide / air / reload). Cheap, and
+    // skipped while the mesh is hidden (e.g. the local player in first person).
+    if (mesh.visible) {
+      const reloadingThis = i === game.localIndex ? game.reloading : Boolean(player.reloading);
+      updatePlayerAnimation(mesh, player, dt, { reloading: reloadingThis, now: performance.now() * 0.001 });
+    }
+
+    // One on-screen visibility test per enemy per frame, shared by the sniper
+    // scope highlight and the soft team-coloured outline below.
+    const visibleToCam = mesh.visible && i !== game.localIndex && enemyVisibleToCamera(player);
+    // Scope highlight: while hard-scoped, enemies in view with line of sight burn
+    // bright red (depth-tested — never through walls).
+    const scopeHighlight = scopeActive && visibleToCam;
 
     // Wallhack uses per-mesh cloned materials so shared player materials are never left hidden/mutated.
     mesh.traverse((child) => {
-      if (!child.isMesh) return;
+      if (!child.isMesh || child.userData.isPlayerOutline) return;
       if (!child.userData.baseMaterial) {
         child.userData.baseMaterial = child.material;
         child.userData.baseRenderOrder = child.renderOrder || 0;
@@ -1220,6 +1297,11 @@ function updatePlayerMeshes(dt = 1 / 60) {
         child.renderOrder = child.userData.baseRenderOrder || 0;
       }
     });
+
+    // Soft "sticker" outline in the enemy's own team colour whenever they are on
+    // screen — a quieter, box-free cousin of the scope highlight that keeps
+    // players readable. Suppressed while radar/scope already recolour them.
+    setPlayerOutlineVisible(mesh, game.phase === "fps" && visibleToCam && !isRadarActive && !scopeHighlight);
   }
 }
 
@@ -1234,8 +1316,13 @@ Object.assign(globalThis, {
   activateDashAbility,
   activateGrappleAbility,
   findGrappleTarget,
+  findGrappleLockTarget,
+  grappleMaxCharges,
+  grappleRechargeTime,
   grappleHitPlayer,
   updateGrappleReticle,
+  enemyScreenRect,
+  setGrappleLockBox,
   releaseGrapple,
   updateGrappleRope,
   enemyInCameraFrustum,

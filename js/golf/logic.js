@@ -4,6 +4,7 @@ import { materials } from "../core/engine.js";
 import { holeCatalog } from "./catalog.js";
 import { CUP_SURFACE_Y, HOLES_PER_TOURNAMENT } from "../core/constants.js";
 import { makeRampMesh } from "../core/ramps.js";
+import { buildGolfHole } from "./hole.js";
 
 export const holes = [];
 const GOLF_BALL_COLORS = [0xffffff, 0xff4a5f, 0x5ab0ff, 0xffd166, 0x7ee2a8, 0xb84dff, 0xff9f43, 0x9ee8ff];
@@ -66,6 +67,8 @@ export function resetGolfHole() {
     ball.moving = false;
     ball.falling = false;
     ball.airborne = false;
+    ball.sinkElapsed = null;
+    ball.mesh.rotation.set(0, 0, 0);
   }
   game.golfHoleTimer = null;
   world.ball = world.golfBalls[game.localIndex]?.mesh || world.golfBalls[0]?.mesh || world.ball;
@@ -252,20 +255,9 @@ export function setupGolfObjects() {
   world.golfIsland = island;
   world.golfRoot.add(island);
 
-  world.cup = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.08, 40), materials.cup);
+  world.cup = buildGolfHole(materials);
   world.cup.position.y = CUP_SURFACE_Y;
-  world.cup.receiveShadow = true;
   world.courseRoot.add(world.cup);
-
-  const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.4, 12), materials.metal);
-  flagPole.position.set(0.16, 1.38, 0);
-  flagPole.castShadow = true;
-  world.cup.add(flagPole);
-
-  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.36, 0.035), materials.coral);
-  flag.position.set(0.38, 0.88, 0);
-  flag.castShadow = true;
-  flagPole.add(flag);
 
   world.ball = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 18), materials.white);
   world.ball.castShadow = true;
@@ -276,7 +268,8 @@ export function setupGolfObjects() {
     vel: world.ballVel,
     lastShot: game.lastShotPosition,
     moving: false,
-    falling: false
+    falling: false,
+    sinkElapsed: null
   }];
 
   const arrowGroup = new THREE.Group();
@@ -311,7 +304,8 @@ export function ensureGolfBalls(count = game.playerCount) {
       vel: new THREE.Vector3(),
       lastShot: new THREE.Vector3(),
       moving: false,
-      falling: false
+      falling: false,
+      sinkElapsed: null
     };
     world.golfBalls.push(ball);
     world.courseRoot.add(mesh);

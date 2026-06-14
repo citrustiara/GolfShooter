@@ -294,9 +294,26 @@ export function playSound(type, options = {}) {
     blip(1160, 0.16, 0.36, "sawtooth", 0, 0.11);
     blip(1580, 0.22, 0.24, "sine", 0, 0.18);
   } else if (type === "hurt") {
-    master.gain.setValueAtTime(0.28, now);
-    blip(92, 0.22, 0.8, "sawtooth");
-    blip(70, 0.28, 0.55, "square");
+    // Taking damage: a sharp bony crack over a low gut thud with a short
+    // downward groan, so a hit on the local player reads instantly.
+    master.gain.setValueAtTime(0.32, now);
+    noise(0.05, 0.6, 2600, 1.2, 0, "bandpass");
+    blip(150, 0.12, 0.7, "square", -40);
+    sweep(420, 90, 0.26, 0.6, "sawtooth", 0.01);
+    blip(64, 0.3, 0.5, "sine", 0, 0.02);
+  } else if (type === "heartbeat") {
+    // Low-health lub-dub: two soft low thumps, the second quieter and lower.
+    master.gain.setValueAtTime(0.5, now);
+    blip(62, 0.16, 0.9, "sine");
+    sweep(70, 40, 0.16, 0.5, "sine");
+    blip(54, 0.18, 0.7, "sine", 0, 0.18);
+    sweep(60, 34, 0.18, 0.4, "sine", 0.18);
+  } else if (type === "heal") {
+    // Soft restorative shimmer: a gentle rising chord with an airy tail.
+    master.gain.setValueAtTime(0.16, now);
+    arp([523.25, 659.25, 783.99], 0.22, 0.26, "sine", 0.06);
+    sweep(900, 1500, 0.3, 0.12, "triangle", 0.04);
+    noise(0.2, 0.05, 6000, 1.0, 0.05, "highpass");
   } else if (type === "melee") {
     master.gain.setValueAtTime(0.2, now);
     blip(240, 0.1, 0.42, "sawtooth", -300);

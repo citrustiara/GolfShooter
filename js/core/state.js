@@ -68,7 +68,23 @@ export const game = {
   dashCooldown: 0,
   dashTimer: 0,
   grappleCooldown: 0,
+  grappleCharges: 2,
+  grappleChargeTimer: 0,
+  grappleGapTimer: 0,
   grapple: null,
+  lowHpEffectTimer: 0,
+  lowHpHeartbeatTimer: 0,
+  healEffectTimer: 0,
+  damageEffectTimer: 0,
+  // Per-round countdown (seconds; real value set from ROUND_TIME_LIMIT each round
+  // reset). When it hits 0 the round is decided by HP.
+  roundTimeLeft: 300,
+  roundTimedOut: false,
+  // Death spectating: who the local player watches after dying (their killer,
+  // falling back to any survivor), and the details of the blow that killed them
+  // (also drives the defeat screen's "eliminated by" line).
+  spectateTarget: -1,
+  lastKilledBy: null,
   scopeAmount: 0,
   slideTimer: 0,
   slideCooldown: 0,

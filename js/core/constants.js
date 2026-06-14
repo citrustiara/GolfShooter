@@ -1,7 +1,7 @@
 export const GOLF_AIM_SENSITIVITY = 0.0045;
 export const GOLF_MAX_SHOT_SPEED = 44;
 export const GOLF_GROUND_FRICTION = 0.986;
-export const GOLF_ICE_FRICTION = 0.9998;
+export const GOLF_ICE_FRICTION = 0.99986;
 export const CUP_PULL_RADIUS = 0.5;
 export const CUP_PULL_FORCE = 1.8;
 export const CUP_SINK_RADIUS = 0.34;

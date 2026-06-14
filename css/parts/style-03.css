@@ -148,6 +148,33 @@
 
 .grapple-reticle.hidden { display: none; }
 
+/* Grapple lock-on: a bold red bracket box that snaps onto the acquired enemy,
+   moving the "enemy" cue off the crosshair and onto the target itself. */
+.grapple-lock-box {
+  position: absolute;
+  z-index: 9;
+  pointer-events: none;
+  border: 2px solid rgba(255, 42, 42, 0.95);
+  box-shadow: 0 0 12px rgba(255, 30, 30, 0.6), inset 0 0 8px rgba(255, 30, 30, 0.3);
+  animation: grapple-lock-pulse 0.7s ease-in-out infinite;
+}
+.grapple-lock-box::before,
+.grapple-lock-box::after {
+  content: "";
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border: 3px solid rgba(255, 42, 42, 0.95);
+}
+.grapple-lock-box::before { top: -4px; left: -4px; border-right: none; border-bottom: none; }
+.grapple-lock-box::after { bottom: -4px; right: -4px; border-left: none; border-top: none; }
+.grapple-lock-box.hidden { display: none; }
+
+@keyframes grapple-lock-pulse {
+  0%, 100% { opacity: 0.78; }
+  50% { opacity: 1; }
+}
+
 .reload-progress {
   position: absolute;
   left: 50%;
@@ -172,26 +199,55 @@
   transition: transform 30ms linear;
 }
 
+/* Parry impact frame: a stark full-screen white/black flash, like an anime
+   impact cut, so both players are certain the shot was reflected. */
 .parry-impact-frame {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 60;
   pointer-events: none;
   opacity: 0;
-  mix-blend-mode: screen;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.82) 0 4%, rgba(126, 226, 255, 0.34) 8%, transparent 22%),
-    repeating-linear-gradient(135deg, transparent 0 16px, rgba(255, 244, 168, 0.16) 16px 18px, transparent 18px 34px);
+  background: #ffffff;
+}
+
+.parry-impact-frame::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background: repeating-conic-gradient(from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0) 0deg 4deg,
+    rgba(255, 255, 255, 0.9) 4deg 5.2deg,
+    rgba(255, 255, 255, 0) 5.2deg 9deg);
+  mix-blend-mode: difference;
+  opacity: 0;
 }
 
 .parry-impact-frame.active {
-  animation: parryImpactFrame 180ms steps(2, end);
+  animation: parryImpactFrame 360ms linear forwards;
 }
 
+.parry-impact-frame.active::before {
+  animation: parryImpactLines 360ms linear forwards;
+}
+
+/* Tight keyframe pairs snap between white and black almost instantly (no slow
+   colour interpolation), giving the hard two-tone flicker of an impact frame. */
 @keyframes parryImpactFrame {
-  0% { opacity: 0.95; filter: contrast(1.6) saturate(1.8); }
-  45% { opacity: 0.55; }
-  100% { opacity: 0; filter: contrast(1) saturate(1); }
+  0% { opacity: 1; background: #ffffff; }
+  17% { opacity: 1; background: #ffffff; }
+  18% { opacity: 1; background: #0a0a0a; }
+  45% { opacity: 1; background: #0a0a0a; }
+  46% { opacity: 1; background: #ffffff; }
+  60% { opacity: 1; background: #ffffff; }
+  61% { opacity: 1; background: #0a0a0a; }
+  100% { opacity: 0; background: #0a0a0a; }
+}
+
+@keyframes parryImpactLines {
+  0% { opacity: 0; transform: scale(0.6); }
+  20% { opacity: 0.9; transform: scale(1); }
+  60% { opacity: 0.5; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.18); }
 }
 
 .hit-marker {
@@ -234,26 +290,32 @@
 }
 
 /* ---------------- damage vignette + damage numbers ---------------- */
+/* Edge-only red hue: clear through the middle, deep red bleed at the borders,
+   plus an inset glow so it reads as a ring around the screen. Opacity is driven
+   each frame from a timer (updateFps), so it holds then eases out slowly. */
 .damage-vignette {
   position: absolute;
   inset: 0;
   opacity: 0;
   pointer-events: none;
   z-index: 10;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 0, 0, 0) 56%, rgba(208, 24, 18, 0.34) 84%, rgba(150, 6, 6, 0.6) 100%);
+  box-shadow: inset 0 0 170px 46px rgba(200, 12, 12, 0.5);
+  transition: opacity 200ms ease;
+}
+
+/* Green heal flash: a soft hue around the screen edge that fades on a JS-driven
+   timer (opacity set each frame), so it eases out rather than hard-cutting. */
+.heal-vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 0, 0, 0) 40%, rgba(255, 59, 48, 0.34) 80%, rgba(120, 0, 0, 0.66) 100%),
-    repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 59, 48, 0.10) 0deg 6deg, transparent 6deg 18deg);
-  transition: opacity 180ms ease;
-}
-
-.damage-vignette.active {
-  animation: damage-flash 420ms ease-out;
-}
-
-@keyframes damage-flash {
-  0% { opacity: 0; }
-  16% { opacity: 1; }
-  100% { opacity: 0; }
+    radial-gradient(circle at 50% 50%, rgba(0, 255, 120, 0) 55%, rgba(34, 200, 110, 0.3) 86%, rgba(8, 120, 60, 0.5) 100%);
+  box-shadow: inset 0 0 110px 18px rgba(26, 190, 104, 0.4);
+  transition: opacity 200ms ease;
 }
 
 #damageLayer {
@@ -608,8 +670,12 @@
 .overlay.final-kill-running .kill-notice,
 .overlay.final-kill-running .battle-log,
 .overlay.final-kill-running .damage-vignette,
+.overlay.final-kill-running .heal-vignette,
 .overlay.final-kill-running #damageLayer,
-.overlay.final-kill-running #enemyBoxLayer {
+.overlay.final-kill-running #enemyBoxLayer,
+.overlay.final-kill-running .grapple-lock-box,
+.overlay.final-kill-running .spectate-banner,
+.overlay.final-kill-running .fps-scoreboard {
   opacity: 0 !important;
 }
 
@@ -859,6 +925,221 @@
       0 0 20px rgba(255, 255, 255, 0.18);
   }
 }
+
+/* ---------------- defeat cinematic (match loss) ---------------- */
+.defeat-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 130;
+  pointer-events: none;
+  overflow: hidden;
+  color: #fff;
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+}
+
+.defeat-overlay.revealed {
+  pointer-events: auto;
+}
+
+/* Deep black-and-white base with a strong red bleed, so it reads as the dark
+   counterpart to the winner's TARGET EXECUTED screen. */
+.defeat-black {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(150, 16, 16, 0.5), transparent 52%),
+    radial-gradient(circle at 50% 50%, #0e0202 0 40%, #040101 100%);
+  opacity: 0.985;
+}
+
+.defeat-black::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 36, 30, 0.05) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+.defeat-frame {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.defeat-overlay.revealed .defeat-frame {
+  opacity: 1;
+  visibility: visible;
+  animation: defeat-punch 620ms cubic-bezier(0.12, 0.7, 0.16, 1) both;
+}
+
+.defeat-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0 44%, rgba(0, 0, 0, 0.78) 100%);
+  opacity: 0.66;
+  pointer-events: none;
+}
+
+.defeat-copy {
+  position: relative;
+  z-index: 2;
+  width: min(1100px, calc(100vw - 24px));
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.defeat-killedby {
+  font-size: clamp(11px, 1.5vw, 18px);
+  letter-spacing: 0.32em;
+  font-weight: 700;
+  color: #ff5a4d;
+  text-shadow: 0 0 14px rgba(255, 40, 30, 0.7);
+  margin-bottom: clamp(10px, 1.6vw, 18px);
+}
+
+.defeat-headline {
+  font-size: clamp(58px, 15vw, 220px);
+  line-height: 0.8;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  color: #f6eceb;
+  text-shadow:
+    0 0 2px rgba(255, 70, 60, 0.92),
+    0 0 18px rgba(228, 20, 20, 0.78),
+    0 0 58px rgba(200, 14, 14, 0.5);
+}
+
+.defeat-status-row {
+  margin: clamp(18px, 3vw, 36px) auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 56px);
+}
+
+.defeat-status {
+  margin-top: clamp(14px, 2.2vw, 26px);
+  min-height: 18px;
+  padding: 4px 22px 5px;
+  background: linear-gradient(90deg, transparent, #d11414 12%, #d11414 88%, transparent);
+  color: #fff;
+  font-size: clamp(10px, 1.1vw, 14px);
+  font-weight: 900;
+  letter-spacing: 0.4em;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 22px rgba(220, 18, 18, 0.6);
+}
+
+.defeat-status:empty { display: none; }
+
+.defeat-nav {
+  margin: 0;
+  min-height: 40px;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 90, 80, 0.55);
+  background: transparent;
+  color: #ffd9d4;
+  box-shadow: none;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: clamp(12px, 1.2vw, 16px);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 90ms ease, background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.defeat-nav:hover {
+  background: rgba(209, 20, 20, 0.92);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(220, 18, 18, 0.55);
+}
+
+.defeat-host-note {
+  margin: 14px auto 0;
+  color: rgba(255, 210, 205, 0.78);
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.defeat-corner {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: rgba(255, 120, 110, 0.6);
+  font-family: "Cinzel", Georgia, serif;
+  font-size: clamp(7px, 0.9vw, 11px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(220, 20, 20, 0.5);
+}
+
+.defeat-corner-left {
+  left: clamp(12px, 2.2vw, 32px);
+  top: clamp(12px, 2.5vh, 30px);
+  align-items: flex-start;
+}
+
+.defeat-corner-right {
+  right: clamp(12px, 2.2vw, 32px);
+  top: clamp(20px, 5vh, 58px);
+  align-items: flex-end;
+}
+
+@keyframes defeat-punch {
+  0% { opacity: 0; transform: scale(1.16); filter: brightness(2.2); }
+  60% { opacity: 1; transform: scale(0.99); filter: brightness(1.2); }
+  100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+}
+
+/* ---------------- death spectator banner ---------------- */
+.spectate-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 7px 16px;
+  background: rgba(8, 8, 11, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+  pointer-events: none;
+  z-index: 90;
+  white-space: nowrap;
+}
+
+.spectate-banner-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+}
+
+.spectate-banner-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.spectate-banner-sub {
+  font-size: 11px;
+  color: rgba(255, 120, 110, 0.9);
+}
+
+.spectate-banner-sub:empty { display: none; }
 
 /* ---------------- radar ping ---------------- */
 .radar-marker {

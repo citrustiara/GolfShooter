@@ -27,7 +27,10 @@ function updateHud() {
     grenadeOverlay.style.height = `${Math.max(0, game.grenadeCooldown / abilityCooldown("grenade", GRENADE_COOLDOWN)) * 100}%`; grenadeCDText.textContent = abilityAllowed("grenade") && game.grenadeCooldown > 0 ? Math.ceil(game.grenadeCooldown) : "";
     if (smokeOverlay) smokeOverlay.style.height = `${Math.max(0, game.smokeCooldown / abilityCooldown("smoke", SMOKE_GRENADE_COOLDOWN)) * 100}%`; if (smokeCDText) smokeCDText.textContent = abilityAllowed("smoke") && game.smokeCooldown > 0 ? Math.ceil(game.smokeCooldown) : "";
     if (dashOverlay) dashOverlay.style.height = `${Math.max(0, game.dashCooldown / abilityCooldown("dash", DASH_COOLDOWN)) * 100}%`; if (dashCDText) dashCDText.textContent = abilityAllowed("dash") && game.dashCooldown > 0 ? Math.ceil(game.dashCooldown) : "";
-    if (grappleOverlay) grappleOverlay.style.height = `${Math.max(0, game.grappleCooldown / abilityCooldown("grapple", GRAPPLE_COOLDOWN)) * 100}%`; if (grappleCDText) grappleCDText.textContent = abilityAllowed("grapple") && game.grappleCooldown > 0 ? Math.ceil(game.grappleCooldown) : "";
+    const grappleCap = grappleMaxCharges(), grappleRe = grappleRechargeTime();
+    if (grappleOverlay) grappleOverlay.style.height = `${game.grappleCharges < grappleCap ? Math.max(0, Math.min(1, game.grappleChargeTimer / grappleRe)) * 100 : 0}%`;
+    if (grappleCDText) grappleCDText.textContent = abilityAllowed("grapple") && game.grappleCharges < grappleCap && game.grappleChargeTimer > 0 ? Math.ceil(game.grappleChargeTimer) : "";
+    if (grappleChargesEl) { grappleChargesEl.textContent = String(game.grappleCharges); grappleChargesEl.classList.toggle("empty", game.grappleCharges <= 0); grappleChargesEl.classList.toggle("full", game.grappleCharges >= grappleCap); }
     if (jetpackOverlay) jetpackOverlay.style.height = "0%";
     if (jetpackCDText) jetpackCDText.textContent = "";
   }
@@ -36,6 +39,87 @@ function updateHud() {
   ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun" || bladeEquipped); if (game.activeWeapon === "gun" && !bladeEquipped) ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
   const progress = document.getElementById("reloadProgress");
   if (progress && !game.reloading && game.radarTimer <= 0 && game.parryCooldown <= 0) progress.classList.add("hidden");
+  updateScoreboard();
+}
+
+// ---- Top-middle CS2-style scoreboard ----
+let scoreboardBuiltCount = 0;
+function playerHudColor(index) {
+  const c = PLAYER_HUD_COLORS;
+  return c[((index % c.length) + c.length) % c.length];
+}
+function formatRoundClock(seconds) {
+  const s = Math.max(0, Math.ceil(Number(seconds) || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+// Rebuild the player boxes (per-map round score by each name) and the overall
+// map-win numbers when the player count changes. Boxes split left/right of the
+// central timer so a 1v1 reads exactly like CS2's two flanking team scores.
+function buildScoreboard(n) {
+  if (!fpsScoreLeft || !fpsScoreRight || !fpsScoreMaps) return;
+  fpsScoreLeft.replaceChildren();
+  fpsScoreRight.replaceChildren();
+  const mid = Math.ceil(n / 2);
+  for (let i = 0; i < n; i++) {
+    const right = i >= mid;
+    const box = document.createElement("div");
+    box.className = `fps-player-box${right ? " right" : ""}`;
+    box.dataset.index = String(i);
+    box.style.setProperty("--team", playerHudColor(i));
+    const tag = document.createElement("span");
+    tag.className = "fps-player-tag";
+    tag.textContent = `P${i + 1}`;
+    const rounds = document.createElement("span");
+    rounds.className = "fps-player-rounds";
+    rounds.textContent = "0";
+    if (right) box.append(rounds, tag); else box.append(tag, rounds);
+    (right ? fpsScoreRight : fpsScoreLeft).appendChild(box);
+  }
+  fpsScoreMaps.replaceChildren();
+  const label = document.createElement("span");
+  label.className = "fps-score-maps-label";
+  label.textContent = "MAPS";
+  fpsScoreMaps.appendChild(label);
+  for (let i = 0; i < n; i++) {
+    if (i > 0) {
+      const sep = document.createElement("span");
+      sep.className = "fps-score-maps-sep";
+      sep.textContent = "·";
+      fpsScoreMaps.appendChild(sep);
+    }
+    const num = document.createElement("span");
+    num.className = "fps-score-maps-num";
+    num.dataset.index = String(i);
+    num.style.color = playerHudColor(i);
+    num.textContent = "0";
+    fpsScoreMaps.appendChild(num);
+  }
+  scoreboardBuiltCount = n;
+}
+function updateScoreboard() {
+  if (!fpsScoreboard) return;
+  const isFps = game.phase === "fps" || game.phase === "fpsVictoryLap";
+  fpsScoreboard.classList.toggle("hidden", !isFps);
+  fpsScoreboard.setAttribute("aria-hidden", isFps ? "false" : "true");
+  if (!isFps) return;
+  const n = Math.max(2, game.playerCount || 2);
+  if (scoreboardBuiltCount !== n) buildScoreboard(n);
+  const killWins = game.fpsKillWins || [];
+  const mapWins = game.fpsMapWins || [];
+  const bestRounds = killWins.length ? Math.max(...killWins) : 0;
+  fpsScoreboard.querySelectorAll(".fps-player-box").forEach((box) => {
+    const i = Number(box.dataset.index);
+    const r = box.querySelector(".fps-player-rounds");
+    if (r) r.textContent = String(killWins[i] ?? 0);
+    box.classList.toggle("leading", bestRounds > 0 && (killWins[i] ?? 0) === bestRounds);
+  });
+  fpsScoreMaps?.querySelectorAll(".fps-score-maps-num").forEach((num) => {
+    num.textContent = String(mapWins[Number(num.dataset.index)] ?? 0);
+  });
+  if (fpsScoreTimer) {
+    fpsScoreTimer.textContent = formatRoundClock(game.roundTimeLeft);
+    fpsScoreTimer.classList.toggle("low", game.phase === "fps" && (game.roundTimeLeft ?? ROUND_TIME_LIMIT) <= 30);
+  }
 }
 function switchWeapon(wt) { if (game.radarTimer > 0) return; if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.randomTournament) return; requestWeaponSwap(wt, game.primaryWeapon); }
 function selectPrimaryWeapon(wp, animate = false) { if (game.radarTimer > 0) return; if (game.randomTournament || !activeWeaponIds().includes(wp)) return; if (animate && game.countdown <= 0) requestWeaponSwap("gun", wp); else applyWeaponState("gun", wp); }
@@ -185,12 +269,17 @@ function applyWeaponState(aw, pw = game.primaryWeapon) {
 function syncPrimaryWeaponModel() {
   rebuildWeaponMesh(game.primaryWeapon, world.weapon);
   rebuildWeaponMesh("melee", world.meleeWeapon);
+  world.weaponModelId = game.primaryWeapon;
 }
 function setWeaponPalette() {}
 function startReload() { if (game.phase !== "fps" || game.reloading || game.activeWeapon !== "gun" || game.radarTimer > 0) return; const cfg = weaponConfig(); if (cfg.meleeAttack) return; if (game.ammo[game.primaryWeapon] === cfg.ammo) return; game.reloading = true; game.reloadTimer = cfg.reload; game.reloadWeapon = game.primaryWeapon; playSound("reloadStart", { volume: 0.8 }); const progress = document.getElementById("reloadProgress"), bar = document.getElementById("reloadBar"); if (progress && bar) { progress.classList.remove("hidden"); bar.style.width = "100%"; bar.style.transform = "scaleX(0)"; bar.style.background = "#21d0ff"; } updateHud(); }
 
 Object.assign(globalThis, {
   updateHud,
+  updateScoreboard,
+  buildScoreboard,
+  playerHudColor,
+  formatRoundClock,
   switchWeapon,
   selectPrimaryWeapon,
   cycleWeaponCard,

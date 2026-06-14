@@ -31,6 +31,7 @@ function updateFps(dt, now) {
     input.shootHeld = false;
     input.aiming = false;
     releaseGrapple?.();
+    resolveSpectateTarget();
     game.reloading = false;
     game.reloadTimer = 0;
     game.scopeAmount = 0;
@@ -112,6 +113,45 @@ function updateFps(dt, now) {
     }
   }
   if (game.inspectTimer > 0) game.inspectTimer -= dt; if (game.meleeSwingTimer > 0) game.meleeSwingTimer -= dt; if (game.throwTimer > 0) game.throwTimer = Math.max(0, game.throwTimer - dt); if (game.throwBlockTimer > 0) game.throwBlockTimer = Math.max(0, game.throwBlockTimer - dt); if (game.throwTimer <= 0) game.throwKind = ""; if (game.jumpCooldown > 0) game.jumpCooldown -= dt; if (game.healCooldown > 0) game.healCooldown -= dt; if (game.grenadeCooldown > 0) game.grenadeCooldown -= dt; if (game.smokeCooldown > 0) game.smokeCooldown -= dt; if (game.radarCooldown > 0) game.radarCooldown -= dt; if (game.slideTimer > 0) game.slideTimer -= dt; if (game.slideCooldown > 0) game.slideCooldown -= dt; if (game.dashCooldown > 0) game.dashCooldown -= dt; if (game.dashTimer > 0) game.dashTimer -= dt; if (game.grappleCooldown > 0) game.grappleCooldown -= dt;
+  // Grapple charges: tick the short inter-throw gap, and refill banked hooks one
+  // at a time at the per-hook recharge rate.
+  if (game.grappleGapTimer > 0) game.grappleGapTimer = Math.max(0, game.grappleGapTimer - dt);
+  const grappleCap = grappleMaxCharges();
+  if (game.grappleCharges < grappleCap) {
+    if (game.grappleChargeTimer <= 0) game.grappleChargeTimer = grappleRechargeTime();
+    game.grappleChargeTimer -= dt;
+    if (game.grappleChargeTimer <= 0) {
+      game.grappleCharges = Math.min(grappleCap, game.grappleCharges + 1);
+      game.grappleChargeTimer = game.grappleCharges < grappleCap ? grappleRechargeTime() : 0;
+      updateHud();
+    }
+  } else if (game.grappleChargeTimer !== 0) {
+    game.grappleChargeTimer = 0;
+  }
+  // Low-health screen state pulses a heartbeat while it lasts; both it and the
+  // green heal flash fade on their own timers so neither lingers permanently.
+  const localHp = fps.players[game.localIndex];
+  if (game.lowHpEffectTimer > 0) {
+    game.lowHpEffectTimer = Math.max(0, game.lowHpEffectTimer - dt);
+    if (localHp && localHp.health > 0 && game.phase === "fps") {
+      game.lowHpHeartbeatTimer -= dt;
+      if (game.lowHpHeartbeatTimer <= 0) {
+        playSound("heartbeat", { volume: 0.9 });
+        game.lowHpHeartbeatTimer = LOW_HP_HEARTBEAT_INTERVAL;
+      }
+    } else {
+      game.lowHpHeartbeatTimer = 0;
+    }
+  }
+  if (game.healEffectTimer > 0) game.healEffectTimer = Math.max(0, game.healEffectTimer - dt);
+  if (healVignette) healVignette.style.opacity = `${Math.min(1, game.healEffectTimer / HEAL_EFFECT_DURATION) * 0.8}`;
+  // Red damage hue: hold full for the first half of its life, then ease out, and
+  // only while the local player is alive (so it doesn't bleed into spectating).
+  if (game.damageEffectTimer > 0) game.damageEffectTimer = Math.max(0, game.damageEffectTimer - dt);
+  if (damageVignette) {
+    const dmgAlive = localHp && localHp.health > 0 && game.phase === "fps";
+    damageVignette.style.opacity = `${(dmgAlive ? Math.min(1, game.damageEffectTimer / (DAMAGE_EFFECT_DURATION * 0.5)) : 0) * 0.85}`;
+  }
   if (game.radarTimer > 0) {
     game.radarTimer -= dt;
     if (game.radarTimer <= 0) {
@@ -122,6 +162,19 @@ function updateFps(dt, now) {
     updateRadarMarker();
   }
   updateGrenades(dt); updateSmokeClouds(dt); updateExplosions(dt); updateLasers(dt); updateDamagePops(dt); updatePlayerMeshes(dt); updateGrappleRope(); updateScopeEnemyBoxes(); updateGrappleReticle();
+  // While dead in an ongoing round, watch the killer (or a survivor) through
+  // their own first-person camera; otherwise keep the spectate banner hidden.
+  if (!localAlive && game.phase === "fps") updateSpectatorView(dt);
+  else setSpectatorBanner(-1);
+  // Round timer: counts down once the opening countdown clears; on expiry the
+  // round is settled by HP (highest wins; a tie splits a point). Host decides.
+  if (game.phase === "fps" && game.countdown <= 0 && !game.roundTimedOut) {
+    game.roundTimeLeft = Math.max(0, (game.roundTimeLeft ?? ROUND_TIME_LIMIT) - dt);
+    if (game.roundTimeLeft <= 0) {
+      game.roundTimedOut = true;
+      resolveRoundTimeout();
+    }
+  }
   // Round-end watchdog: if every kill/death message path failed (dropped
   // packet, race with phase changes), a round with <=1 survivors must still
   // end. The short grace period lets the normal paths win first.
@@ -140,7 +193,7 @@ function updateFps(dt, now) {
     game.roundEndGrace = 0;
   }
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
-  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming, parryCooldown: game.parryCooldown }); }
+  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming, parryCooldown: game.parryCooldown, reloading: game.reloading, reloadTimer: game.reloadTimer, inspectTimer: game.inspectTimer, throwTimer: game.throwTimer, weaponSwapTimer: game.weaponSwapTimer, meleeSwingTimer: game.meleeSwingTimer, parryAnimTimer: game.parryAnimTimer, visualRecoil: game.visualRecoil, radar: game.radarTimer > 0, scopeAmount: game.scopeAmount, camH: p.currentCamHeight }); }
   updateHud();
 }
 function updateFpsCamera(dt) {
@@ -151,7 +204,66 @@ function updateFpsCamera(dt) {
   const baseFov = game.fov || FPS_DEFAULT_FOV;
   camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix();
   updateScopeState(cfg, baseFov);
+  // Spectating someone may have swapped the shared viewmodel to their weapon;
+  // make sure it's back to ours before drawing our own first-person hands.
+  ensureWeaponModelFor(game.primaryWeapon);
   updateWeaponModel(dt, p);
+}
+// Keep the shared first-person viewmodel group (world.weapon) built for `weaponId`,
+// rebuilding only when it actually changes (weapon switch, or spectate handoff).
+function ensureWeaponModelFor(weaponId) {
+  const id = weaponId || "pistol";
+  if (world.weaponModelId === id) return;
+  rebuildWeaponMesh(id, world.weapon);
+  world.weaponModelId = id;
+}
+// Resolve who the dead local player should watch: their killer while they're
+// alive, otherwise any remaining survivor. Returns -1 when nobody is left.
+function resolveSpectateTarget() {
+  const me = fps.players[game.localIndex];
+  if (!me || me.health > 0 || game.phase !== "fps") { game.spectateTarget = -1; return -1; }
+  const valid = (i) => Number.isInteger(i) && i >= 0 && i !== game.localIndex && fps.players[i] && fps.players[i].health > 0;
+  if (valid(game.spectateTarget)) return game.spectateTarget;
+  const alive = fps.players.map((pl, i) => (i !== game.localIndex && pl && pl.health > 0) ? i : -1).filter((i) => i >= 0);
+  game.spectateTarget = alive.length ? alive[0] : -1;
+  return game.spectateTarget;
+}
+function setSpectatorBanner(idx) {
+  if (!spectateBanner) return;
+  if (idx === null || idx === undefined || idx < 0) { spectateBanner.classList.add("hidden"); return; }
+  if (spectateBannerName) spectateBannerName.textContent = `P${idx + 1}`;
+  if (spectateBannerSub) {
+    const info = game.lastKilledBy;
+    spectateBannerSub.textContent = (Number.isInteger(info?.killerIndex) && info.killerIndex === idx) ? "your killer" : "";
+  }
+  spectateBanner.classList.remove("hidden");
+}
+// Render the dead player's view as the spectated player's own first-person
+// camera: their eye position and aim, their weapon model, and the full set of
+// viewmodel animations (ADS, reload, inspect, melee, parry) driven by their
+// networked state.
+function updateSpectatorView(dt) {
+  const idx = resolveSpectateTarget();
+  if (idx < 0) {
+    world.weapon.visible = false;
+    world.meleeWeapon.visible = false;
+    world.radarDevice.visible = false;
+    setSpectatorBanner(-1);
+    return;
+  }
+  const t = fps.players[idx];
+  const camH = t.currentCamHeight || 1.58;
+  camera.position.set(t.pos.x, t.pos.y + camH, t.pos.z);
+  camera.lookAt(camera.position.clone().add(directionFromAngles(t.yaw, t.pitch)));
+  const viewState = remoteWeaponView(t);
+  const cfg = weaponConfig(viewState.primaryWeapon);
+  const baseFov = game.fov || FPS_DEFAULT_FOV;
+  const wantFov = viewState.aiming && viewState.activeWeapon === "gun" ? (cfg.aimFov || FPS_AIM_FOV) : baseFov;
+  camera.fov = moveTowards(camera.fov, wantFov, dt * (cfg.aimSpeed || 180));
+  camera.updateProjectionMatrix();
+  ensureWeaponModelFor(viewState.primaryWeapon);
+  updateWeaponModel(dt, t, viewState);
+  setSpectatorBanner(idx);
 }
 function updateScopeState(cfg = weaponConfig(game.primaryWeapon), baseFov = game.fov || FPS_DEFAULT_FOV) {
   // scopeAmount tracks how far the FOV has converged on the scoped FOV; the
@@ -167,8 +279,46 @@ function updateScopeState(cfg = weaponConfig(game.primaryWeapon), baseFov = game
   scopeOverlay?.classList.toggle("hidden", !overlayOn);
   if (crosshairEl) crosshairEl.style.opacity = overlayOn ? "0" : "";
 }
-function updateWeaponModel(dt, p) {
-  const isRadarActive = game.radarTimer > 0;
+// The viewmodel is driven entirely by a "view" snapshot so it can be rendered
+// for either the local player (live game/input state) or, while dead, the player
+// being spectated (their networked state) — giving spectators the exact same
+// first-person weapon, ADS, reload, inspect and parry animations.
+function localWeaponView() {
+  return {
+    radarActive: game.radarTimer > 0,
+    activeWeapon: game.activeWeapon,
+    primaryWeapon: game.primaryWeapon,
+    aiming: input.aiming,
+    inspectTimer: game.inspectTimer,
+    throwTimer: game.throwTimer,
+    weaponSwapTimer: game.weaponSwapTimer,
+    reloading: game.reloading,
+    reloadTimer: game.reloadTimer,
+    meleeSwingTimer: game.meleeSwingTimer,
+    parryAnimTimer: game.parryAnimTimer,
+    visualRecoil: game.visualRecoil,
+    scopeAmount: game.scopeAmount
+  };
+}
+function remoteWeaponView(r) {
+  return {
+    radarActive: Boolean(r.radarActive),
+    activeWeapon: r.weapon === "melee" ? "melee" : "gun",
+    primaryWeapon: r.primaryWeapon || "pistol",
+    aiming: Boolean(r.aiming),
+    inspectTimer: Number(r.inspectTimer) || 0,
+    throwTimer: Number(r.throwTimer) || 0,
+    weaponSwapTimer: Number(r.weaponSwapTimer) || 0,
+    reloading: Boolean(r.reloading),
+    reloadTimer: Number(r.reloadTimer) || 0,
+    meleeSwingTimer: Number(r.meleeSwingTimer) || 0,
+    parryAnimTimer: Number(r.parryAnimTimer) || 0,
+    visualRecoil: Number(r.visualRecoil) || 0,
+    scopeAmount: Number(r.scopeAmount) || 0
+  };
+}
+function updateWeaponModel(dt, p, view = localWeaponView()) {
+  const isRadarActive = view.radarActive;
   
   world.weapon.visible = false;
   world.meleeWeapon.visible = false;
@@ -185,11 +335,11 @@ function updateWeaponModel(dt, p) {
       firstPersonOffset: { x: 0.0, y: -0.22, z: -0.28 }
     };
   } else {
-    weapon = game.activeWeapon === "gun" ? world.weapon : world.meleeWeapon;
+    weapon = view.activeWeapon === "gun" ? world.weapon : world.meleeWeapon;
     weapon.visible = true;
-    cfg = game.activeWeapon === "gun" ? weaponConfig(game.primaryWeapon) : weaponConfig("melee");
+    cfg = view.activeWeapon === "gun" ? weaponConfig(view.primaryWeapon) : weaponConfig("melee");
     // Hard-scoped snipers look through a real scope: the rifle leaves the view.
-    if (game.activeWeapon === "gun" && cfg.scope && game.scopeAmount > 0.55) weapon.visible = false;
+    if (view.activeWeapon === "gun" && cfg.scope && view.scopeAmount > 0.55) weapon.visible = false;
   }
 
   // Full camera-space basis: the weapon offset is applied along the camera's own
@@ -204,15 +354,15 @@ function updateWeaponModel(dt, p) {
   if (isRadarActive) {
     weapon.scale.setScalar(0.8);
   } else {
-    weapon.scale.setScalar(game.activeWeapon === "gun" ? (cfg.scale || 1.0) * 0.82 : 0.78);
+    weapon.scale.setScalar(view.activeWeapon === "gun" ? (cfg.scale || 1.0) * 0.82 : 0.78);
   }
   const fpOffset = cfg.firstPersonOffset || { x: 0.22, y: -0.3, z: -0.34 };
 
   // Calculate inspect progress (0.0 to 1.0)
   let inspectProgress = 0;
-  if (!isRadarActive && game.inspectTimer > 0) {
+  if (!isRadarActive && view.inspectTimer > 0) {
     const inspectTotal = 2.0;
-    const elapsed = inspectTotal - game.inspectTimer;
+    const elapsed = inspectTotal - view.inspectTimer;
     if (elapsed < 0.5) {
       inspectProgress = Math.sin((elapsed / 0.5) * Math.PI / 2);
     } else if (elapsed > 1.5) {
@@ -228,26 +378,26 @@ function updateWeaponModel(dt, p) {
   const targetZ = THREE.MathUtils.lerp(fpOffset.z, -0.24, inspectProgress);
 
   let offset = camDir.clone().multiplyScalar(-targetZ).add(right.clone().multiplyScalar(targetX + swayX)).add(up.clone().multiplyScalar(targetY + bob));
-  if (!isRadarActive && input.aiming && game.activeWeapon === "gun" && inspectProgress === 0) {
-    const longGun = game.primaryWeapon === "sniper" || game.primaryWeapon === "heavySniper" || game.primaryWeapon === "tacticalSniper";
+  if (!isRadarActive && view.aiming && view.activeWeapon === "gun" && inspectProgress === 0) {
+    const longGun = view.primaryWeapon === "sniper" || view.primaryWeapon === "heavySniper" || view.primaryWeapon === "tacticalSniper";
     offset = camDir.clone().multiplyScalar(-fpOffset.z - (longGun ? 0.06 : 0.1)).add(right.clone().multiplyScalar(fpOffset.x * 0.15 + swayX)).add(up.clone().multiplyScalar(fpOffset.y - (longGun ? 0.24 : 0.16) + bob));
   }
-  offset.add(camDir.clone().multiplyScalar(-game.visualRecoil * 0.12)).add(up.clone().multiplyScalar(game.visualRecoil * 0.04));
+  offset.add(camDir.clone().multiplyScalar(-view.visualRecoil * 0.12)).add(up.clone().multiplyScalar(view.visualRecoil * 0.04));
 
   // Compute animation-related Y offset
   let animY = 0;
   let throwArc = 0;
-  if (!isRadarActive && game.throwTimer > 0) {
+  if (!isRadarActive && view.throwTimer > 0) {
     const throwDuration = 0.36;
-    const throwProgress = 1 - Math.max(0, game.throwTimer) / throwDuration;
+    const throwProgress = 1 - Math.max(0, view.throwTimer) / throwDuration;
     throwArc = Math.sin(Math.min(1, throwProgress) * Math.PI);
     animY = -throwArc * 0.52;
     offset.add(camDir.clone().multiplyScalar(throwArc * 0.18)).add(right.clone().multiplyScalar(-throwArc * 0.12));
-  } else if (!isRadarActive && game.weaponSwapTimer > 0) {
-    animY = -Math.sin((game.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5;
-  } else if (!isRadarActive && game.reloading) {
+  } else if (!isRadarActive && view.weaponSwapTimer > 0) {
+    animY = -Math.sin((view.weaponSwapTimer / WEAPON_SWAP_DURATION) * Math.PI) * 0.5;
+  } else if (!isRadarActive && view.reloading) {
     const total = cfg.reload || 1.4;
-    const t = game.reloadTimer / total;
+    const t = view.reloadTimer / total;
     const reloadFactor = Math.sin(t * Math.PI);
     
     // Dynamic drop amount to prevent clipping through floor. Only surfaces at
@@ -280,10 +430,10 @@ function updateWeaponModel(dt, p) {
   // strike across the view with a forward lunge, easing back to rest.
   let meleeSwing = 0;
   let parryGuard = 0;
-  const swingingBlade = game.activeWeapon === "melee" || (game.activeWeapon === "gun" && cfg.meleeAttack);
-  if (!isRadarActive && swingingBlade && game.meleeSwingTimer > 0) {
+  const swingingBlade = view.activeWeapon === "melee" || (view.activeWeapon === "gun" && cfg.meleeAttack);
+  if (!isRadarActive && swingingBlade && view.meleeSwingTimer > 0) {
     const swingDuration = 0.32;
-    const progress = Math.max(0, Math.min(1, (swingDuration - game.meleeSwingTimer) / swingDuration));
+    const progress = Math.max(0, Math.min(1, (swingDuration - view.meleeSwingTimer) / swingDuration));
     meleeSwing = progress;
     const windup = Math.min(1, progress / 0.28);
     const strike = progress <= 0.28 ? 0 : Math.min(1, (progress - 0.28) / 0.42);
@@ -293,9 +443,9 @@ function updateWeaponModel(dt, p) {
       .add(right.clone().multiplyScalar(windup * 0.34 - arc * 0.62))
       .add(up.clone().multiplyScalar(windup * 0.3 - arc * 0.5 + recover * 0.2))
       .add(camDir.clone().multiplyScalar(arc * 0.42 - windup * 0.1));
-  } else if (!isRadarActive && swingingBlade && game.parryAnimTimer > 0) {
+  } else if (!isRadarActive && swingingBlade && view.parryAnimTimer > 0) {
     const parryDuration = 0.28;
-    const progress = 1 - Math.max(0, game.parryAnimTimer) / parryDuration;
+    const progress = 1 - Math.max(0, view.parryAnimTimer) / parryDuration;
     parryGuard = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
     offset
       .add(right.clone().multiplyScalar(-0.28 * parryGuard))
@@ -352,9 +502,36 @@ function updateWeaponModel(dt, p) {
   }
 }
 
+// Time-up resolution: whoever has the most HP among the living wins the round;
+// if the top HP is shared, every tied player banks a point. Only the host (or a
+// solo session) decides, then broadcasts the result through startVictoryLap.
+function resolveRoundTimeout() {
+  if (game.phase !== "fps" || game.role === "guest") return;
+  const alive = aliveFpsPlayerIndexes();
+  if (alive.length <= 1) return; // the elimination watchdog already covers this
+  let maxHp = -Infinity;
+  for (const i of alive) maxHp = Math.max(maxHp, fps.players[i].health);
+  const leaders = alive.filter((i) => fps.players[i].health >= maxHp - 0.5);
+  if (leaders.length === 1) {
+    startVictoryLap(leaders[0], "deathmatch");
+  } else {
+    for (const i of leaders) if (i >= 0 && i < game.fpsKillWins.length) game.fpsKillWins[i] = (game.fpsKillWins[i] || 0) + 1;
+    // winner = -1 (a draw) but the points are already banked, so startVictoryLap
+    // tallies map/match progress from the updated scores without re-awarding.
+    startVictoryLap(-1, "deathmatch");
+  }
+}
+
 Object.assign(globalThis, {
   updateFps,
   updateFpsCamera,
   updateScopeState,
-  updateWeaponModel
+  updateWeaponModel,
+  localWeaponView,
+  remoteWeaponView,
+  ensureWeaponModelFor,
+  resolveSpectateTarget,
+  setSpectatorBanner,
+  updateSpectatorView,
+  resolveRoundTimeout
 });

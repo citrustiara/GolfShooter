@@ -1,4 +1,5 @@
 import "./globals.js";
+import { animateCupSink, tickGolfFlag, triggerFlagPop } from "../golf/hole.js";
 
 const GOLF_GRAVITY = -30;
 const GOLF_BOUNCE_RESTITUTION = 0.42;
@@ -6,18 +7,23 @@ const GOLF_BOUNCE_MIN_SPEED = 4.5;
 
 function updateGolf(dt) {
   ensureGolfBalls(game.playerCount);
+  if (world.cup) tickGolfFlag(world.cup, dt);
+  // Sink any potted balls into the recessed cup, independent of whose turn it
+  // is (a ball can be holed while other players are still putting).
+  if (world.cup) {
+    for (let i = 0; i < world.golfBalls.length; i++) {
+      const ball = world.golfBalls[i];
+      if (ball.sinkElapsed != null && game.holeScores[i]?.[game.holeIndex] !== null) {
+        animateCupSink(ball, world.cup.position, dt);
+      }
+    }
+  }
   const localBall = useGolfBall(activeGolfPlayerIndex());
   input.pointerLocked = false;
   applyGolfAtmosphere(holes[game.holeIndex]);
   // Handle hole transition delay
   if (game.holeTransitionTimer > 0) {
     game.holeTransitionTimer -= dt;
-    // Animate ball sinking into the cup
-    for (const ball of world.golfBalls) {
-      if (game.holeScores[world.golfBalls.indexOf(ball)]?.[game.holeIndex] !== null && ball.mesh.position.y > 0.08) {
-        ball.mesh.position.y -= dt * 0.35;
-      }
-    }
     if (game.holeTransitionTimer <= 0) {
       game.holeTransitionTimer = 0;
       if (game.role !== "guest") {
@@ -257,13 +263,15 @@ function scoreHole() {
   ball.moving = false;
   ball.vel.set(0, 0, 0);
   playSound("golfScore");
-  // Snap ball to cup center
+  // Snap ball over the cup centre and kick off the drop-in animation.
   ball.mesh.position.x = world.cup.position.x;
   ball.mesh.position.z = world.cup.position.z;
-  ball.mesh.position.y = 0.38; // Start sinking animation from surface level
+  ball.mesh.position.y = 0.30;
+  ball.sinkElapsed = 0;
+  triggerFlagPop(world.cup);
   game.holeScores[playerIndex][game.holeIndex] = game.strokesThisHole[playerIndex];
-  // Start a 2-second delay before advancing
-  if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) game.holeTransitionTimer = 2.0;
+  // Hold briefly so the sink animation reads before advancing.
+  if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) game.holeTransitionTimer = 2.4;
   else if (game.role === "solo") {
     const nextPlayer = game.holeScores.findIndex((scores) => scores[game.holeIndex] === null);
     if (nextPlayer !== -1) useGolfBall(nextPlayer);
@@ -287,12 +295,14 @@ function applyGolfHoleScored(message) {
   if (ball) {
     ball.mesh.position.x = world.cup.position.x;
     ball.mesh.position.z = world.cup.position.z;
-    ball.mesh.position.y = 0.38; // Start sinking
+    ball.mesh.position.y = 0.30;
+    ball.sinkElapsed = 0;
     ball.moving = false;
     ball.vel.set(0, 0, 0);
   }
+  triggerFlagPop(world.cup);
   game.ballMoving = world.golfBalls.some((b) => b.moving);
-  if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) game.holeTransitionTimer = 2.0;
+  if (game.holeScores.every((scores) => scores[game.holeIndex] !== null)) game.holeTransitionTimer = 2.4;
   updateHud();
 }
 function golfHoleTimeLimit(hole) {
@@ -303,8 +313,8 @@ function golfHoleTimeLimit(hole) {
     else extent = Math.max(extent, Math.abs(s.x) + (s.sx || 0) / 2, Math.abs(s.z) + (s.sz || 0) / 2);
   }
   if (hole.walls) extent = Math.max(extent, hole.walls.x || 0, hole.walls.z || 0);
-  // Small courses ≈ 45s; sprawling ones cap out at 150s.
-  return Math.max(45, Math.min(150, Math.round(20 + extent * 2.4)));
+  // Small courses ≈ 55s; sprawling ones cap out at 170s.
+  return Math.max(55, Math.min(170, Math.round(26 + extent * 2.6)));
 }
 function golfTimerElement() {
   let el = document.querySelector("#golfTimer");
@@ -350,7 +360,7 @@ function forceEndGolfHole() {
   for (const ball of world.golfBalls) { ball.moving = false; ball.airborne = false; ball.vel.set(0, 0, 0); }
   game.ballMoving = false;
   game.golfHoleTimer = null;
-  game.holeTransitionTimer = 2.0;
+  game.holeTransitionTimer = 2.4;
   updateHud();
   if (game.role === "host") send({ type: "golfForceEnd", state: serializeGolfState() });
 }
@@ -359,7 +369,7 @@ function applyGolfForceEnd(message) {
   for (const ball of world.golfBalls) { ball.moving = false; ball.airborne = false; ball.vel.set(0, 0, 0); }
   game.ballMoving = false;
   game.golfHoleTimer = null;
-  if (game.holeTransitionTimer <= 0) game.holeTransitionTimer = 2.0;
+  if (game.holeTransitionTimer <= 0) game.holeTransitionTimer = 2.4;
   updateHud();
 }
 function advanceAfterScore() {

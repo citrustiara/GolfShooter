@@ -93,8 +93,6 @@ function aimingSensitivityMultiplier() {
 }
 let finalKillRevealTimeout = null;
 let finalKillSoundTimeout = null;
-const FINAL_KILL_BLACK_MS = 2000;
-const TARGET_ELIMINATED_AUDIO_LEAD_MS = 400;
 
 function setFinalKillActionNote(text = "") {
   if (!finalKillHostNote) return;
@@ -211,7 +209,7 @@ function showFinalKillCinematic(result = game.result) {
   input.shootHeld = false;
   input.aiming = false;
   hideKillNotice();
-  damageVignette?.classList.remove("active");
+  game.damageEffectTimer = 0; if (damageVignette) damageVignette.style.opacity = "0";
   hitMarker?.classList.remove("active", "headshot");
   game.reloading = false;
   game.reloadTimer = 0;
@@ -230,19 +228,13 @@ function showFinalKillCinematic(result = game.result) {
   root.classList.remove("revealed", "controls");
   root.setAttribute("aria-hidden", "false");
   void root.offsetWidth;
-  finalKillSoundTimeout = window.setTimeout(() => {
-    finalKillSoundTimeout = null;
-    if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
-    playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
-  }, Math.max(0, FINAL_KILL_BLACK_MS - TARGET_ELIMINATED_AUDIO_LEAD_MS));
-  finalKillRevealTimeout = window.setTimeout(() => {
-    finalKillRevealTimeout = null;
-    if (!game.finalKillCinematicActive || game.phase !== "fpsVictoryLap") return;
-    game.finalKillCinematicRevealed = true;
-    root.classList.add("revealed");
-    resumeGameAudio();
-    if (result?.matchOver && result.matchWinner === game.localIndex) revealFinalKillMatchControls(root, result);
-  }, FINAL_KILL_BLACK_MS);
+  // Instant reveal: the trimmed stinger's impact lands at t=0, so fire the sound
+  // and punch in the TARGET EXECUTED frame together — no black pre-roll delay.
+  playSound("targetEliminated", { volume: result?.matchOver ? 1 : 0.9 });
+  game.finalKillCinematicRevealed = true;
+  root.classList.add("revealed");
+  resumeGameAudio();
+  if (result?.matchOver && result.matchWinner === game.localIndex) revealFinalKillMatchControls(root, result);
   return true;
 }
 

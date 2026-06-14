@@ -3,10 +3,27 @@ import "./globals.js";
 const battleLogRecent = new Map();
 
 function showDamageTaken(amount) {
-  damageVignette.classList.remove("active");
-  void damageVignette.offsetWidth;
-  damageVignette.classList.add("active");
+  // Re-arm the edge hue; it eases out on its own timer (driven in updateFps) so a
+  // hit leaves a lingering red border rather than a quick cheap flash.
+  game.damageEffectTimer = DAMAGE_EFFECT_DURATION;
   playSound("hurt");
+  // Drop into (or refresh) the low-health screen state when the hit leaves the
+  // local player hurting. It re-arms on each hit but always fades on its own.
+  const me = fps.players[game.localIndex];
+  if (me && me.health > 0 && me.health <= game.maxHealth * LOW_HP_THRESHOLD) {
+    game.lowHpEffectTimer = LOW_HP_EFFECT_DURATION;
+  }
+}
+// Green screen-edge flash when the local player heals; a solid top-up also pulls
+// them back out of the low-health daze.
+function showHealed() {
+  game.healEffectTimer = HEAL_EFFECT_DURATION;
+  const me = fps.players[game.localIndex];
+  if (me && me.health > game.maxHealth * LOW_HP_THRESHOLD) {
+    game.lowHpEffectTimer = 0;
+    game.lowHpHeartbeatTimer = 0;
+  }
+  playSound("heal", { volume: 0.7 });
 }
 
 function formatKillDistance(distance) {
@@ -158,6 +175,13 @@ function showKilledBy(weaponName, details = {}) {
   input.shootHeld = false;
   input.aiming = false;
   releaseGrapple?.();
+  // Remember who landed the kill (so death spectating can follow them) and the
+  // details of the blow (so the defeat screen can report what finished us off).
+  const killerIndex = normalizePlayerIndex(details.killerIndex ?? details.killer ?? details.player);
+  game.lastKilledBy = { weaponName, headshot: Boolean(details.headshot), distance: details.distance, killerIndex };
+  if (game.phase === "fps" && killerIndex !== null && killerIndex !== game.localIndex && fps.players[killerIndex]) {
+    game.spectateTarget = killerIndex;
+  }
   setKillNoticeCard({
     badge: details.headshot ? "HEADSHOT DEATH" : "YOU WERE ELIMINATED",
     main: `KILLED BY ${weaponName}`,
@@ -246,6 +270,7 @@ function golfBallSurfaceY() {
 
 Object.assign(globalThis, {
   showDamageTaken,
+  showHealed,
   formatKillDistance,
   killNoticeHasDetail,
   replayKillNoticeAnimation,

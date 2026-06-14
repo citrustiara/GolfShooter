@@ -65,7 +65,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   document.getElementById("reloadProgress")?.classList.add("hidden");
   radarMarker.classList.add("hidden");
   if (winner !== game.localIndex) {
-    damageVignette.classList.remove("active");
+    game.damageEffectTimer = 0; if (damageVignette) damageVignette.style.opacity = "0";
     activeDamagePops.forEach(p => p.element.remove());
     activeDamagePops.length = 0;
   }
@@ -78,8 +78,13 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
     ? (mapOver ? (mapTied ? "MAP TIED" : (localWonMap ? "MAP WON" : "MAP LOST")) : (winner === -1 ? "ROUND TIED" : (localWonRound ? "ROUND WON" : "ROUND LOST")))
     : (matchWinner === -1 ? "MATCH TIED" : (localWonMatch ? "YOU WIN" : "YOU LOSE"));
   const useFinalKillCinematic = winner === game.localIndex && fpsResultHasFinalKillCinematic(game.result);
+  const localLostMatch = matchOver && reason === "deathmatch" && matchWinner !== -1 && matchWinner !== game.localIndex;
   if (useFinalKillCinematic && showFinalKillCinematic(game.result)) {
     // The cinematic handles its own delayed stinger and result text.
+  } else if (localLostMatch && showDefeatScreen(reason)) {
+    // Losing the match shows the cinematic defeat screen immediately, in place of
+    // the old cartoon "you lose" toast.
+    playSound("matchLose", { volume: 0.9 });
   } else {
     showFpsToast(toast, reason === "deathmatch" && mapOver ? `Rounds ${formatScores(game.fpsKillWins)}` : "");
     if (matchOver) {
@@ -110,6 +115,44 @@ function activateRadar() {
   updateHud();
 }
 function updateRadarMarker() { radarMarker.classList.add("hidden"); }
+function defeatKilledByText() {
+  const info = game.lastKilledBy;
+  const weapon = info?.weaponName ? String(info.weaponName) : "";
+  const killer = Number.isInteger(info?.killerIndex) && info.killerIndex >= 0 && info.killerIndex !== game.localIndex
+    ? `P${info.killerIndex + 1}` : "";
+  if (weapon && killer) return `Eliminated by ${killer} · ${weapon}`;
+  if (weapon) return `Eliminated by ${weapon}`;
+  return "Eliminated";
+}
+function hideDefeatScreen() {
+  if (!defeatOverlay) return;
+  defeatOverlay.classList.add("hidden");
+  defeatOverlay.classList.remove("revealed");
+  defeatOverlay.setAttribute("aria-hidden", "true");
+}
+// Cinematic defeat card for the player who loses the match — the dark, red-tinted
+// counterpart to the winner's TARGET EXECUTED screen. Reports what killed them and
+// offers the only way out: back to the lobby (host) or a wait note (guest).
+function showDefeatScreen(reason) {
+  if (!defeatOverlay) return false;
+  // Shown the instant the match is lost; if it's already up (e.g. finishMatch
+  // re-asserting it after the lap) don't replay the punch-in.
+  if (defeatOverlay.classList.contains("revealed") && !defeatOverlay.classList.contains("hidden")) return true;
+  const guest = game.role === "guest";
+  document.exitPointerLock?.();
+  input.shootHeld = false; input.aiming = false; input.pointerLocked = false;
+  if (defeatKilledByEl) defeatKilledByEl.textContent = defeatKilledByText().toUpperCase();
+  if (defeatStatusEl) defeatStatusEl.textContent = reason === "deathmatch" && game.fpsMapWins?.length ? `MAPS ${formatScores(game.fpsMapWins)}` : "";
+  if (defeatHostNote) {
+    defeatHostNote.classList.toggle("hidden", !guest);
+    defeatHostNote.textContent = guest ? "Choices route through the host." : "";
+  }
+  defeatOverlay.classList.remove("hidden");
+  defeatOverlay.setAttribute("aria-hidden", "false");
+  void defeatOverlay.offsetWidth;
+  defeatOverlay.classList.add("revealed");
+  return true;
+}
 function finishMatch(winner, reason) {
   if (game.phase === "result") return;
   game.phase = "result";
@@ -122,7 +165,7 @@ function finishMatch(winner, reason) {
   input.aiming = false;
   input.pointerLocked = false;
   damageLayer.replaceChildren();
-  damageVignette.classList.remove("active");
+  game.damageEffectTimer = 0; if (damageVignette) damageVignette.style.opacity = "0";
   killNotice.classList.add("hidden");
   clearBattleLog?.();
   radarMarker.classList.add("hidden");
@@ -134,6 +177,13 @@ function finishMatch(winner, reason) {
   settingsBtn.classList.add("hidden");
   settingsPanel.classList.add("hidden");
   clearVictoryBanner();
+
+  // Losing an FPS match shows the cinematic defeat screen instead of the cartoon
+  // result card; the winner already has TARGET EXECUTED (or the win card).
+  if (reason === "deathmatch" && winner !== -1 && winner !== game.localIndex && showDefeatScreen(reason)) {
+    updateHud();
+    return;
+  }
 
   let waitText = resultPanel.querySelector(".result-wait");
   if (!waitText) {
@@ -179,6 +229,9 @@ Object.assign(globalThis, {
   startVictoryLap,
   activateRadar,
   updateRadarMarker,
+  defeatKilledByText,
+  hideDefeatScreen,
+  showDefeatScreen,
   finishMatch,
   finalKillBackToLobby,
   restartTournament

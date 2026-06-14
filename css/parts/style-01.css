@@ -263,6 +263,104 @@ select:focus {
   letter-spacing: 0.06em;
 }
 
+/* ---------------- FPS scoreboard (top-middle, CS2-style) ---------------- */
+.fps-scoreboard {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(12, 12, 16, 0.84);
+  border: 2px solid var(--ink);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  z-index: 8;
+  color: #fff;
+  font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+}
+
+.fps-score-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fps-score-left { justify-content: flex-end; }
+.fps-score-right { justify-content: flex-start; }
+
+.fps-player-box {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--team, #888);
+}
+
+.fps-player-box.right {
+  border-left: 0;
+  border-right: 4px solid var(--team, #888);
+}
+
+.fps-player-box.leading {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.fps-player-tag {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--team, #fff);
+}
+
+.fps-player-rounds {
+  min-width: 16px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.fps-score-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 14px;
+  min-width: 94px;
+}
+
+.fps-score-timer {
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.fps-score-timer.low { color: #ff5a4d; }
+
+.fps-score-maps {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fps-score-maps-label {
+  margin-right: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.08em;
+}
+
+.fps-score-maps-num { font-variant-numeric: tabular-nums; }
+.fps-score-maps-sep { color: rgba(255, 255, 255, 0.3); }
+
 /* ---------------- FPS hud (bottom right) ---------------- */
 .fps-hud {
   position: absolute;
@@ -368,3 +466,22 @@ select:focus {
   opacity: 0.3;
   filter: grayscale(1);
 }
+
+/* Charge counter for multi-charge abilities (the grapple's two hooks). */
+.ability-slot .charge-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 15px;
+  padding: 0 3px 1px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--display);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  z-index: 4;
+}
+.ability-slot .charge-badge.full { color: var(--yellow); }
+.ability-slot .charge-badge.empty { opacity: 0.4; }
+.ability-slot .charge-badge:empty { display: none; }

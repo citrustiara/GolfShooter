@@ -454,7 +454,20 @@ export function handleMessage(message, sourceConnection = null) {
     if (message.weapon !== undefined) remote.weapon = message.weapon;
     if (message.primaryWeapon !== undefined) remote.primaryWeapon = message.primaryWeapon;
     if (message.aiming !== undefined) remote.aiming = Boolean(message.aiming);
+    if (message.reloading !== undefined) remote.reloading = Boolean(message.reloading);
     if (message.parryCooldown !== undefined) remote.parryCooldown = Math.max(remote.parryCooldown || 0, Number(message.parryCooldown) || 0);
+    // Viewmodel animation state, mirrored so a dead teammate can spectate this
+    // player's exact first-person weapon (ADS, reload, inspect, melee, parry).
+    if (message.reloadTimer !== undefined) remote.reloadTimer = Number(message.reloadTimer) || 0;
+    if (message.inspectTimer !== undefined) remote.inspectTimer = Number(message.inspectTimer) || 0;
+    if (message.throwTimer !== undefined) remote.throwTimer = Number(message.throwTimer) || 0;
+    if (message.weaponSwapTimer !== undefined) remote.weaponSwapTimer = Number(message.weaponSwapTimer) || 0;
+    if (message.meleeSwingTimer !== undefined) remote.meleeSwingTimer = Number(message.meleeSwingTimer) || 0;
+    if (message.parryAnimTimer !== undefined) remote.parryAnimTimer = Number(message.parryAnimTimer) || 0;
+    if (message.visualRecoil !== undefined) remote.visualRecoil = Number(message.visualRecoil) || 0;
+    if (message.radar !== undefined) remote.radarActive = Boolean(message.radar);
+    if (message.scopeAmount !== undefined) remote.scopeAmount = Number(message.scopeAmount) || 0;
+    if (message.camH !== undefined) remote.currentCamHeight = Number(message.camH) || 1.58;
   }
 
   if (message.type === "fpsFootstep") {

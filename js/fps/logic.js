@@ -840,14 +840,48 @@ function generateAdditionalSpawnPoints(map, baseSpawns, desiredCount) {
   return selected;
 }
 
+// Farthest-point selection: from a pool of candidate spawns pick `count` that
+// are mutually as far apart as possible. Seeded by the widest pair, then each
+// next pick maximises its distance to the nearest already-chosen spawn. Pure and
+// deterministic so every client derives the same spawn for the same player index.
+function spreadSpawnSelection(spawns, count) {
+  if (!Array.isArray(spawns) || spawns.length <= count) return spawns;
+  const pts = spawns.map((s) => ({ s, x: Number(s.x || 0), z: Number(s.z || 0) }));
+  let a = 0, b = 1, widest = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const d = Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z);
+      if (d > widest) { widest = d; a = i; b = j; }
+    }
+  }
+  const chosen = [pts[a], pts[b]];
+  const remaining = pts.filter((_, i) => i !== a && i !== b);
+  while (chosen.length < count && remaining.length) {
+    let bestIdx = 0, bestMin = -Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      let minDist = Infinity;
+      for (const c of chosen) minDist = Math.min(minDist, Math.hypot(remaining[i].x - c.x, remaining[i].z - c.z));
+      if (minDist > bestMin) { bestMin = minDist; bestIdx = i; }
+    }
+    chosen.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  return chosen.map((c) => c.s);
+}
+
 export function getArenaSpawnPoints(theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]) {
   const map = (game.fpsCustomMapActive && game.fpsCustomMap) ? game.fpsCustomMap : theme;
   const baseSpawns = (Array.isArray(map.spawnPoints) && map.spawnPoints.length)
     ? map.spawnPoints
     : [{ x: -42, z: 0 }, { x: 42, z: 0 }];
   const desiredCount = Math.max(2, game.playerCount || 2);
-  if (baseSpawns.length >= desiredCount) return baseSpawns;
-  return [...baseSpawns, ...generateAdditionalSpawnPoints(map, baseSpawns, desiredCount)];
+  // Two-player duels keep their hand-placed spawns exactly as designed.
+  if (desiredCount <= 2) return baseSpawns;
+  // For 3+ players, top up with generated pads when the map is short on spawns,
+  // then pick the most spread-out subset so extra players never start clustered.
+  const pool = baseSpawns.length >= desiredCount
+    ? baseSpawns
+    : [...baseSpawns, ...generateAdditionalSpawnPoints(map, baseSpawns, desiredCount)];
+  return spreadSpawnSelection(pool, desiredCount);
 }
 
 export function isPointInsideArena(point, floors = world.arenaFloors, margin = 0) {
