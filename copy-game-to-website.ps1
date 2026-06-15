@@ -144,6 +144,7 @@ function Remove-DestinationTarget([string]$RelativePath, [string]$Reason) {
   if ($DryRun) {
     Write-Host "[dry-run] Remove $RelativePath ($Reason)"
   } else {
+    Write-Verbose "Remove $RelativePath ($Reason)"
     Remove-Item -LiteralPath $targetPath -Recurse -Force
   }
   $script:RemovedCount++
@@ -151,18 +152,58 @@ function Remove-DestinationTarget([string]$RelativePath, [string]$Reason) {
 
 function Copy-GameFile([System.IO.FileInfo]$SourceFile) {
   $relativePath = Get-RelativePath $Source $SourceFile.FullName
+  [void]$script:ExpectedRelativePaths.Add($relativePath)
+
   $targetPath = Join-Path $Destination $relativePath
   $targetDir = Split-Path -Parent $targetPath
 
   if ($DryRun) {
     Write-Host "[dry-run] Copy $relativePath"
   } else {
+    Write-Verbose "Copy $relativePath"
     if (-not (Test-Path -LiteralPath $targetDir)) {
       [void](New-Item -ItemType Directory -Path $targetDir -Force)
     }
     Copy-Item -LiteralPath $SourceFile.FullName -Destination $targetPath -Force
   }
   $script:CopiedCount++
+}
+
+function Test-CopiedGameFiles() {
+  $failures = @()
+
+  foreach ($relativePath in $ExpectedRelativePaths) {
+    $sourcePath = Join-Path $Source $relativePath
+    $targetPath = Join-Path $Destination $relativePath
+
+    if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
+      $failures += "Missing: $relativePath"
+      continue
+    }
+
+    $sourceInfo = Get-Item -LiteralPath $sourcePath
+    $targetInfo = Get-Item -LiteralPath $targetPath
+    if ($sourceInfo.Length -ne $targetInfo.Length) {
+      $failures += "Size mismatch: $relativePath"
+      continue
+    }
+
+    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+    $targetHash = (Get-FileHash -LiteralPath $targetPath -Algorithm SHA256).Hash
+    if ($sourceHash -ne $targetHash) {
+      $failures += "Hash mismatch: $relativePath"
+    }
+  }
+
+  if ($failures.Count -gt 0) {
+    $preview = ($failures | Select-Object -First 20) -join [Environment]::NewLine
+    if ($failures.Count -gt 20) {
+      $preview += [Environment]::NewLine + "...and $($failures.Count - 20) more."
+    }
+    throw "Copy verification failed for $($failures.Count) file(s):$([Environment]::NewLine)$preview"
+  }
+
+  return $ExpectedRelativePaths.Count
 }
 
 $Source = Get-FullPath $Source
@@ -202,6 +243,7 @@ if (-not (Test-Path -LiteralPath $Destination -PathType Container)) {
 $CopiedCount = 0
 $RemovedCount = 0
 $SkippedCount = 0
+$ExpectedRelativePaths = New-Object "System.Collections.Generic.List[string]"
 
 Write-Host "Source:      $Source"
 Write-Host "Destination: $Destination"
@@ -240,9 +282,15 @@ foreach ($directoryName in $GameDirectories) {
   }
 }
 
+$VerifiedCount = 0
+if (-not $DryRun) {
+  $VerifiedCount = Test-CopiedGameFiles
+}
+
 $verb = if ($DryRun) { "Would copy" } else { "Copied" }
 $removeVerb = if ($DryRun) { "Would remove" } else { "Removed" }
 Write-Host "$verb $CopiedCount game file(s)."
+if (-not $DryRun) { Write-Host "Verified $VerifiedCount copied game file(s) in destination." }
 Write-Host "$removeVerb $RemovedCount old/non-game target(s)."
 Write-Host "Skipped $SkippedCount non-game file(s) from the source."
 Write-Host "Protected destination folders were left untouched: ZBS, BSK, .git"

@@ -238,6 +238,22 @@
   box-shadow: none;
 }
 
+.settings-panel .settings-toggle {
+  min-height: 34px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 3px dashed var(--ink);
+  cursor: pointer;
+}
+
+.settings-panel .settings-toggle input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--pink);
+  box-shadow: none;
+  cursor: pointer;
+}
+
 .overlay.fps-pause-open {
   pointer-events: auto;
 }

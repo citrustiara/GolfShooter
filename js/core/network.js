@@ -71,6 +71,11 @@ const networkText = document.querySelector("#networkText");
 const phraseText = document.querySelector("#phraseText");
 const phraseInput = document.querySelector("#phraseInput");
 const nicknameInput = document.querySelector("#nicknameInput");
+const NETWORK_PING_INTERVAL_MS = 1000;
+const NETWORK_PING_TIMEOUT_MS = 5000;
+let nextPingId = 1;
+let lastPingSentAt = 0;
+const pendingPings = new Map();
 
 function cleanNetworkPlayerName(value) {
   if (globalThis.cleanPlayerName) return globalThis.cleanPlayerName(value);
@@ -110,6 +115,71 @@ function setNetworkPlayerName(index, name) {
   }
   game.playerNames ||= [];
   game.playerNames[index] = cleanNetworkPlayerName(name) || `P${index + 1}`;
+}
+
+function smoothPing(previous, sample) {
+  return Number.isFinite(previous) ? previous * 0.75 + sample * 0.25 : sample;
+}
+
+function updatePingSummary() {
+  const samples = fps.players
+    .map((player, index) => index === game.localIndex ? null : player?.pingMs)
+    .filter(Number.isFinite);
+  game.networkPingMs = samples.length
+    ? samples.reduce((sum, value) => sum + value, 0) / samples.length
+    : null;
+}
+
+function setPingForPlayer(index, sampleMs) {
+  if (!Number.isInteger(index) || index < 0 || index === game.localIndex) return;
+  const sample = Math.max(0, Math.min(2000, Number(sampleMs) || 0));
+  if (!fps.players[index]) return;
+  fps.players[index].pingMs = smoothPing(fps.players[index].pingMs, sample);
+  updatePingSummary();
+}
+
+function clearNetworkPingStats() {
+  pendingPings.clear();
+  lastPingSentAt = 0;
+  game.networkPingMs = null;
+  for (const player of fps.players) {
+    if (player) player.pingMs = null;
+  }
+}
+
+function cleanupExpiredPings(now) {
+  for (const [id, ping] of pendingPings.entries()) {
+    if (now - ping.sentAt > NETWORK_PING_TIMEOUT_MS) pendingPings.delete(id);
+  }
+}
+
+function sendPingToConnection(connection, targetIndex, now) {
+  if (!connection?.open) return;
+  const id = nextPingId++;
+  pendingPings.set(id, { sentAt: now, targetIndex });
+  sendToConnection(connection, {
+    type: "netPing",
+    id,
+    sentAt: now,
+    player: game.localIndex
+  });
+}
+
+export function updateNetworkPing(now = performance.now()) {
+  if (!game.connected) {
+    updatePingSummary();
+    return;
+  }
+  if (now - lastPingSentAt < NETWORK_PING_INTERVAL_MS) return;
+  lastPingSentAt = now;
+  cleanupExpiredPings(now);
+  if (game.role === "host") {
+    for (const { connection, playerIndex } of connections.values()) {
+      sendPingToConnection(connection, playerIndex, now);
+    }
+  } else {
+    sendPingToConnection(conn, 0, now);
+  }
 }
 
 // Linkable functions to avoid circular imports
@@ -167,6 +237,7 @@ export function closePeer() {
   conn = null;
   peer = null;
   game.connected = false;
+  clearNetworkPingStats();
   sessionStorage.removeItem("gd_room");
   sessionStorage.removeItem("gd_role");
 }
@@ -264,7 +335,9 @@ export function attachConnection(connection) {
       const idx = entry.playerIndex;
       if (fps.players && fps.players[idx]) {
         fps.players[idx].health = 0;
+        fps.players[idx].pingMs = null;
       }
+      updatePingSummary();
     }
     connections.delete(connection.peer);
     game.connected = connections.size > 0 || Boolean(conn?.open);
@@ -406,8 +479,42 @@ export function send(message) {
   if (conn && conn.open) conn.send(message);
 }
 
+function replyToPing(message, sourceConnection) {
+  const reply = {
+    type: "netPong",
+    id: message.id,
+    sentAt: message.sentAt,
+    player: game.localIndex
+  };
+  if (sourceConnection?.open) sendToConnection(sourceConnection, reply);
+  else send(reply);
+}
+
+function applyPong(message, sourceConnection = null) {
+  const pending = pendingPings.get(message.id);
+  if (!pending) return;
+  pendingPings.delete(message.id);
+  const now = performance.now();
+  let targetIndex = pending.targetIndex;
+  if (!Number.isInteger(targetIndex) && game.role === "host" && sourceConnection) {
+    targetIndex = connections.get(sourceConnection.peer)?.playerIndex;
+  }
+  if (!Number.isInteger(targetIndex)) targetIndex = messagePlayerIndex(message.player);
+  setPingForPlayer(targetIndex, now - pending.sentAt);
+}
+
 export function handleMessage(message, sourceConnection = null) {
   if (!message || typeof message !== "object") return;
+
+  if (message.type === "netPing") {
+    replyToPing(message, sourceConnection);
+    return;
+  }
+
+  if (message.type === "netPong") {
+    applyPong(message, sourceConnection);
+    return;
+  }
 
   if (game.role === "host" && sourceConnection && shouldRelay(message)) {
     broadcast(message, sourceConnection);
@@ -531,6 +638,7 @@ export function handleMessage(message, sourceConnection = null) {
       // that; everyone else gets fpsKillEvent in the side battle log.
       if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
     }
+    if (message.grounded !== undefined) remote.grounded = Boolean(message.grounded);
     if (message.sliding !== undefined) remote.sliding = message.sliding;
     if (message.weapon !== undefined) remote.weapon = message.weapon;
     if (message.primaryWeapon !== undefined) remote.primaryWeapon = message.primaryWeapon;

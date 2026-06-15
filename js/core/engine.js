@@ -1,8 +1,12 @@
 import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
 
 export const canvas = document.querySelector("#game");
-export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
+const MAX_RENDER_PIXEL_RATIO = 1.5;
+function syncRendererPixelRatio() {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_PIXEL_RATIO));
+}
+syncRendererPixelRatio();
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -227,6 +231,7 @@ export function setupLighting() {
 }
 
 export function resize() {
+  syncRendererPixelRatio();
   const width = window.innerWidth;
   const height = window.innerHeight;
   renderer.setSize(width, height, false);

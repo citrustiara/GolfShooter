@@ -108,8 +108,48 @@ function applyFpsDuelState(s) {
   if (game.fpsMatchConfig?.maps?.length) applyFpsMatchMapSlot(game.fpsMatchConfig.currentMapSlot || 0);
   updateHud();
 }
-function applyRemoteFpsState(r, s) { if (!r.targetPos) r.targetPos = new THREE.Vector3(); const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]; const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 }; const x = Number.isFinite(s.x) ? s.x : spawn.x; const z = Number.isFinite(s.z) ? s.z : spawn.z; const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme); r.targetPos.set(x, y, z); if (r.targetPos.y < -8) { r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); } if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5); r.targetYaw = s.yaw; r.targetPitch = s.pitch; }
-function resetNetworkMotion() {}
+function finiteNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+function applyRemoteFpsState(r, s) {
+  if (!r.targetPos) r.targetPos = new THREE.Vector3();
+  if (!r.targetVel) r.targetVel = new THREE.Vector3();
+  const now = performance.now();
+  const previousTarget = r.targetPos.clone();
+  const previousAt = r.targetStateAt || now;
+  const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0];
+  const spawn = getArenaSpawnPoints(theme)[s.player] || { x: s.x ?? 0, z: s.z ?? 0 };
+  const x = Number.isFinite(s.x) ? s.x : spawn.x;
+  const z = Number.isFinite(s.z) ? s.z : spawn.z;
+  const y = Number.isFinite(s.y) ? s.y : getSpawnY({ x, z }, theme);
+  r.targetPos.set(x, y, z);
+  if (r.targetPos.y < -8) {
+    r.targetPos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
+  }
+  if (!isPointInsideArena(r.targetPos, world.arenaFloors, 0.5)) clampArenaPosition(r.targetPos, 0.5);
+
+  const hasVelocity = [s.vx, s.vy, s.vz].every((value) => Number.isFinite(Number(value)));
+  if (hasVelocity) {
+    r.targetVel.set(finiteNumber(s.vx), finiteNumber(s.vy), finiteNumber(s.vz));
+  } else if (previousAt !== now) {
+    const sampleDt = Math.max(1 / 120, Math.min(0.25, (now - previousAt) / 1000));
+    r.targetVel.copy(r.targetPos).sub(previousTarget).multiplyScalar(1 / sampleDt);
+  } else {
+    r.targetVel.set(0, 0, 0);
+  }
+  r.targetStateAt = now;
+  r.targetYaw = finiteNumber(s.yaw, r.targetYaw ?? r.yaw ?? 0);
+  r.targetPitch = finiteNumber(s.pitch, r.targetPitch ?? r.pitch ?? 0);
+}
+function resetNetworkMotion() {
+  for (const player of fps.players) {
+    player.targetPos = null;
+    player.targetVel = null;
+    player.predictedTargetPos = null;
+    player.targetStateAt = 0;
+  }
+}
 function resetFpsScoresForReplay(playerCount = game.playerCount) {
   ensureFpsPlayers(playerCount);
   game.fpsMapWins = Array(game.playerCount).fill(0);

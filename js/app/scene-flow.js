@@ -159,11 +159,24 @@ function setupWeapon() {
 
 function beginLocalMatch(room) { game.role = "solo"; game.room = room; game.localIndex = 0; showLobby(); }
 
+function setElementHidden(el, hidden = true) {
+  if (!el) return;
+  const shouldHide = Boolean(hidden);
+  el.classList.toggle("hidden", shouldHide);
+  el.toggleAttribute("hidden", shouldHide);
+  el.setAttribute("aria-hidden", shouldHide ? "true" : "false");
+}
+
 function setLobbyCustomVisible(visible = false) {
   const customOpen = Boolean(visible);
-  lobbyModePicker?.classList.toggle("hidden", customOpen);
-  practiceMapOptions?.classList.toggle("hidden", !customOpen);
-  customActionGrid?.classList.toggle("hidden", !customOpen);
+  setElementHidden(lobbyModePicker, customOpen);
+  setElementHidden(practiceMapOptions, !customOpen);
+  setElementHidden(customActionGrid, !customOpen);
+  if (lobbyStatus && game.role !== "guest") {
+    lobbyStatus.textContent = customOpen
+      ? "Custom practice setup. Choose maps, then start."
+      : (game.role === "solo" ? "Solo practice. Choose a mode." : `Host practice lobby. Players: ${game.playerCount}`);
+  }
   if (customOpen) {
     populateMapSelects().then(() => syncPracticeMapPlanner());
   }
@@ -267,10 +280,10 @@ function showLobby() {
     startFpsBtn.classList.add("hidden");
     startRandomFpsBtn?.classList.add("hidden");
     startCustomBothBtn?.classList.add("hidden");
-    lobbyModePicker?.classList.add("hidden");
-    customActionGrid?.classList.add("hidden");
+    setElementHidden(lobbyModePicker, true);
+    setElementHidden(customActionGrid, true);
     lobbyStatus.textContent = "Waiting for host to start practice...";
-    practiceMapOptions?.classList.add("hidden");
+    setElementHidden(practiceMapOptions, true);
     return;
   }
   startGolfBtn.classList.remove("hidden");
@@ -346,6 +359,7 @@ Object.assign(globalThis, {
   hideFpsHudUi,
   showMenu,
   showLobby,
+  setElementHidden,
   startGolf,
   applyGolfAtmosphere,
   enterFps

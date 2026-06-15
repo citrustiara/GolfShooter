@@ -33,6 +33,12 @@ select {
   text-align: left;
 }
 
+#lobbyModePicker.hidden,
+#practiceMapOptions.hidden,
+#customActionGrid.hidden {
+  display: none !important;
+}
+
 .menu select,
 .menu input {
   text-align: center;

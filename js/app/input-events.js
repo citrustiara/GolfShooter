@@ -1,6 +1,82 @@
 import "./globals.js";
 
-function onMouseMove(e) { if (!input.pointerLocked || game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
+const FPS_PITCH_LIMIT = Math.PI / 2 - 0.1;
+const PERF_STATS_UPDATE_MS = 250;
+const MOUSE_FIX_STORAGE_KEY = "golfDuelMouseFix";
+const MOUSE_STALE_EVENT_MS = 80;
+const MOUSE_FRAME_DELTA_LIMIT = 900;
+let smoothedPerfFps = 0;
+let lastPerfStatsAt = 0;
+
+function updatePerfStats(dt, now) {
+  updateNetworkPing?.(now);
+  if (dt > 0) {
+    const frameFps = 1 / dt;
+    smoothedPerfFps = smoothedPerfFps > 0 ? smoothedPerfFps * 0.9 + frameFps * 0.1 : frameFps;
+  }
+  if (!perfStats || now - lastPerfStatsAt < PERF_STATS_UPDATE_MS) return;
+  lastPerfStatsAt = now;
+  const fpsValue = smoothedPerfFps > 0 ? Math.round(smoothedPerfFps) : "--";
+  const pingValue = Number.isFinite(game.networkPingMs) ? `${Math.round(game.networkPingMs)}ms` : "--";
+  perfStats.textContent = `FPS ${fpsValue} · Ping ${pingValue}`;
+}
+
+function canCaptureMouseLook() {
+  return input.pointerLocked && !game.finalKillCinematicActive && !(game.phase === "fps" && fps.players[game.localIndex]?.health <= 0);
+}
+
+function mouseEventAgeMs(e, now) {
+  const eventTime = Number(e?.timeStamp);
+  if (!Number.isFinite(eventTime)) return 0;
+  const age = now - eventTime;
+  return age >= 0 && age < 60000 ? age : 0;
+}
+
+function queueMouseMovement(e, now) {
+  if (input.mouseFixEnabled && mouseEventAgeMs(e, now) > MOUSE_STALE_EVENT_MS) return;
+  const dx = Number(e?.movementX);
+  const dy = Number(e?.movementY);
+  if (Number.isFinite(dx)) input.mouseDeltaX += dx;
+  if (Number.isFinite(dy)) input.mouseDeltaY += dy;
+}
+
+function onMouseMove(e) {
+  if (!canCaptureMouseLook()) return;
+  const now = performance.now();
+  const coalesced = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : null;
+  if (coalesced?.length) {
+    for (const event of coalesced) queueMouseMovement(event, now);
+  } else {
+    queueMouseMovement(e, now);
+  }
+}
+
+function resetPendingMouseLook() {
+  input.mouseDeltaX = 0;
+  input.mouseDeltaY = 0;
+}
+
+function applyPendingMouseLook() {
+  if (!canCaptureMouseLook()) {
+    resetPendingMouseLook();
+    return;
+  }
+  let dx = input.mouseDeltaX || 0;
+  let dy = input.mouseDeltaY || 0;
+  if (dx === 0 && dy === 0) return;
+  resetPendingMouseLook();
+  if (input.mouseFixEnabled) {
+    const length = Math.hypot(dx, dy);
+    if (length > MOUSE_FRAME_DELTA_LIMIT) {
+      const scale = MOUSE_FRAME_DELTA_LIMIT / length;
+      dx *= scale;
+      dy *= scale;
+    }
+  }
+  const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1);
+  input.yaw += dx * sensitivity;
+  input.pitch = Math.max(-FPS_PITCH_LIMIT, Math.min(FPS_PITCH_LIMIT, input.pitch - dy * sensitivity));
+}
 function onMouseDown(e) {
   if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
   ensureAudio();
@@ -17,6 +93,7 @@ function onMouseDown(e) {
     if (e.target === canvas && game.phase === "fps") requestPointerLockSafe();
     return;
   }
+  applyPendingMouseLook();
   if (e.button === 2) {
     input.aiming = false;
     if (!localParryGuardWeapon()) input.aiming = true;
@@ -93,6 +170,18 @@ function finishGolfDrag() {
 }
 function requestPointerLockSafe() {
   if (document.pointerLockElement === canvas || !canvas.requestPointerLock) return;
+  if (!input.mouseFixEnabled) {
+    requestStandardPointerLock();
+    return;
+  }
+  try {
+    const lockRequest = canvas.requestPointerLock({ unadjustedMovement: true });
+    lockRequest?.catch?.(() => requestStandardPointerLock());
+  } catch {
+    requestStandardPointerLock();
+  }
+}
+function requestStandardPointerLock() {
   try {
     const lockRequest = canvas.requestPointerLock();
     lockRequest?.catch?.(() => {});
@@ -168,6 +257,23 @@ function updateFpsSettingsVisibility() {
   }
 }
 function syncSensitivity(v) { const m = Number(v); input.mouseSensitivity = FPS_BASE_MOUSE_SENSITIVITY * m; sensitivityInput.value = m; const l = `${m.toFixed(1)}x`; sensitivityValue.textContent = l; }
+function savedMouseFixEnabled() {
+  try {
+    const saved = localStorage.getItem(MOUSE_FIX_STORAGE_KEY);
+    return saved === null || (saved !== "0" && saved !== "false");
+  } catch {
+    return true;
+  }
+}
+function syncMouseFix(enabled, persist = true) {
+  input.mouseFixEnabled = enabled !== false;
+  if (mouseFixInput) mouseFixInput.checked = input.mouseFixEnabled;
+  resetPendingMouseLook();
+  if (!persist) return;
+  try {
+    localStorage.setItem(MOUSE_FIX_STORAGE_KEY, input.mouseFixEnabled ? "1" : "0");
+  } catch {}
+}
 function codeFromKeyEvent(e) { if (e.code) return e.code; const k = e.key || ""; if (k === " ") return "Space"; if (k.startsWith("Arrow")) return k; if (/^[a-z]$/i.test(k)) return `Key${k.toUpperCase()}`; if (/^[0-9]$/.test(k)) return `Digit${k}`; return k; }
 function toggleBuildMode() { game.buildMode = !game.buildMode; lobbyStatus.textContent = game.buildMode ? "Build mode on. Press V to place a block." : lobbyStatus.textContent; }
 function placeBuildBox() {
@@ -205,7 +311,9 @@ function tryActivateAbilityKey(code) {
 
 function animate(now = performance.now()) {
   const dt = Math.min(0.033, (now - lastFrame) / 1000 || clock.getDelta()); lastFrame = now;
+  updatePerfStats(dt, now);
   if (game.killFadeTimer > 0) game.killFadeTimer = Math.max(0, game.killFadeTimer - dt);
+  if (game.phase === "fps" || game.phase === "fpsVictoryLap") applyPendingMouseLook();
   if (game.phase === "golf") updateGolf(dt); else hideGolfHoleTimer(); if (game.phase === "fps") { if (input.shootHeld && game.activeWeapon === "gun") fireHitscan(); updateFps(dt, now); }
   if (game.phase === "fpsVictoryLap") {
     updateFps(dt, now); const elapsed = (now - game.victoryLapStart) / 1000, target = fps.players[game.result.winner] || fps.players[game.localIndex], isW = game.localIndex === game.result.winner;
@@ -272,6 +380,7 @@ window.addEventListener("keydown", (e) => {
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();
   if ((game.phase === "fps" || game.phase === "fpsVictoryLap") && c.startsWith("Arrow")) e.preventDefault();
   if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
+    applyPendingMouseLook();
     if (game.finalKillCinematicActive) return;
     if (!input.pointerLocked) return;
     if (game.countdown <= 0) {
@@ -308,13 +417,13 @@ window.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "fps" && game.grapple?.active && abilityAllowed("grapple") && (c === getAbilityKey("grapple") || e.code === getAbilityKey("grapple"))) releaseGrapple(); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
-document.addEventListener("pointerlockchange", () => { input.pointerLocked = document.pointerLockElement === canvas; updateFpsSettingsVisibility(); });
-document.addEventListener("mousemove", onMouseMove); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
+document.addEventListener("pointerlockchange", () => { input.pointerLocked = document.pointerLockElement === canvas; resetPendingMouseLook(); updateFpsSettingsVisibility(); });
+document.addEventListener("mousemove", onMouseMove, { passive: true }); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!activeWeaponIds().includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));
 canvas.addEventListener("pointerdown", onPointerDown); window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", finishGolfDrag); window.addEventListener("mousedown", (e) => { if (e.button === 0 && game.phase === "golf") onPointerDown(e); }); window.addEventListener("mousemove", onPointerMove); window.addEventListener("mouseup", finishGolfDrag); canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-createBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); createMatch(); });
-joinBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); joinMatch(); });
-soloBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()); });
+createBtn?.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); createMatch(); });
+joinBtn?.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); joinMatch(); });
+soloBtn?.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()); });
 function syncLobbyPlayerCount() {
   if (game.role === "solo") syncPlayerCountFromUi();
   else ensureFpsPlayers?.(game.playerCount);
@@ -362,12 +471,12 @@ customLobbyBtn?.addEventListener("click", () => {
 customBackBtn?.addEventListener("click", () => {
   setLobbyCustomVisible?.(false);
 });
-startGolfBtn.addEventListener("click", () => { 
+startGolfBtn?.addEventListener("click", () => {
   if (game.role !== "guest") { 
     startConfiguredGolf(selectedGolfCourseIds(true), "golfOnly", false);
   } 
 });
-startFpsBtn.addEventListener("click", () => { 
+startFpsBtn?.addEventListener("click", () => {
   if (game.role !== "guest") { 
     startConfiguredFps(false);
   } 
@@ -380,11 +489,11 @@ startCustomBothBtn?.addEventListener("click", () => {
   }
 });
 startRandomFpsBtn?.addEventListener("click", () => { startConfiguredFps(true); });
-leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
+leaveBtn?.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn?.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn?.addEventListener("click", () => restartTournament());
 finalKillBackBtn?.addEventListener("click", () => finalKillBackToLobby()); finalKillReplayBtn?.addEventListener("click", () => replayFpsMatch());
 defeatBackBtn?.addEventListener("click", () => finalKillBackToLobby());
 defeatReplayBtn?.addEventListener("click", () => replayFpsMatch());
-settingsBtn.addEventListener("click", () => setPauseMenuOpen(settingsPanel.classList.contains("hidden"))); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value));
+settingsBtn.addEventListener("click", () => setPauseMenuOpen(settingsPanel.classList.contains("hidden"))); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); mouseFixInput?.addEventListener("change", () => syncMouseFix(mouseFixInput.checked));
 practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
 practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());
 fovInput?.addEventListener("input", () => syncFov(fovInput.value));
@@ -439,7 +548,7 @@ mapUploadInput?.addEventListener("change", (e) => {
   }
 });
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive || fps.players[game.localIndex]?.health <= 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
-phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
+phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV); syncMouseFix(savedMouseFixEnabled(), false);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");
 if (gdRoom && gdRole) {
@@ -455,6 +564,8 @@ try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap
 
 Object.assign(globalThis, {
   onMouseMove,
+  applyPendingMouseLook,
+  resetPendingMouseLook,
   onMouseDown,
   onMouseUp,
   onClick,
@@ -468,6 +579,7 @@ Object.assign(globalThis, {
   syncAbilityKeySettings,
   setPauseMenuOpen,
   syncSensitivity,
+  syncMouseFix,
   codeFromKeyEvent,
   toggleBuildMode,
   placeBuildBox,

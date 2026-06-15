@@ -1,5 +1,74 @@
 import "./globals.js";
 
+const FPS_STATE_SEND_RATE = 60;
+const FPS_STATE_SEND_INTERVAL_MS = 1000 / FPS_STATE_SEND_RATE;
+const FALLBACK_PREDICTION_PING_MS = 60;
+
+function shouldSendFpsState(now) {
+  return game.connected && now - (game.lastSend || 0) >= FPS_STATE_SEND_INTERVAL_MS;
+}
+
+function predictionLeadForRemote(remote, now) {
+  const pingMs = Number.isFinite(remote.pingMs)
+    ? remote.pingMs
+    : (Number.isFinite(game.networkPingMs) ? game.networkPingMs : FALLBACK_PREDICTION_PING_MS);
+  const oneWaySeconds = Math.max(0, pingMs) / 2000;
+  const packetAge = Math.max(0, Math.min(0.08, (now - (remote.targetStateAt || now)) / 1000));
+  const lead = oneWaySeconds + FPS_STATE_SEND_INTERVAL_MS / 2000 + packetAge;
+  return Math.max(0.02, Math.min(0.16, lead));
+}
+
+function markFpsStateSent(now) {
+  const previous = Number.isFinite(game.lastSend) ? game.lastSend : 0;
+  if (previous <= 0 || now - previous > FPS_STATE_SEND_INTERVAL_MS * 4) {
+    game.lastSend = now;
+    return;
+  }
+  const intervals = Math.max(1, Math.floor((now - previous) / FPS_STATE_SEND_INTERVAL_MS));
+  game.lastSend = previous + intervals * FPS_STATE_SEND_INTERVAL_MS;
+}
+
+function sendLocalFpsState(now) {
+  if (!shouldSendFpsState(now)) return;
+  markFpsStateSent(now);
+  const p = fps.players[game.localIndex];
+  if (!p) return;
+  send({
+    type: "fpsState",
+    player: game.localIndex,
+    name: playerDisplayName?.(game.localIndex, `P${game.localIndex + 1}`),
+    x: p.pos.x,
+    y: p.pos.y,
+    z: p.pos.z,
+    vx: p.vel.x,
+    vy: p.vel.y,
+    vz: p.vel.z,
+    yaw: p.yaw,
+    pitch: p.pitch,
+    health: p.health,
+    grounded: p.grounded,
+    sliding: p.sliding,
+    weapon: game.activeWeapon,
+    primaryWeapon: game.primaryWeapon,
+    aiming: input.aiming && !game.parryGuardActive,
+    parryCooldown: game.parryCooldown,
+    parryGuardActive: game.parryGuardActive,
+    parryGuardTimer: game.parryGuardTimer,
+    parryGuardCooldown: game.parryGuardCooldown,
+    reloading: game.reloading,
+    reloadTimer: game.reloadTimer,
+    inspectTimer: game.inspectTimer,
+    throwTimer: game.throwTimer,
+    weaponSwapTimer: game.weaponSwapTimer,
+    meleeSwingTimer: game.meleeSwingTimer,
+    parryAnimTimer: game.parryAnimTimer,
+    visualRecoil: game.visualRecoil,
+    radar: game.radarTimer > 0,
+    scopeAmount: game.scopeAmount,
+    camH: p.currentCamHeight
+  });
+}
+
 function updateFps(dt, now) {
   if (game.countdown > 0) { const prevTick = Math.ceil(game.countdown); game.countdown -= dt; const curTick = Math.ceil(game.countdown); countdown.textContent = curTick; countdown.classList.remove("hidden"); if (curTick !== prevTick) playSound(curTick > 0 ? "countdownTick" : "countdownGo", { volume: 0.7 }); if (game.countdown <= 0) countdown.classList.add("hidden"); }
   if (game.connected) {
@@ -7,10 +76,18 @@ function updateFps(dt, now) {
       if (remoteIdx === game.localIndex) continue;
       const remote = fps.players[remoteIdx];
       if (remote && remote.targetPos) {
-        if (remote.pos.distanceTo(remote.targetPos) > 4.5) {
-          remote.pos.copy(remote.targetPos);
+        if (!remote.predictedTargetPos) remote.predictedTargetPos = new THREE.Vector3();
+        remote.predictedTargetPos.copy(remote.targetPos);
+        if (remote.health > 0 && remote.targetVel) {
+          const predictionLead = predictionLeadForRemote(remote, now);
+          remote.predictionLead = predictionLead;
+          remote.predictedTargetPos.addScaledVector(remote.targetVel, predictionLead);
+          if (!isPointInsideArena(remote.predictedTargetPos, world.arenaFloors, 0.5)) clampArenaPosition(remote.predictedTargetPos, 0.5);
+        }
+        if (remote.pos.distanceTo(remote.predictedTargetPos) > 4.5) {
+          remote.pos.copy(remote.predictedTargetPos);
         } else {
-          remote.pos.lerp(remote.targetPos, Math.min(1, dt * 18.0));
+          remote.pos.lerp(remote.predictedTargetPos, Math.min(1, dt * 18.0));
         }
         let diffYaw = remote.targetYaw - remote.yaw;
         diffYaw = Math.atan2(Math.sin(diffYaw), Math.cos(diffYaw));
@@ -227,7 +304,7 @@ function updateFps(dt, now) {
     game.roundEndGrace = 0;
   }
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
-  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, name: playerDisplayName?.(game.localIndex, `P${game.localIndex + 1}`), x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming && !game.parryGuardActive, parryCooldown: game.parryCooldown, parryGuardActive: game.parryGuardActive, parryGuardTimer: game.parryGuardTimer, parryGuardCooldown: game.parryGuardCooldown, reloading: game.reloading, reloadTimer: game.reloadTimer, inspectTimer: game.inspectTimer, throwTimer: game.throwTimer, weaponSwapTimer: game.weaponSwapTimer, meleeSwingTimer: game.meleeSwingTimer, parryAnimTimer: game.parryAnimTimer, visualRecoil: game.visualRecoil, radar: game.radarTimer > 0, scopeAmount: game.scopeAmount, camH: p.currentCamHeight }); }
+  sendLocalFpsState(now);
   updateHud();
 }
 function updateFpsCamera(dt) {

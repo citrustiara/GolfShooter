@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
   <script type="importmap">
     {
       "imports": {
@@ -149,6 +149,7 @@
       </div>
     </div>
     <div class="radar-marker hidden" id="radarMarker" aria-hidden="true"></div>
+    <div class="perf-stats" id="perfStats" aria-hidden="true">FPS -- · Ping --</div>
 
     <button class="settings hidden" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
     <div class="settings-panel hidden" id="settingsPanel">
@@ -163,6 +164,10 @@
         <span id="fovValue">90°</span>
       </label>
       <input id="fovInput" type="range" min="60" max="120" step="1" value="90" />
+      <label class="settings-toggle" for="mouseFixInput">
+        <span>Mouse Fix</span>
+        <input id="mouseFixInput" type="checkbox" checked />
+      </label>
       <div class="settings-ability-keys hidden" id="abilityKeySettings">
         <h3>Ability Buttons</h3>
         <div id="abilityKeyList" class="settings-key-list"></div>
@@ -344,6 +349,6 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=7"></script>
 </body>
 </html>
