@@ -199,15 +199,15 @@
   transition: transform 30ms linear;
 }
 
-/* Parry impact frame: a stark full-screen white/black flash, like an anime
-   impact cut, so both players are certain the shot was reflected. */
+/* Parry impact frame: a tiny high-contrast pulse so both players catch the
+   reflect without the whole screen turning into a long animation. */
 .parry-impact-frame {
   position: absolute;
   inset: 0;
   z-index: 60;
   pointer-events: none;
   opacity: 0;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .parry-impact-frame::before {
@@ -216,38 +216,31 @@
   inset: -12%;
   background: repeating-conic-gradient(from 0deg at 50% 50%,
     rgba(255, 255, 255, 0) 0deg 4deg,
-    rgba(255, 255, 255, 0.9) 4deg 5.2deg,
+    rgba(255, 255, 255, 0.82) 4deg 5.2deg,
     rgba(255, 255, 255, 0) 5.2deg 9deg);
   mix-blend-mode: difference;
   opacity: 0;
 }
 
 .parry-impact-frame.active {
-  animation: parryImpactFrame 360ms linear forwards;
+  animation: parryImpactFrame 105ms steps(1, end) forwards;
 }
 
 .parry-impact-frame.active::before {
-  animation: parryImpactLines 360ms linear forwards;
+  animation: parryImpactLines 105ms ease-out forwards;
 }
 
-/* Tight keyframe pairs snap between white and black almost instantly (no slow
-   colour interpolation), giving the hard two-tone flicker of an impact frame. */
 @keyframes parryImpactFrame {
-  0% { opacity: 1; background: #ffffff; }
-  17% { opacity: 1; background: #ffffff; }
-  18% { opacity: 1; background: #0a0a0a; }
-  45% { opacity: 1; background: #0a0a0a; }
-  46% { opacity: 1; background: #ffffff; }
-  60% { opacity: 1; background: #ffffff; }
-  61% { opacity: 1; background: #0a0a0a; }
-  100% { opacity: 0; background: #0a0a0a; }
+  0% { opacity: 0.72; background: rgba(255, 255, 255, 0.72); }
+  38% { opacity: 0.52; background: rgba(8, 8, 10, 0.44); }
+  70% { opacity: 0.46; background: rgba(255, 246, 168, 0.42); }
+  100% { opacity: 0; background: rgba(255, 255, 255, 0); }
 }
 
 @keyframes parryImpactLines {
-  0% { opacity: 0; transform: scale(0.6); }
-  20% { opacity: 0.9; transform: scale(1); }
-  60% { opacity: 0.5; transform: scale(1.08); }
-  100% { opacity: 0; transform: scale(1.18); }
+  0% { opacity: 0; transform: scale(0.78); }
+  32% { opacity: 0.78; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08); }
 }
 
 .hit-marker {

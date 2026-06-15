@@ -58,6 +58,8 @@ function resetFpsDuelState(randomTournament = false) {
 function serializeFpsDuelState() {
   return {
     playerCount: game.playerCount,
+    playerNames: playerNamesPayload?.() || game.playerNames,
+    matchFlow: game.matchFlow,
     mapIndex: game.fpsMapIndex,
     fpsMatchConfig: game.fpsMatchConfig,
     mapWins: game.fpsMapWins,
@@ -82,6 +84,8 @@ function applyFpsDuelState(s) {
   if (!s) return;
   game.playerCount = Math.max(2, s.playerCount || s.mapWins?.length || s.killWins?.length || game.playerCount);
   ensureFpsPlayers(game.playerCount);
+  applyPlayerNames?.(s.playerNames);
+  if (s.matchFlow) game.matchFlow = s.matchFlow;
   game.fpsMapIndex = s.mapIndex ?? game.fpsMapIndex;
   game.fpsMatchConfig = sanitizeFpsMatchConfig(s.fpsMatchConfig);
   game.fpsMapWins = s.mapWins || game.fpsMapWins;

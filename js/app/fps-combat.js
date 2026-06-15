@@ -4,222 +4,6 @@ function localFpsPlayerCanFight() {
   return game.phase === "fps" && fps.players[game.localIndex]?.health > 0;
 }
 
-function updateGrenades(dt) {
-  for (let i = world.grenades.length - 1; i >= 0; i--) {
-    const g = world.grenades[i];
-    if (g.kind === "rocket") {
-      g.mesh.position.addScaledVector(g.vel, dt);
-    } else {
-      g.vel.y += (g.gravity ?? GRENADE_GRAVITY) * dt;
-      g.mesh.position.addScaledVector(g.vel, dt);
-    }
-    
-    // Rockets should not rotate around X/Y to preserve forward direction
-    if (g.kind !== "rocket") {
-      g.mesh.rotation.x += 5 * dt;
-      g.mesh.rotation.y += 3 * dt;
-    }
-    
-    g.timer -= dt;
-    
-    const detonatesOnContact = g.kind === "rocket" || g.kind === "grenadeLauncher";
-    const isBouncer = g.kind === "bouncer";
-    let hitObstacle = false;
-    if (detonatesOnContact) {
-      hitObstacle = projectileHitObstacle(g);
-    } else {
-      const speedBefore = isBouncer ? g.vel.length() : 0;
-      for (const obs of world.obstacles) {
-        if (collideGrenadeWithObstacle(g, obs, isBouncer ? 0.3 : 0.22)) hitObstacle = true;
-      }
-      if (collideSphereWithTriangleMeshColliders(world.meshColliders, g.mesh.position, g.vel, isBouncer ? 0.3 : 0.22, isBouncer ? 0.98 : 0.4, isBouncer ? 0.99 : 0.8)) hitObstacle = true;
-      if (isBouncer && hitObstacle) {
-        // Wall reflection keeps the orb at full speed so it ping-pongs around
-        // the arena instead of dying against the first wall.
-        if (g.vel.lengthSq() > 0.001) g.vel.setLength(speedBefore);
-        g.bounces = (g.bounces || 0) + 1;
-        playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
-      }
-    }
-    
-    let outOfArena = !isPointInsideArena(g.mesh.position, world.arenaFloors, 0.1);
-    if (outOfArena && isBouncer) {
-      // The map edge acts as a wall for bouncer orbs: reflect back inside so
-      // open arena borders count as a ricochet surface instead of a detonation.
-      const speedBefore = g.vel.length();
-      const inside = clampArenaPosition(g.mesh.position.clone(), 0.45, world.arenaFloors);
-      let nx = inside.x - g.mesh.position.x;
-      let nz = inside.z - g.mesh.position.z;
-      const len = Math.hypot(nx, nz);
-      if (len > 0.0001) {
-        nx /= len; nz /= len;
-        const dot = g.vel.x * nx + g.vel.z * nz;
-        if (dot < 0) { g.vel.x -= 2 * dot * nx; g.vel.z -= 2 * dot * nz; }
-      } else {
-        g.vel.x *= -1;
-        g.vel.z *= -1;
-      }
-      if (g.vel.lengthSq() > 0.001) g.vel.setLength(speedBefore);
-      g.mesh.position.x = inside.x;
-      g.mesh.position.z = inside.z;
-      g.bounces = (g.bounces || 0) + 1;
-      playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
-      outOfArena = false;
-    }
-    const hitPlayer = projectileHitPlayer(g);
-    
-    let hitGround = false;
-    let bestFloorY = -Infinity;
-    if (world.arenaFloorCollision !== false) {
-      for (const floor of world.arenaFloors) {
-        if (floor.type === "circle") {
-          if (Math.hypot(g.mesh.position.x - floor.x, g.mesh.position.z - floor.z) <= floor.r) {
-            const y = Number(floor.y || 0);
-            if (y > bestFloorY) bestFloorY = y;
-          }
-        } else {
-          const halfX = (floor.sx || 1) / 2;
-          const halfZ = (floor.sz || 1) / 2;
-          if (Math.abs(g.mesh.position.x - floor.x) <= halfX && Math.abs(g.mesh.position.z - floor.z) <= halfZ) {
-            const y = Number(floor.y || 0);
-            if (y > bestFloorY) bestFloorY = y;
-          }
-        }
-      }
-    }
-    if (bestFloorY !== -Infinity && g.mesh.position.y < bestFloorY + 0.22) {
-      hitGround = true;
-    }
-    
-    if (hitGround && g.kind !== "rocket" && g.kind !== "grenadeLauncher") {
-      g.mesh.position.y = bestFloorY + (isBouncer ? 0.3 : 0.22);
-      if (isBouncer) {
-        g.vel.y = Math.abs(g.vel.y);
-        g.bounces = (g.bounces || 0) + 1;
-        playSound("ricochet", { position: g.mesh.position, volume: 0.8 });
-      } else {
-        g.vel.y *= -0.4;
-        g.vel.x *= 0.8;
-        g.vel.z *= 0.8;
-      }
-    }
-
-    const bouncerSpent = isBouncer && (g.bounces || 0) >= (g.maxBounces || 6);
-    const superchargedImpact = g.isSupercharged && g.kind === "grenade" && (hitObstacle || hitGround || hitPlayer);
-    if (outOfArena || (hitObstacle && detonatesOnContact) || hitPlayer || (hitGround && detonatesOnContact) || superchargedImpact || bouncerSpent || g.timer <= 0 || g.mesh.position.y < -8) {
-      if (g.kind === "smoke") {
-        if (g.mesh.position.y >= -8) {
-          if (g.localAuthority) deploySmokeGrenade(g);
-          else if (!g.id) createSmokeCloud(g.mesh.position.clone(), smokeCloudRadius(g), g.smokeDuration || SMOKE_GRENADE_DURATION, null);
-        }
-      } else if (g.localAuthority) explodeGrenade(g);
-      else createExplosion(g.mesh.position.clone(), grenadeRadius(g) * 0.45);
-      world.arenaRoot.remove(g.mesh);
-      world.grenades.splice(i, 1);
-    }
-  }
-}
-function spawnGrenade(pos, vel, local = true, owner = 0, options = {}) {
-  const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: owner === game.localIndex ? 0x243c34 : 0x4a2528, roughness: 0.38, metalness: 0.28, emissive: options.supercharged ? 0xa74dff : 0x000000, emissiveIntensity: options.supercharged ? 0.9 : 0 });
-  const glowMat = new THREE.MeshBasicMaterial({ color: owner === game.localIndex ? 0x7ee2a8 : 0xff6f61 });
-  if (options.kind === "rocket") {
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.8, 14), bodyMat);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.28, 14), glowMat);
-    nose.position.y = -0.14; // Align visual nose tip at local y = 0
-    shell.position.y = -0.68; // Align cylinder top at base of nose cone
-    group.add(shell, nose);
-    group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vel.clone().normalize());
-  } else if (options.kind === "bouncer") {
-    // Glowing energy orb with gyro rings — reads clearly while ping-ponging.
-    const orbMat = new THREE.MeshStandardMaterial({ color: 0x1c3a24, roughness: 0.3, metalness: 0.4, emissive: 0x6bf178, emissiveIntensity: 1.2 });
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), orbMat);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xb9ffc2 });
-    const ringA = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.022, 6, 22), ringMat);
-    const ringB = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.022, 6, 22), ringMat);
-    ringB.rotation.x = Math.PI / 2;
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), new THREE.MeshBasicMaterial({ color: 0x6bf178, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
-    group.add(orb, ringA, ringB, halo);
-  } else if (options.kind === "smoke") {
-    const smokeBodyMat = new THREE.MeshStandardMaterial({ color: 0xb5bcc0, roughness: 0.64, metalness: 0.28 });
-    const capMat = new THREE.MeshStandardMaterial({ color: 0x5f666a, roughness: 0.58, metalness: 0.38 });
-    const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.54, 14), smokeBodyMat);
-    const capA = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.145, 0.045, 14), capMat);
-    const capB = capA.clone();
-    const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.016, 6, 18), new THREE.MeshBasicMaterial({ color: 0xe8eef2 }));
-    canister.rotation.z = Math.PI / 2;
-    capA.rotation.z = Math.PI / 2;
-    capB.rotation.z = Math.PI / 2;
-    stripe.rotation.y = Math.PI / 2;
-    capA.position.x = -0.29;
-    capB.position.x = 0.29;
-    group.add(canister, capA, capB, stripe);
-  } else {
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 12), bodyMat);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 8, 24), glowMat);
-    const pin = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 6, 16), new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.3, metalness: 0.45 }));
-    band.rotation.x = Math.PI / 2;
-    pin.position.set(0.12, 0.18, 0);
-    pin.rotation.y = Math.PI / 2;
-    group.add(body, band, pin);
-  }
-  group.position.copy(pos);
-  group.traverse((child) => { if (child.isMesh) child.castShadow = true; });
-  world.arenaRoot.add(group);
-  const isBouncerKind = options.kind === "bouncer";
-  world.grenades.push({ mesh: group, vel, timer: options.timer ?? 2.5, owner, localAuthority: local, kind: options.kind || "grenade", weapon: options.weapon || null, weaponName: options.weaponName || null, gravity: options.gravity ?? GRENADE_GRAVITY, damageMultiplier: options.damageMultiplier || 1, radiusMultiplier: options.radiusMultiplier || 1, smokeRadius: options.radius || options.smokeRadius || SMOKE_GRENADE_RADIUS, smokeDuration: options.duration || options.smokeDuration || SMOKE_GRENADE_DURATION, id: options.id || null, isSupercharged: Boolean(options.supercharged), bounces: 0, maxBounces: options.maxBounces || (isBouncerKind ? 2 : 6), bounciness: isBouncerKind ? 0.98 : undefined, tangentKeep: isBouncerKind ? 0.99 : undefined });
-}
-function startThrowAnimation(kind = "grenade") {
-  game.throwTimer = 0.36;
-  game.throwBlockTimer = Math.max(game.throwBlockTimer || 0, 0.36);
-  game.throwKind = kind;
-  game.inspectTimer = 0;
-  input.aiming = false;
-}
-function firstPersonThrowOrigin(direction) {
-  const camPos = camera.position.clone();
-  const flatDir = directionFromAngles(input.yaw, 0);
-  const right = new THREE.Vector3().crossVectors(flatDir, new THREE.Vector3(0, 1, 0)).normalize();
-  const up = new THREE.Vector3(0, 1, 0);
-  const handOrigin = camPos.clone()
-    .addScaledVector(direction, 0.58)
-    .addScaledVector(right, 0.24)
-    .addScaledVector(up, -0.16);
-  if (!isPointInsideProjectileBlocker(handOrigin, 0.16)) return handOrigin;
-  for (const distance of [0.28, 0.42, 0.58, 0.74]) {
-    const fallback = camPos.clone().addScaledVector(direction, distance).addScaledVector(up, -0.04);
-    if (!isPointInsideProjectileBlocker(fallback, 0.12)) return fallback;
-  }
-  return camPos.clone().addScaledVector(direction, 0.18);
-}
-function throwGrenade() {
-  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.grenadeCooldown > 0 || !abilityAllowed("grenade")) return;
-  game.grenadeCooldown = abilityCooldown("grenade", GRENADE_COOLDOWN);
-  const p = fps.players[game.localIndex];
-  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const origin = firstPersonThrowOrigin(dir);
-  const vel = dir.clone().multiplyScalar(GRENADE_SPEED).add(p.vel.clone().multiplyScalar(0.75));
-  startThrowAnimation("grenade");
-  spawnGrenade(origin, vel, true, game.localIndex, { weaponName: "Grenade" });
-  playSound("grenade");
-  send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, weaponName: "Grenade" });
-  updateHud();
-}
-function throwSmokeGrenade() {
-  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.smokeCooldown > 0 || !abilityAllowed("smoke")) return;
-  game.smokeCooldown = abilityCooldown("smoke", SMOKE_GRENADE_COOLDOWN);
-  const p = fps.players[game.localIndex];
-  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const origin = firstPersonThrowOrigin(dir);
-  const id = `${game.localIndex}-${Math.floor(performance.now())}-${Math.random().toString(36).slice(2, 8)}`;
-  const vel = dir.clone().multiplyScalar(SMOKE_GRENADE_SPEED).add(p.vel.clone().multiplyScalar(0.75));
-  const options = { kind: "smoke", weaponName: "Smoke Grenade", timer: 1.8, gravity: GRENADE_GRAVITY * 0.82, radius: SMOKE_GRENADE_RADIUS, duration: SMOKE_GRENADE_DURATION, id };
-  startThrowAnimation("smoke");
-  spawnGrenade(origin, vel, true, game.localIndex, options);
-  playSound("smoke");
-  send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
-  updateHud();
-}
 function activateJumpAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("jump") || game.jumpCooldown > 0) return; const p = fps.players[game.localIndex]; p.vel.y = Math.max(p.vel.y, jumpAbilityStrength()); p.grounded = false; game.jumpCooldown = abilityCooldown("jump", 3.0); playSound("jump"); updateHud(); }
 function activateDashAbility() {
   if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("dash") || game.dashCooldown > 0) return;
@@ -241,332 +25,7 @@ function activateDashAbility() {
   playSound("dash", { volume: 0.9 });
   updateHud();
 }
-// Finds the closest grapple anchor along a ray: world geometry, mesh colliders,
-// the arena floor, or an enemy player. Returns { point, distance, targetPlayer }
-// (targetPlayer is the player index when the hook lands on an enemy) or null.
-function findGrappleTarget(origin, dir, range = GRAPPLE_RANGE) {
-  let point = null, distance = Infinity, targetPlayer = null;
-  const hits = new THREE.Raycaster(origin, dir, 0.2, range).intersectObjects(world.obstacles, true);
-  if (hits.length) { point = hits[0].point.clone(); distance = hits[0].distance; }
-  const meshHit = raycastTriangleMeshColliders(world.meshColliders, origin, dir, range);
-  if (meshHit && meshHit.distance < distance) { point = meshHit.point.clone(); distance = meshHit.distance; }
-  // Arena floors are not real obstacle meshes, so intersect their planes
-  // analytically and accept hits only inside an actual floor footprint.
-  const floors = Array.isArray(world.arenaFloors) ? world.arenaFloors : [];
-  if (world.arenaFloorCollision !== false && floors.length && dir.y < -1e-4) {
-    for (const floor of floors) {
-      const floorY = Number(floor.y || 0);
-      const t = (floorY - origin.y) / dir.y;
-      if (t > 0.2 && t < range && t < distance) {
-        const gp = origin.clone().addScaledVector(dir, t);
-        if (isPointInsideArena(gp, [floor])) { point = gp.clone(); distance = t; targetPlayer = null; }
-      }
-    }
-  }
-  // Enemy players: only grabbable if nothing solid is closer along the ray.
-  for (const { player, index } of opposingFpsPlayers()) {
-    const hit = rayHitsPlayer(origin, dir, player);
-    if (hit && hit.distance > 0.2 && hit.distance < range && hit.distance < distance) {
-      point = playerBodyHitCenter(player); distance = hit.distance; targetPlayer = index;
-    }
-  }
-  return point ? { point, distance, targetPlayer } : null;
-}
-// Two-charge plumbing: how many hooks can be banked and how fast each refills.
-function grappleMaxCharges() { return GRAPPLE_MAX_CHARGES; }
-function grappleRechargeTime() { return abilityCooldown("grapple", GRAPPLE_COOLDOWN); }
-// Aim-assist lock: the in-range enemy closest to the aim line (within a tight
-// cone and with clear line of sight) that the hook will snap onto. Returns
-// { index, point, distance } or null. A lock guarantees the hook connects, but
-// at reduced damage compared with a pixel-perfect direct hit.
-function findGrappleLockTarget(origin, dir, range = GRAPPLE_RANGE) {
-  const minDot = Math.cos(THREE.MathUtils.degToRad(GRAPPLE_LOCK_CONE_DEG));
-  let best = null, bestDot = minDot;
-  for (const { player, index } of opposingFpsPlayers()) {
-    if (!player || player.health <= 0) continue;
-    const point = playerBodyHitCenter(player);
-    const toTarget = point.clone().sub(origin);
-    const dist = toTarget.length();
-    if (dist < 0.4 || dist > range) continue;
-    const aimDot = toTarget.multiplyScalar(1 / dist).dot(dir);
-    if (aimDot < bestDot) continue;
-    if (!parryAimHasLineOfSight(origin, point)) continue;
-    best = { index, point: point.clone(), distance: dist };
-    bestDot = aimDot;
-  }
-  return best;
-}
-function activateGrappleAbility() {
-  if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
-  // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
-  // current hook; release happens on keyup. Don't re-fire while attached.
-  if (game.grapple?.active) return;
-  // Need a banked charge, and respect the short gap between consecutive throws
-  // so both hooks can't be spent on the same frame.
-  if (game.grappleCharges <= 0 || game.grappleGapTimer > 0) return;
-  const p = fps.players[game.localIndex];
-  const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
-  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const lock = findGrappleLockTarget(origin, dir);
-  const target = lock ? null : findGrappleTarget(origin, dir);
-  if (!lock && !target) {
-    // Whiffed hook: short retry gap, but no charge is spent.
-    game.grappleGapTimer = Math.max(game.grappleGapTimer, 0.5);
-    playSound("grapple", { volume: 0.4 });
-    updateHud();
-    return;
-  }
-  // Spend a charge and (re)start the background refill toward the next one.
-  game.grappleCharges = Math.max(0, game.grappleCharges - 1);
-  game.grappleGapTimer = GRAPPLE_QUICK_GAP;
-  if (game.grappleChargeTimer <= 0) game.grappleChargeTimer = grappleRechargeTime();
-  if (lock) {
-    game.grapple = { active: true, point: lock.point.clone(), targetPlayer: lock.index, locked: true };
-    grappleHitPlayer(lock.index, GRAPPLE_LOCK_DAMAGE);
-  } else {
-    game.grapple = { active: true, point: target.point.clone(), targetPlayer: target.targetPlayer, locked: false };
-    if (target.targetPlayer != null) grappleHitPlayer(target.targetPlayer, GRAPPLE_PLAYER_DAMAGE);
-  }
-  playSound("grapple", { volume: 0.9 });
-  updateHud();
-}
-// Latching the hook onto an enemy deals a chunk of damage (and reels you in via
-// the grapple pull). Damage is applied locally and mirrored to the peer; a
-// locked-on hook deals less than a precise direct hit.
-function grappleHitPlayer(index, damage = GRAPPLE_PLAYER_DAMAGE) {
-  const target = fps.players[index];
-  if (!target || index === game.localIndex) return;
-  const wasAlive = target.health > 0;
-  if (!wasAlive) return;
-  const dmg = Math.max(0, Math.round(Number(damage) || 0));
-  target.health = Math.max(0, target.health - dmg);
-  const popPos = playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
-  showDamageDealt(dmg, popPos, false);
-  showHitMarker(false);
-  const killed = wasAlive && target.health === 0;
-  send({ type: "fpsGrappleHit", player: game.localIndex, target: index, damage: dmg, killed });
-  if (killed) {
-    const aliveAfterKill = aliveFpsPlayerIndexes();
-    const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
-    if (cinematicKill) broadcastKillEvent(index, { weapon: "grapple", distance: 0, headshot: false, finalKill: true });
-    else showEliminationNotice(index, { weapon: "grapple", distance: 0, headshot: false, finalKill: aliveAfterKill.length <= 1 });
-    if (aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
-  }
-  updateHud();
-}
-// Faint ring around the crosshair when the player is looking at something the
-// grapple hook can grab; it turns red when that something is an enemy player.
-function updateGrappleReticle() {
-  if (!grappleReticle) return;
-  const ready = game.phase === "fps" && game.countdown <= 0 && game.radarTimer <= 0
-    && fps.players[game.localIndex]?.health > 0
-    && abilityAllowed("grapple") && !game.grapple?.active
-    && game.grappleCharges > 0 && game.grappleGapTimer <= 0;
-  if (!ready) { grappleReticle.classList.remove("active", "enemy"); setGrappleLockBox(null); return; }
-  const p = fps.players[game.localIndex];
-  const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
-  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
-  const lock = findGrappleLockTarget(origin, dir);
-  const target = lock ? null : findGrappleTarget(origin, dir);
-  grappleReticle.classList.toggle("active", Boolean(lock || target));
-  // The red enemy cue now lives on the locked enemy (a box around them), so the
-  // crosshair ring stays neutral whenever a lock is held.
-  grappleReticle.classList.remove("enemy");
-  setGrappleLockBox(lock ? fps.players[lock.index] : null);
-}
-// Screen-space bounding rect of an enemy's hitbox, or null if off-screen/behind.
-function enemyScreenRect(player) {
-  const drop = playerSlideHitboxDrop(player);
-  const viewDir = directionFromAngles(input.yaw, input.pitch);
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, behind = false;
-  for (const ox of [-0.62, 0.62]) {
-    for (const oy of [0.05, 1.95 - drop]) {
-      for (const oz of [-0.62, 0.62]) {
-        const corner = new THREE.Vector3(player.pos.x + ox, player.pos.y + oy, player.pos.z + oz);
-        if (corner.clone().sub(camera.position).dot(viewDir) < 0.2) { behind = true; break; }
-        const screen = toScreen(corner);
-        minX = Math.min(minX, screen.x); maxX = Math.max(maxX, screen.x);
-        minY = Math.min(minY, screen.y); maxY = Math.max(maxY, screen.y);
-      }
-      if (behind) break;
-    }
-    if (behind) break;
-  }
-  if (behind || !Number.isFinite(minX)) return null;
-  return { left: minX, top: minY, width: Math.max(8, maxX - minX), height: Math.max(8, maxY - minY) };
-}
-// Red lock-on box drawn around the enemy the grapple has acquired.
-function setGrappleLockBox(player) {
-  if (!grappleLockBox) return;
-  const rect = player ? enemyScreenRect(player) : null;
-  if (!rect) { grappleLockBox.classList.add("hidden"); return; }
-  grappleLockBox.style.left = `${rect.left}px`;
-  grappleLockBox.style.top = `${rect.top}px`;
-  grappleLockBox.style.width = `${rect.width}px`;
-  grappleLockBox.style.height = `${rect.height}px`;
-  grappleLockBox.classList.remove("hidden");
-}
-function releaseGrapple() {
-  game.grapple = null;
-  if (world.grappleRope) {
-    world.arenaRoot.remove(world.grappleRope);
-    world.grappleRope = null;
-  }
-}
-function updateGrappleRope() {
-  const g = game.grapple;
-  if (!g?.active || game.phase !== "fps") {
-    if (world.grappleRope) releaseGrapple();
-    return;
-  }
-  if (!world.grappleRope) {
-    const rope = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 1, 6),
-      new THREE.MeshBasicMaterial({ color: 0x20262e })
-    );
-    const hookHead = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd166 }));
-    hookHead.name = "hookHead";
-    rope.add(hookHead);
-    world.grappleRope = rope;
-    world.arenaRoot.add(rope);
-  }
-  const p = fps.players[game.localIndex];
-  const start = new THREE.Vector3(p.pos.x, p.pos.y + 1.1, p.pos.z);
-  const span = g.point.clone().sub(start);
-  const length = Math.max(0.1, span.length());
-  world.grappleRope.position.copy(start).addScaledVector(span, 0.5);
-  world.grappleRope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), span.clone().normalize());
-  world.grappleRope.scale.set(1, length, 1);
-  const head = world.grappleRope.getObjectByName("hookHead");
-  if (head) { head.position.set(0, 0.5, 0); head.scale.set(1, 1 / length, 1); }
-}
 function activateHealAbility() { if (!localFpsPlayerCanFight() || game.countdown > 0 || !abilityAllowed("heal") || game.healCooldown > 0) return; const p = fps.players[game.localIndex]; if (p.health >= game.maxHealth) return; p.health = Math.min(game.maxHealth, p.health + Math.max(40, game.maxHealth * 0.28)); game.healCooldown = abilityCooldown("heal", 10.0); showHealed(); updateHud(); }
-function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
-function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
-function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
-function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
-function projectileHitPlayer(g) {
-  const superchargedGrenade = g.kind === "grenade" && g.isSupercharged;
-  if (g.kind !== "rocket" && g.kind !== "grenadeLauncher" && g.kind !== "bouncer" && !superchargedGrenade) return false;
-  const radius = superchargedGrenade ? 0.62 : (g.kind === "bouncer" ? 0.8 : (g.kind === "grenadeLauncher" ? 0.86 : 0.95));
-  return fps.players.some((p, index) => index !== g.owner && p.health > 0 && p.pos.clone().add(new THREE.Vector3(0, 0.72, 0)).distanceTo(g.mesh.position) < radius);
-}
-function explodeGrenade(g) {
-  const pos = g.mesh.position.clone();
-  world.arenaRoot.remove(g.mesh);
-  createExplosion(pos, grenadeRadius(g) * 0.5);
-  playSound("explosion");
-  const damages = [];
-  const weaponName = explosiveWeaponLabel(g);
-  const ownerPos = fps.players[g.owner]?.pos;
-  for (let i = 0; i < fps.players.length; i++) {
-    const target = fps.players[i];
-    const dist = pos.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.72, 0)));
-    const radius = grenadeRadius(g);
-    if (dist < radius && target.health > 0) {
-      const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g));
-      if (dmg > 0) {
-        const killDistance = ownerPos ? ownerPos.distanceTo(target.pos) : dist;
-        const damageEntry = { target: i, damage: dmg, headshot: false, distance: killDistance, weaponName, killed: false };
-        damages.push(damageEntry);
-        const wasAlive = target.health > 0;
-        target.health = Math.max(0, target.health - dmg);
-        damageEntry.killed = wasAlive && target.health === 0;
-        if (g.owner === game.localIndex) showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
-        if (i === game.localIndex) showDamageTaken(dmg);
-        if (damageEntry.killed && i !== game.localIndex && g.owner === game.localIndex) {
-          const aliveAfterKill = aliveFpsPlayerIndexes();
-          const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === g.owner && willFpsKillWinMapOrMatch(g.owner);
-          if (cinematicKill) broadcastKillEvent(i, { weaponName, distance: killDistance, headshot: false, finalKill: true });
-          else showEliminationNotice(i, { weaponName, distance: killDistance, headshot: false, finalKill: aliveAfterKill.length <= 1 });
-        }
-      }
-    }
-  }
-  send({ type: "fpsGrenadeExplode", x: pos.x, y: pos.y, z: pos.z, damage: damages[0]?.damage || 0, target: damages[0]?.target ?? null, damages, owner: g.owner, radius: grenadeRadius(g), weapon: g.weapon || null, weaponName });
-  const alive = aliveFpsPlayerIndexes();
-  if (alive.length === 1) startVictoryLap(alive[0], "deathmatch");
-}
-function smokeCloudRadius(g) { return (g.smokeRadius || SMOKE_GRENADE_RADIUS) * (g.radiusMultiplier || 1); }
-function deploySmokeGrenade(g) {
-  const pos = g.mesh.position.clone();
-  const radius = smokeCloudRadius(g);
-  const duration = g.smokeDuration || SMOKE_GRENADE_DURATION;
-  createSmokeCloud(pos, radius, duration, g.id || null);
-  playSound("smoke");
-  send({ type: "fpsSmokeDeploy", x: pos.x, y: pos.y, z: pos.z, radius, duration, owner: g.owner, id: g.id || null });
-}
-function createSmokeCloud(pos, radius = SMOKE_GRENADE_RADIUS, duration = SMOKE_GRENADE_DURATION, id = null) {
-  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return;
-  radius = Math.max(2, Math.min(34, Number(radius) || SMOKE_GRENADE_RADIUS));
-  duration = Math.max(1, Math.min(15, Number(duration) || SMOKE_GRENADE_DURATION));
-  if (id && world.smokeClouds.some((cloud) => cloud.id === id)) return;
-  const group = new THREE.Group();
-  group.position.copy(pos);
-  const puffCount = Math.max(34, Math.min(58, Math.round(radius * 3.1)));
-  const puffs = [];
-  for (let i = 0; i < puffCount; i++) {
-    const angle = (i / puffCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.65;
-    const dist = Math.sqrt(Math.random()) * radius * 0.68;
-    const y = Math.random() * radius * 0.42;
-    const size = radius * (0.14 + Math.random() * 0.14);
-    const shade = 0.46 + Math.random() * 0.32;
-    const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(shade, shade, shade),
-      transparent: true,
-      opacity: 0.28 + Math.random() * 0.16,
-      depthWrite: false,
-      fog: false
-    });
-    const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), mat);
-    puff.position.set(Math.cos(angle) * dist, y + size * 0.24, Math.sin(angle) * dist);
-    puff.scale.set(size * (1.25 + Math.random() * 0.5), size * (0.72 + Math.random() * 0.55), size * (1.25 + Math.random() * 0.5));
-    puff.renderOrder = 6;
-    group.add(puff);
-    puffs.push({ mesh: puff, baseOpacity: mat.opacity, baseScale: puff.scale.clone(), drift: new THREE.Vector3((Math.random() - 0.5) * 0.16, 0.04 + Math.random() * 0.05, (Math.random() - 0.5) * 0.16) });
-  }
-  world.arenaRoot.add(group);
-  world.smokeClouds.push({ id, group, puffs, timer: duration, max: duration, radius });
-}
-function updateSmokeClouds(dt) {
-  for (let i = world.smokeClouds.length - 1; i >= 0; i--) {
-    const cloud = world.smokeClouds[i];
-    cloud.timer -= dt;
-    const age = 1 - Math.max(0, cloud.timer) / cloud.max;
-    const fadeIn = Math.min(1, age * 7.0);
-    const fadeOut = cloud.timer < 2.0 ? Math.max(0, cloud.timer / 2.0) : 1;
-    const opacityScale = fadeIn * fadeOut;
-    for (const puff of cloud.puffs) {
-      puff.mesh.position.addScaledVector(puff.drift, dt);
-      const growth = 1 + age * 0.32;
-      puff.mesh.scale.copy(puff.baseScale).multiplyScalar(growth);
-      puff.mesh.material.opacity = puff.baseOpacity * opacityScale;
-    }
-    if (cloud.timer <= 0) {
-      world.arenaRoot.remove(cloud.group);
-      cloud.group.traverse((child) => {
-        if (!child.isMesh) return;
-        child.geometry?.dispose?.();
-        child.material?.dispose?.();
-      });
-      world.smokeClouds.splice(i, 1);
-    }
-  }
-}
-function createExplosion(pos, radius = GRENADE_SPLASH_RADIUS * 0.5) { const geo = new THREE.SphereGeometry(radius, 32, 24), mat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.8 }); const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos); world.arenaRoot.add(mesh); world.explosions.push({ mesh, timer: 0.4, max: 0.4 }); }
-function updateExplosions(dt) { for (let i = world.explosions.length - 1; i >= 0; i--) { const ex = world.explosions[i]; ex.timer -= dt; const s = 1.0 + (1.0 - ex.timer / ex.max) * 2.0; ex.mesh.scale.set(s, s, s); ex.mesh.material.opacity = ex.timer / ex.max; if (ex.timer <= 0) { world.arenaRoot.remove(ex.mesh); world.explosions.splice(i, 1); } } }
-function removeRemoteGrenadesNear(pos) { for (let i = world.grenades.length - 1; i >= 0; i--) { if (world.grenades[i].mesh.position.distanceTo(pos) < 1.0) { world.arenaRoot.remove(world.grenades[i].mesh); world.grenades.splice(i, 1); } } }
-function disposeGrenade(g, announce = false) { const pos = g.mesh.position.clone(); world.arenaRoot.remove(g.mesh); const index = world.grenades.indexOf(g); if (index >= 0) world.grenades.splice(index, 1); createExplosion(pos, 1.4); if (announce) send({ type: "fpsGrenadeShot", x: pos.x, y: pos.y, z: pos.z }); }
-function superchargeGrenade(g, announce = false) { if (!g || g.kind === "smoke") return; g.isSupercharged = true; g.damageMultiplier = 2; g.radiusMultiplier = 2; g.mesh.traverse((child) => { if (child.material?.color) child.material.color.setHex(0xb84dff); if (child.material?.emissive) { child.material.emissive.setHex(0xb84dff); child.material.emissiveIntensity = 1.1; } }); if (announce) { const pos = g.mesh.position; send({ type: "fpsGrenadeSupercharge", x: pos.x, y: pos.y, z: pos.z }); } }
-function grenadeRayHit(origin, direction, maxDistance) {
-  let best = null;
-  for (const grenade of world.grenades) {
-    if (grenade.kind === "smoke") continue;
-    const distance = rayHitsSphere(origin, direction, grenade.mesh.position, grenade.kind === "rocket" ? 0.38 : 0.28);
-    if (distance !== null && distance <= maxDistance && (!best || distance < best.distance)) best = { grenade, distance };
-  }
-  return best;
-}
 
 function countObstaclesBeforeDistance(intersections, meshWallHit, distance) {
   // Counts distinct obstacles the ray passes through before `distance`.
@@ -591,148 +50,8 @@ function fpsPlayerAimDirection(player, preferNetworkTarget = false) {
   const pitch = preferNetworkTarget && Number.isFinite(player.targetPitch) ? player.targetPitch : (player.pitch || 0);
   return directionFromAngles(yaw, pitch).normalize();
 }
-function parryWeaponForPlayer(index) {
-  const player = fps.players[index];
-  if (!player || player.health <= 0) return null;
-  const active = index === game.localIndex ? game.activeWeapon : (player.weapon || "gun");
-  const primary = index === game.localIndex ? game.primaryWeapon : (player.primaryWeapon || "pistol");
-  const weaponId = active === "melee" ? "melee" : primary;
-  return isParryWeaponId(weaponId) ? weaponId : null;
-}
-function startParryCooldownForPlayer(index, weaponId = parryWeaponForPlayer(index), cooldown = parryReloadForWeapon(weaponId || "melee")) {
-  const player = fps.players[index];
-  if (!player || !weaponId) return;
-  const total = Math.max(0.1, Number(cooldown) || parryReloadForWeapon(weaponId));
-  player.parryCooldown = total;
-  player.parryReloadTotal = total;
-  player.parryEffectTimer = 0.28;
-  player.parryWeapon = weaponId;
-  if (index === game.localIndex) {
-    game.parryCooldown = total;
-    game.parryReloadTotal = total;
-    game.parryAnimTimer = 0.28;
-  }
-}
-function parryAimHasLineOfSight(origin, point) {
-  const toPoint = point.clone().sub(origin);
-  const dist = toPoint.length();
-  if (dist < 0.45) return true;
-  const dir = toPoint.multiplyScalar(1 / dist);
-  const ray = new THREE.Raycaster(origin, dir, 0.1, Math.max(0.1, dist - 0.55));
-  if (ray.intersectObjects(world.obstacles, true).length) return false;
-  return !raycastTriangleMeshColliders(world.meshColliders, origin, dir, Math.max(0.1, dist - 0.55));
-}
-function canPlayerParryShot(parrierIndex, attackerIndex) {
-  const weaponId = parryWeaponForPlayer(parrierIndex);
-  const parrier = fps.players[parrierIndex], attacker = fps.players[attackerIndex];
-  if (!weaponId || !parrier || !attacker || attacker.health <= 0) return false;
-  const active = parrierIndex === game.localIndex ? game.activeWeapon : (parrier.weapon || "gun");
-  const aiming = parrierIndex === game.localIndex ? input.aiming : Boolean(parrier.aiming);
-  if (!aiming || (active !== "melee" && !(active === "gun" && weaponConfig(weaponId).meleeAttack))) return false;
-  const cooldown = parrierIndex === game.localIndex ? game.parryCooldown : (parrier.parryCooldown || 0);
-  if (cooldown > 0.02) return false;
-  const origin = fpsPlayerViewOrigin(parrier);
-  const aim = fpsPlayerAimDirection(parrier, parrierIndex !== game.localIndex);
-  const minDot = Math.cos(THREE.MathUtils.degToRad(weaponConfig(weaponId).parryAngle ?? 20));
-  for (const point of [playerBodyHitCenter(attacker), playerHeadHitCenter(attacker)]) {
-    const toTarget = point.clone().sub(origin);
-    if (toTarget.lengthSq() < 0.01) continue;
-    const dir = toTarget.normalize();
-    if (aim.dot(dir) >= minDot && parryAimHasLineOfSight(origin, point)) return true;
-  }
-  return false;
-}
-function parriedWeaponName(weaponId) {
-  return `Parried ${weaponLabelText(weaponId)}`;
-}
-function buildDeflectedShot(parrierIndex, impact, cfg, weaponId) {
-  const parrier = fps.players[parrierIndex];
-  const direction = fpsPlayerAimDirection(parrier, parrierIndex !== game.localIndex);
-  const maxRayDistance = cfg.range || 150;
-  const ray = new THREE.Raycaster(impact, direction, 0.08, maxRayDistance);
-  const intersects = ray.intersectObjects(world.obstacles, true);
-  const meshWallHit = raycastTriangleMeshColliders(world.meshColliders, impact, direction, maxRayDistance);
-  let wallHit = intersects.length > 0 ? intersects[0] : null;
-  if (meshWallHit && (!wallHit || meshWallHit.distance < wallHit.distance)) wallHit = meshWallHit;
-  let playerHitResult = null;
-  for (let i = 0; i < fps.players.length; i++) {
-    const candidate = fps.players[i];
-    if (i === parrierIndex || !candidate || candidate.health <= 0) continue;
-    const hit = rayHitsPlayer(impact, direction, candidate);
-    if (hit && hit.distance > 0.2 && (!playerHitResult || hit.distance < playerHitResult.distance)) {
-      playerHitResult = { ...hit, index: i, player: candidate };
-    }
-  }
-  let len = wallHit ? wallHit.distance : maxRayDistance;
-  let damageEntry = null;
-  if (playerHitResult) {
-    const wallsBefore = countObstaclesBeforeDistance(intersects, meshWallHit, playerHitResult.distance);
-    if (wallsBefore < 2) {
-      len = playerHitResult.distance;
-      const damage = Math.floor((cfg.damage || 1) * (playerHitResult.headshot ? (cfg.crit || 1) : 1) * (wallsBefore === 1 ? 0.5 : 1));
-      damageEntry = {
-        target: playerHitResult.index,
-        damage,
-        headshot: playerHitResult.headshot,
-        distance: len,
-        parried: true,
-        parrier: parrierIndex,
-        weaponName: parriedWeaponName(weaponId)
-      };
-    }
-  }
-  return { origin: impact.clone(), direction, length: len, hit: Boolean(damageEntry), damageEntry };
-}
-function applyLocalDeflectedDamage(entry, parryEvent) {
-  if (!entry || entry.target !== game.localIndex || entry.damage <= 0) return;
-  const me = fps.players[game.localIndex];
-  const wasAlive = me.health > 0;
-  me.health = Math.max(0, me.health - entry.damage);
-  showDamageTaken(entry.damage);
-  if (wasAlive && me.health <= 0) {
-    showKilledBy(entry.weaponName || "Parried Shot", { headshot: entry.headshot, distance: entry.distance, killerIndex: parryEvent?.parrier });
-    if (aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
-  }
-  updateHud();
-}
-function triggerParryForHit({ parrierIndex, attackerIndex, shotOrigin, incomingDirection, hitDistance, cfg, weaponId }) {
-  const parryWeapon = parryWeaponForPlayer(parrierIndex);
-  const cooldown = parryReloadForWeapon(parryWeapon);
-  startParryCooldownForPlayer(parrierIndex, parryWeapon, cooldown);
-  const impact = shotOrigin.clone().addScaledVector(incomingDirection, hitDistance);
-  const deflect = buildDeflectedShot(parrierIndex, impact, cfg, weaponId);
-  drawParryEffect(impact, incomingDirection, deflect.direction, parryWeapon, parrierIndex === game.localIndex);
-  // The shooter whose shot was just reflected should see the impact frame too,
-  // so both players are certain the parry landed. The parrier's own frame fires
-  // from drawParryEffect; this covers the attacker side.
-  if (attackerIndex === game.localIndex) flashParryImpactFrame();
-  drawLaser(deflect.origin, deflect.direction, deflect.length, deflect.hit, true, "parry");
-  playSound("parry", { position: impact, volume: parrierIndex === game.localIndex ? 1 : 0.88, minDistance: 1.5, maxDistance: 65 });
-  const event = {
-    parrier: parrierIndex,
-    attacker: attackerIndex,
-    weapon: parryWeapon,
-    cooldown,
-    x: impact.x,
-    y: impact.y,
-    z: impact.z,
-    inDx: incomingDirection.x,
-    inDy: incomingDirection.y,
-    inDz: incomingDirection.z,
-    outDx: deflect.direction.x,
-    outDy: deflect.direction.y,
-    outDz: deflect.direction.z,
-    outLength: deflect.length,
-    outHit: deflect.hit,
-    target: deflect.damageEntry?.target ?? null,
-    damage: deflect.damageEntry?.damage || 0,
-    headshot: Boolean(deflect.damageEntry?.headshot),
-    distance: deflect.damageEntry?.distance ?? deflect.length
-  };
-  return { event, damageEntry: deflect.damageEntry };
-}
 function fireHitscan() {
-  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0) return;
+  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.parryGuardActive) return;
   if (game.countdown > 0) return;
   const cfg = weaponConfig();
   if (cfg.meleeAttack) {
@@ -864,7 +183,7 @@ function firstPersonProjectileOrigin(direction) {
   return camPos.clone().addScaledVector(direction, 0.16);
 }
 function fireProjectileWeapon(cfg) {
-  if (!localFpsPlayerCanFight()) return;
+  if (!localFpsPlayerCanFight() || game.parryGuardActive) return;
   const now = performance.now(); if (now - game.lastShotAt < cfg.fireDelay) return;
   game.lastShotAt = now; const recoilVal = cfg.recoil !== undefined ? cfg.recoil : 0.85; game.visualRecoil = Math.min(1.8, game.visualRecoil + recoilVal); playSound(cfg.projectile === "rocket" ? "rocket" : (cfg.projectile === "bouncer" ? "bouncerShot" : "grenade")); game.ammo[game.primaryWeapon]--; if (game.ammo[game.primaryWeapon] <= 0) startReload();
   const shooter = fps.players[game.localIndex];
@@ -898,7 +217,7 @@ function playerBodyHitCenter(player) {
   return player.pos.clone().add(new THREE.Vector3(0, FPS_BODY_HIT_HEIGHT - playerSlideHitboxDrop(player), 0));
 }
 function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDuration = 0.32, minDelay = 320, sound = "melee", weaponId = "melee" } = {}) {
-  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0) return;
+  if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.parryGuardActive) return;
   const now = performance.now(); if (now - game.lastShotAt < minDelay) return; game.lastShotAt = now; game.meleeSwingTimer = swingDuration; playSound(sound);
   const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
@@ -1045,7 +364,7 @@ function flashParryImpactFrame() {
   frame.classList.remove("active");
   void frame.offsetWidth;
   frame.classList.add("active");
-  window.setTimeout(() => frame.classList.remove("active"), 380);
+  window.setTimeout(() => frame.classList.remove("active"), 130);
 }
 function drawParryEffect(position, incomingDirection, outgoingDirection, weaponId = "melee", localImpact = false) {
   const pos = position.clone();
@@ -1220,6 +539,37 @@ function updateScopeEnemyBoxes() {
   }
 }
 
+function ensureParryGuardAura(mesh) {
+  let aura = mesh.getObjectByName("parryGuardAura");
+  if (aura) return aura;
+  aura = new THREE.Group();
+  aura.name = "parryGuardAura";
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffd166,
+    transparent: true,
+    opacity: 0.34,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const waist = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.035, 8, 36), mat.clone());
+  waist.userData.isParryGuardAura = true;
+  waist.position.y = 0.86;
+  waist.rotation.x = Math.PI / 2;
+  const shoulders = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.03, 8, 36), mat.clone());
+  shoulders.userData.isParryGuardAura = true;
+  shoulders.position.y = 1.38;
+  shoulders.rotation.x = Math.PI / 2;
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.92, 18, 12), mat.clone());
+  halo.userData.isParryGuardAura = true;
+  halo.position.y = 0.95;
+  halo.material.opacity = 0.12;
+  halo.material.side = THREE.BackSide;
+  aura.add(waist, shoulders, halo);
+  aura.visible = false;
+  mesh.add(aura);
+  return aura;
+}
+
 function updatePlayerMeshes(dt = 1 / 60) {
   const isRadarActive = game.radarTimer > 0;
   const scopeActive = scopeHighlightActive();
@@ -1254,6 +604,16 @@ function updatePlayerMeshes(dt = 1 / 60) {
 
     mesh.visible = player.health > 0 && (game.phase === "fps" ? (i !== game.localIndex && i !== spectatedIdx) : (game.phase === "fpsVictoryLap" ? (i === game.result.winner && i !== game.localIndex) : false));
 
+    const guardAura = ensureParryGuardAura(mesh);
+    guardAura.visible = mesh.visible && Boolean(player.parryGuardActive);
+    if (guardAura.visible) {
+      const pulse = 0.5 + Math.sin(performance.now() * 0.012) * 0.5;
+      guardAura.scale.setScalar(1 + pulse * 0.08);
+      guardAura.children.forEach((child, index) => {
+        if (child.material) child.material.opacity = (index === 2 ? 0.09 : 0.28) + pulse * (index === 2 ? 0.07 : 0.16);
+      });
+    }
+
     // Procedural body animation (walk / idle / slide / air / reload). Cheap, and
     // skipped while the mesh is hidden (e.g. the local player in first person).
     if (mesh.visible) {
@@ -1267,10 +627,11 @@ function updatePlayerMeshes(dt = 1 / 60) {
     // Scope highlight: while hard-scoped, enemies in view with line of sight burn
     // bright red (depth-tested — never through walls).
     const scopeHighlight = scopeActive && visibleToCam;
+    const parryGuardGlow = mesh.visible && Boolean(player.parryGuardActive);
 
     // Wallhack uses per-mesh cloned materials so shared player materials are never left hidden/mutated.
     mesh.traverse((child) => {
-      if (!child.isMesh || child.userData.isPlayerOutline) return;
+      if (!child.isMesh || child.userData.isPlayerOutline || child.userData.isParryGuardAura) return;
       if (!child.userData.baseMaterial) {
         child.userData.baseMaterial = child.material;
         child.userData.baseRenderOrder = child.renderOrder || 0;
@@ -1292,6 +653,17 @@ function updatePlayerMeshes(dt = 1 / 60) {
         child.userData.scopeMaterial ??= new THREE.MeshBasicMaterial({ color: 0xff2a2a, toneMapped: false });
         child.material = child.userData.scopeMaterial;
         child.renderOrder = child.userData.baseRenderOrder || 0;
+      } else if (parryGuardGlow) {
+        if (!child.userData.parryGuardMaterial) {
+          child.userData.parryGuardMaterial = child.userData.baseMaterial.clone();
+          if (child.userData.parryGuardMaterial.color) child.userData.parryGuardMaterial.color = child.userData.parryGuardMaterial.color.clone().lerp(new THREE.Color(0xffd166), 0.5);
+          if (child.userData.parryGuardMaterial.emissive) {
+            child.userData.parryGuardMaterial.emissive = new THREE.Color(0xffd166);
+            child.userData.parryGuardMaterial.emissiveIntensity = 0.75;
+          }
+        }
+        child.material = child.userData.parryGuardMaterial;
+        child.renderOrder = child.userData.baseRenderOrder || 0;
       } else {
         child.material = child.userData.baseMaterial;
         child.renderOrder = child.userData.baseRenderOrder || 0;
@@ -1307,49 +679,17 @@ function updatePlayerMeshes(dt = 1 / 60) {
 
 Object.assign(globalThis, {
   localFpsPlayerCanFight,
-  updateGrenades,
-  spawnGrenade,
-  throwGrenade,
-  throwSmokeGrenade,
   activateJumpAbility,
   activateHealAbility,
   activateDashAbility,
-  activateGrappleAbility,
-  findGrappleTarget,
-  findGrappleLockTarget,
-  grappleMaxCharges,
-  grappleRechargeTime,
-  grappleHitPlayer,
-  updateGrappleReticle,
-  enemyScreenRect,
-  setGrappleLockBox,
-  releaseGrapple,
-  updateGrappleRope,
   enemyInCameraFrustum,
   enemyVisibleToCamera,
   scopeHighlightActive,
   updateScopeEnemyBoxes,
-  grenadeRadius,
-  grenadeDamage,
-  explosiveWeaponLabel,
-  projectileHitObstacle,
-  projectileHitPlayer,
-  explodeGrenade,
-  smokeCloudRadius,
-  deploySmokeGrenade,
-  createSmokeCloud,
-  updateSmokeClouds,
-  createExplosion,
-  updateExplosions,
-  removeRemoteGrenadesNear,
-  disposeGrenade,
-  superchargeGrenade,
-  grenadeRayHit,
   fpsPlayerViewOrigin,
   fpsPlayerAimDirection,
-  parryWeaponForPlayer,
-  startParryCooldownForPlayer,
-  canPlayerParryShot,
+  countObstaclesBeforeDistance,
+  flashParryImpactFrame,
   fireHitscan,
   isPointInsideProjectileBlocker,
   firstPersonProjectileOrigin,

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
-  <link rel="stylesheet" href="css/style.css?v=4" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
   <script type="importmap">
     {
       "imports": {
@@ -152,6 +152,7 @@
 
     <button class="settings hidden" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
     <div class="settings-panel hidden" id="settingsPanel">
+      <h2>Pause</h2>
       <label for="sensitivityInput">
         <span>Sensitivity</span>
         <span id="sensitivityValue">1.00x</span>
@@ -162,6 +163,10 @@
         <span id="fovValue">90°</span>
       </label>
       <input id="fovInput" type="range" min="60" max="120" step="1" value="90" />
+      <div class="settings-ability-keys hidden" id="abilityKeySettings">
+        <h3>Ability Buttons</h3>
+        <div id="abilityKeyList" class="settings-key-list"></div>
+      </div>
       <button class="danger" id="ingameLeaveBtn" style="margin-top: 1rem; width: 100%;">Leave Game</button>
     </div>
 
@@ -175,16 +180,16 @@
         <span class="logo-tag">SHOOT FIRST &middot; PUTT LATER</span>
       </div>
 
-      <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="room phrase" />
-      
-
-
-
-
-
-
-
-
+      <div class="menu-identity" aria-label="Player and lobby setup">
+        <label class="identity-field identity-field-nickname" for="nicknameInput">
+          <span>Nickname</span>
+          <input id="nicknameInput" maxlength="24" spellcheck="false" autocomplete="nickname" placeholder="your name" />
+        </label>
+        <label class="identity-field identity-field-lobby" for="phraseInput">
+          <span>Lobby name</span>
+          <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="lobby-name" />
+        </label>
+      </div>
       <div class="menu-grid">
         <button class="primary" id="createBtn">Create Match</button>
         <button id="joinBtn">Join</button>
@@ -197,6 +202,12 @@
     <div class="menu hidden" id="lobby">
       <h1>Match Lobby</h1>
       <p id="lobbyStatus">Connected! Choose a mode to start.</p>
+
+      <div id="lobbyModePicker" class="lobby-mode-picker">
+        <button class="primary" id="quickTournamentBtn">Full Tournament</button>
+        <button class="ghost" id="quickFpsDuelBtn">FPS Duel</button>
+        <button class="ghost" id="customLobbyBtn">Custom</button>
+      </div>
       
       <div id="practiceMapOptions" class="hidden practice-options">
         <div class="menu-block">
@@ -250,12 +261,13 @@
         </div>
       </div>
 
-      <div class="menu-grid">
-        <button class="primary" id="startGolfBtn">Start Tournament</button>
-        <button class="ghost" id="startFpsBtn">Start FPS Match</button>
-        <button class="ghost" id="startRandomFpsBtn">Random FPS Duel</button>
-        <button class="ghost" id="leaveBtn">Leave Match</button>
+      <div class="menu-grid hidden" id="customActionGrid">
+        <button class="primary" id="startCustomBothBtn">Golf + FPS</button>
+        <button class="ghost" id="startGolfBtn">Golf Only</button>
+        <button class="ghost" id="startFpsBtn">FPS Only</button>
+        <button class="ghost" id="customBackBtn">Back</button>
       </div>
+      <button class="ghost lobby-leave" id="leaveBtn">Leave Match</button>
     </div>
 
     <div class="result hidden" id="result">

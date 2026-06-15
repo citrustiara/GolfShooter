@@ -70,6 +70,47 @@ const networkPanel = document.querySelector("#network");
 const networkText = document.querySelector("#networkText");
 const phraseText = document.querySelector("#phraseText");
 const phraseInput = document.querySelector("#phraseInput");
+const nicknameInput = document.querySelector("#nicknameInput");
+
+function cleanNetworkPlayerName(value) {
+  if (globalThis.cleanPlayerName) return globalThis.cleanPlayerName(value);
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/[\u0000-\u001f\u007f<>`{}[\]\\|]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
+}
+
+function syncNetworkLocalName() {
+  if (globalThis.syncLocalPlayerNameFromUi) return globalThis.syncLocalPlayerNameFromUi();
+  const index = game.localIndex || 0;
+  game.playerNames ||= [];
+  const name = cleanNetworkPlayerName(nicknameInput?.value || game.playerNames[index]) || `P${index + 1}`;
+  game.playerNames[index] = name;
+  return name;
+}
+
+function playerNamesForNetwork() {
+  if (globalThis.playerNamesPayload) return globalThis.playerNamesPayload();
+  syncNetworkLocalName();
+  return Array.isArray(game.playerNames) ? [...game.playerNames] : [];
+}
+
+function applyNetworkPlayerNames(names) {
+  if (!Array.isArray(names)) return;
+  if (globalThis.applyPlayerNames) {
+    globalThis.applyPlayerNames(names);
+    return;
+  }
+  game.playerNames = names.map((name, index) => cleanNetworkPlayerName(name) || `P${index + 1}`);
+}
+
+function setNetworkPlayerName(index, name) {
+  if (!Number.isInteger(index) || index < 0) return;
+  if (globalThis.setPlayerName) {
+    globalThis.setPlayerName(index, name);
+    return;
+  }
+  game.playerNames ||= [];
+  game.playerNames[index] = cleanNetworkPlayerName(name) || `P${index + 1}`;
+}
 
 // Linkable functions to avoid circular imports
 export const networkLinks = {
@@ -103,7 +144,8 @@ export const networkLinks = {
   showDamageDealt: null,
   showHitMarker: null,
   showEliminationNotice: null,
-  showBattleLogElimination: null
+  showBattleLogElimination: null,
+  triggerKillFade: null
 };
 
 export function initNetworkLinks(links) {
@@ -131,6 +173,7 @@ export function closePeer() {
 
 export async function createMatch() {
   const room = cleanPhrase(phraseInput.value) || generatePhrase();
+  const hostName = syncNetworkLocalName();
   phraseInput.value = room;
   // menuError set via callback or direct DOM
   const menuError = document.querySelector("#menuError");
@@ -141,6 +184,7 @@ export async function createMatch() {
   game.localIndex = 0;
   game.playerCount = 1;
   game.room = room;
+  setNetworkPlayerName(0, hostName);
   showNetwork(`Hosting ${room}. Waiting for players.`, room);
 
   try {
@@ -156,10 +200,11 @@ export async function createMatch() {
           type: "welcome",
           playerIndex,
           playerCount: game.playerCount,
+          playerNames: playerNamesForNetwork(),
           state: networkLinks.serializeGolfState(),
           fpsState: networkLinks.serializeFpsDuelState?.()
         });
-        broadcast({ type: "lobbyState", playerCount: game.playerCount }, connection);
+        broadcast({ type: "lobbyState", playerCount: game.playerCount, playerNames: playerNamesForNetwork() }, connection);
         showNetwork(`Hosting ${room}. ${game.playerCount} players connected.`, room);
         networkLinks.showLobby();
       });
@@ -183,7 +228,9 @@ export async function joinMatch() {
   closePeer();
   game.role = "guest";
   game.localIndex = 1;
+  const localName = syncNetworkLocalName();
   game.room = room;
+  setNetworkPlayerName(1, localName);
   showNetwork(`Joining ${room}.`, room);
 
   try {
@@ -208,7 +255,7 @@ export function attachConnection(connection) {
   conn.on("open", () => {
     game.connected = true;
     showNetwork("P2P connected", game.room);
-    if (game.role === "guest") send({ type: "hello" });
+    if (game.role === "guest") send({ type: "hello", name: syncNetworkLocalName(), playerNames: playerNamesForNetwork() });
   });
   conn.on("data", (message) => handleMessage(message, connection));
   conn.on("close", () => {
@@ -224,7 +271,7 @@ export function attachConnection(connection) {
     if (game.role === "host") {
       const maxIndex = Math.max(0, ...[...connections.values()].map(e => e.playerIndex));
       game.playerCount = Math.max(1, maxIndex + 1);
-      broadcast({ type: "lobbyState", playerCount: game.playerCount });
+      broadcast({ type: "lobbyState", playerCount: game.playerCount, playerNames: playerNamesForNetwork() });
     }
     showNetwork(game.connected ? `P2P connected (${Math.max(1, game.playerCount)} players)` : "Peer disconnected", game.room);
   });
@@ -369,7 +416,10 @@ export function handleMessage(message, sourceConnection = null) {
   if (message.type === "welcome") {
     game.localIndex = message.playerIndex ?? game.localIndex;
     game.playerCount = Math.max(2, message.playerCount || game.playerCount);
+    applyNetworkPlayerNames(message.playerNames);
     if (message.fpsState) networkLinks.applyFpsDuelState(message.fpsState);
+    setNetworkPlayerName(game.localIndex, syncNetworkLocalName());
+    send({ type: "hello", name: syncNetworkLocalName(), playerNames: playerNamesForNetwork() });
     networkLinks.applyGolfState(message.state);
     showNetwork(`P2P connected as P${game.localIndex + 1}`, game.room);
     networkLinks.showLobby();
@@ -377,12 +427,40 @@ export function handleMessage(message, sourceConnection = null) {
 
   if (message.type === "lobbyState") {
     game.playerCount = message.playerCount || game.playerCount;
+    applyNetworkPlayerNames(message.playerNames);
+    setNetworkPlayerName(game.localIndex, syncNetworkLocalName());
     showNetwork(`P2P connected as P${game.localIndex + 1}. ${game.playerCount} players in lobby.`, game.room);
     networkLinks.showLobby();
   }
 
+  if (message.type === "hello" && game.role === "host" && sourceConnection) {
+    const entry = connections.get(sourceConnection.peer);
+    if (entry?.playerIndex !== undefined) {
+      setNetworkPlayerName(entry.playerIndex, message.name);
+      broadcast({ type: "lobbyState", playerCount: game.playerCount, playerNames: playerNamesForNetwork() });
+      networkLinks.showLobby?.();
+    }
+  }
+
+  if (message.type === "playerInfo") {
+    let index = messagePlayerIndex(message.player);
+    if (game.role === "host" && sourceConnection) {
+      const entry = connections.get(sourceConnection.peer);
+      if (entry?.playerIndex !== undefined) index = entry.playerIndex;
+    }
+    applyNetworkPlayerNames(message.playerNames);
+    if (index !== null) setNetworkPlayerName(index, message.name);
+    if (game.role === "host" && sourceConnection && index !== null) {
+      broadcast({ type: "playerInfo", player: index, name: globalThis.playerDisplayName?.(index, `P${index + 1}`) || `P${index + 1}`, playerNames: playerNamesForNetwork() }, sourceConnection);
+      broadcast({ type: "lobbyState", playerCount: game.playerCount, playerNames: playerNamesForNetwork() }, sourceConnection);
+    }
+  }
+
   if (message.type === "startTournament") {
     if (message.playerCount) game.playerCount = message.playerCount;
+    applyNetworkPlayerNames(message.playerNames);
+    game.matchFlow = message.matchFlow || "golfOnly";
+    if (message.fpsState) networkLinks.applyFpsDuelState?.(message.fpsState);
     networkLinks.startGolf(message.courseIds);
   }
 
@@ -403,6 +481,7 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "phaseFps") {
+    applyNetworkPlayerNames(message.playerNames || message.fpsState?.playerNames);
     networkLinks.applyFpsDuelState(message.fpsState);
     networkLinks.enterFps(false, {
       preserveFpsMatch: true,
@@ -416,6 +495,7 @@ export function handleMessage(message, sourceConnection = null) {
     const victim = messagePlayerIndex(message.victim);
     const killer = messagePlayerIndex(message.killer);
     if (victim !== null) {
+      networkLinks.triggerKillFade?.(Boolean(message.finalKill));
       if (victim !== game.localIndex && fps.players[victim]) fps.players[victim].health = 0;
       if (killer !== game.localIndex) showKillEventInBattleLog(message);
       if (game.phase === "fps") startRoundIfOnlyOneSurvivor();
@@ -431,6 +511,7 @@ export function handleMessage(message, sourceConnection = null) {
   if (message.type === "fpsState") {
     const remote = fps.players[message.player];
     if (!remote || message.player === game.localIndex) return;
+    if (message.name) setNetworkPlayerName(message.player, message.name);
     const incomingHealth = Number(message.health);
     const staleCountdownDeath = Number.isFinite(incomingHealth) && game.phase === "fps" && game.countdown > 0 && incomingHealth <= 0;
     // Do not let a late health=0 packet from the previous victory lap kill or
@@ -456,6 +537,9 @@ export function handleMessage(message, sourceConnection = null) {
     if (message.aiming !== undefined) remote.aiming = Boolean(message.aiming);
     if (message.reloading !== undefined) remote.reloading = Boolean(message.reloading);
     if (message.parryCooldown !== undefined) remote.parryCooldown = Math.max(remote.parryCooldown || 0, Number(message.parryCooldown) || 0);
+    if (message.parryGuardActive !== undefined) remote.parryGuardActive = Boolean(message.parryGuardActive);
+    if (message.parryGuardTimer !== undefined) remote.parryGuardTimer = Math.max(0, Number(message.parryGuardTimer) || 0);
+    if (message.parryGuardCooldown !== undefined) remote.parryGuardCooldown = Math.max(0, Number(message.parryGuardCooldown) || 0);
     // Viewmodel animation state, mirrored so a dead teammate can spectate this
     // player's exact first-person weapon (ADS, reload, inspect, melee, parry).
     if (message.reloadTimer !== undefined) remote.reloadTimer = Number(message.reloadTimer) || 0;

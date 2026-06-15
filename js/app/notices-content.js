@@ -52,7 +52,7 @@ function normalizePlayerIndex(value) {
 
 function playerKillFeedName(index, fallback = "WORLD") {
   const n = normalizePlayerIndex(index);
-  return n === null ? fallback : `P${n + 1}`;
+  return n === null ? fallback : playerDisplayName(n, `P${n + 1}`);
 }
 
 function killWeaponName(details = {}) {
@@ -65,6 +65,14 @@ function isRoundFinalKill(details = {}) {
   if (details.finalKill !== undefined) return Boolean(details.finalKill);
   if (game.phase !== "fps") return false;
   return aliveFpsPlayerIndexes().length <= 1;
+}
+
+function triggerKillFade(finalKill = false) {
+  if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
+  const duration = finalKill ? 1.55 : 0.48;
+  game.killFadeDuration = duration;
+  game.killFadeTimer = duration;
+  game.killFadeStrength = finalKill ? 0.86 : 0.34;
 }
 
 function setKillNoticeCard({ badge, main, weaponName, distance, headshot = false, death = false, victimIndex = null, detailed = false, resultLabel = null, compact = false }) {
@@ -182,9 +190,11 @@ function showKilledBy(weaponName, details = {}) {
   if (game.phase === "fps" && killerIndex !== null && killerIndex !== game.localIndex && fps.players[killerIndex]) {
     game.spectateTarget = killerIndex;
   }
+  const killerName = killerIndex !== null ? playerDisplayName(killerIndex, `P${killerIndex + 1}`) : "";
+  triggerKillFade(isRoundFinalKill(details));
   setKillNoticeCard({
     badge: details.headshot ? "HEADSHOT DEATH" : "YOU WERE ELIMINATED",
-    main: `KILLED BY ${weaponName}`,
+    main: killerName ? `KILLED BY ${killerName}` : `KILLED BY ${weaponName}`,
     weaponName,
     distance: details.distance,
     headshot: Boolean(details.headshot),
@@ -204,9 +214,10 @@ function showEliminationNotice(victimIndex, details = {}) {
   if (!alreadyShowingVictim) playSound("kill");
   const weaponName = hasDetail ? (details.weaponName || (details.weapon ? weaponLabelText(details.weapon) : weaponLabelText(game.primaryWeapon))) : "Unknown";
   const finalKill = isRoundFinalKill(details);
+  triggerKillFade(finalKill);
   setKillNoticeCard({
     badge: details.headshot ? "HEADSHOT" : "ELIMINATION",
-    main: `${details.enemyName || `P${victimIndex + 1}`} DOWN`,
+    main: `${details.enemyName || playerDisplayName(victimIndex, `P${victimIndex + 1}`)} DOWN`,
     weaponName,
     distance: details.distance,
     headshot: Boolean(details.headshot),
@@ -277,6 +288,7 @@ Object.assign(globalThis, {
   setKillNoticeCard,
   showBattleLogElimination,
   clearBattleLog,
+  triggerKillFade,
   broadcastKillEvent,
   showKilledBy,
   showEliminationNotice,

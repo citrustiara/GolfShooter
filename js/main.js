@@ -1,5 +1,6 @@
 import "./app/globals.js";
 
+await import("./app/player-names.js");
 await import("./app/loadout-session.js");
 await import("./app/practice-planner.js");
 await import("./app/scene-flow.js");
@@ -7,6 +8,10 @@ await import("./app/golf-runtime.js");
 await import("./app/fps-frame.js");
 await import("./app/fps-movement.js");
 await import("./app/fps-combat.js");
+await import("./app/fps-grenades.js");
+await import("./app/fps-grapple.js");
+await import("./app/fps-parry.js");
+await import("./app/fps-bot.js");
 await import("./app/match-results.js");
 await import("./app/hud-weapons.js");
 await import("./app/fps-network-state.js");
@@ -27,6 +32,7 @@ app.resize();
 app.applyTournamentHoleIds(app.drawTournamentHoleIds());
 app.resetGolfHole();
 app.showMenuScene();
+app.initializePlayerNamesUi();
 app.updateHud();
 
 app.initNetworkLinks({
@@ -60,7 +66,8 @@ app.initNetworkLinks({
   showDamageDealt: app.showDamageDealt,
   showHitMarker: app.showHitMarker,
   showEliminationNotice: app.showEliminationNotice,
-  showBattleLogElimination: app.showBattleLogElimination
+  showBattleLogElimination: app.showBattleLogElimination,
+  triggerKillFade: app.triggerKillFade
 });
 
 app.animate();

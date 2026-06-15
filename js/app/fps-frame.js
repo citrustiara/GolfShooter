@@ -30,6 +30,7 @@ function updateFps(dt, now) {
   } else if (!localAlive && game.phase === "fps") {
     input.shootHeld = false;
     input.aiming = false;
+    cancelParryGuard?.();
     releaseGrapple?.();
     resolveSpectateTarget();
     game.reloading = false;
@@ -50,18 +51,28 @@ function updateFps(dt, now) {
   }
   if (game.parryCooldown > 0) game.parryCooldown = Math.max(0, game.parryCooldown - dt);
   if (game.parryAnimTimer > 0) game.parryAnimTimer = Math.max(0, game.parryAnimTimer - dt);
+  updateParryGuardTimers?.(dt);
   for (let i = 0; i < fps.players.length; i++) {
     const player = fps.players[i];
     if (!player) continue;
     if (i !== game.localIndex && player.parryCooldown > 0) player.parryCooldown = Math.max(0, player.parryCooldown - dt);
+    if (i !== game.localIndex && player.parryGuardCooldown > 0) player.parryGuardCooldown = Math.max(0, player.parryGuardCooldown - dt);
+    if (i !== game.localIndex && player.parryGuardActive && player.parryGuardTimer > 0) {
+      player.parryGuardTimer = Math.max(0, player.parryGuardTimer - dt);
+      if (player.parryGuardTimer <= 0) player.parryGuardActive = false;
+    }
     if (player.parryEffectTimer > 0) player.parryEffectTimer = Math.max(0, player.parryEffectTimer - dt);
   }
   if (localPlayer) {
-    localPlayer.aiming = localAlive && input.aiming;
+    localPlayer.aiming = localAlive && input.aiming && !game.parryGuardActive;
     localPlayer.parryCooldown = game.parryCooldown;
     localPlayer.parryReloadTotal = game.parryReloadTotal;
+    localPlayer.parryGuardActive = Boolean(game.parryGuardActive);
+    localPlayer.parryGuardTimer = game.parryGuardTimer;
+    localPlayer.parryGuardCooldown = game.parryGuardCooldown;
     localPlayer.parryWeapon = activeFpsWeaponId();
   }
+  updatePracticeBot?.(dt, now);
   const bar = document.getElementById("reloadBar");
   const progress = document.getElementById("reloadProgress");
   if (game.reloading) {
@@ -105,6 +116,24 @@ function updateFps(dt, now) {
       bar.style.background = "linear-gradient(90deg, #7ee2ff, #fff4a8 55%, #ff6f61)";
       bar.style.boxShadow = "0 0 12px rgba(126, 226, 255, 0.75)";
     }
+  } else if (game.parryGuardActive) {
+    const pct = Math.max(0, Math.min(100, (game.parryGuardTimer / PARRY_GUARD_DURATION) * 100));
+    if (bar && progress) {
+      progress.classList.remove("hidden");
+      bar.style.width = "100%";
+      bar.style.transform = `scaleX(${pct / 100})`;
+      bar.style.background = "linear-gradient(90deg, #fff6a8, #ffd166)";
+      bar.style.boxShadow = "0 0 14px rgba(255, 209, 102, 0.82)";
+    }
+  } else if (game.parryGuardCooldown > 0) {
+    const pct = Math.max(0, Math.min(100, ((PARRY_GUARD_COOLDOWN - game.parryGuardCooldown) / PARRY_GUARD_COOLDOWN) * 100));
+    if (bar && progress) {
+      progress.classList.remove("hidden");
+      bar.style.width = "100%";
+      bar.style.transform = `scaleX(${pct / 100})`;
+      bar.style.background = "linear-gradient(90deg, #ffd166, #6b5a2c)";
+      bar.style.boxShadow = "0 0 10px rgba(255, 209, 102, 0.45)";
+    }
   } else {
     if (progress) progress.classList.add("hidden");
     if (bar) {
@@ -127,6 +156,11 @@ function updateFps(dt, now) {
     }
   } else if (game.grappleChargeTimer !== 0) {
     game.grappleChargeTimer = 0;
+  }
+  if (game.grapple?.active) {
+    if (!Number.isFinite(game.grapple.holdTimer)) game.grapple.holdTimer = GRAPPLE_HOLD_LIMIT;
+    game.grapple.holdTimer -= dt;
+    if (game.grapple.holdTimer <= 0) releaseGrapple();
   }
   // Low-health screen state pulses a heartbeat while it lasts; both it and the
   // green heal flash fade on their own timers so neither lingers permanently.
@@ -193,7 +227,7 @@ function updateFps(dt, now) {
     game.roundEndGrace = 0;
   }
   if (game.killNoticeTimer > 0) { game.killNoticeTimer -= dt; if (game.killNoticeTimer <= 0) killNotice.classList.add("hidden"); }
-  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming, parryCooldown: game.parryCooldown, reloading: game.reloading, reloadTimer: game.reloadTimer, inspectTimer: game.inspectTimer, throwTimer: game.throwTimer, weaponSwapTimer: game.weaponSwapTimer, meleeSwingTimer: game.meleeSwingTimer, parryAnimTimer: game.parryAnimTimer, visualRecoil: game.visualRecoil, radar: game.radarTimer > 0, scopeAmount: game.scopeAmount, camH: p.currentCamHeight }); }
+  if (game.connected && now - game.lastSend > 50) { game.lastSend = now; const p = fps.players[game.localIndex]; send({ type: "fpsState", player: game.localIndex, name: playerDisplayName?.(game.localIndex, `P${game.localIndex + 1}`), x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw, pitch: p.pitch, health: p.health, sliding: p.sliding, weapon: game.activeWeapon, primaryWeapon: game.primaryWeapon, aiming: input.aiming && !game.parryGuardActive, parryCooldown: game.parryCooldown, parryGuardActive: game.parryGuardActive, parryGuardTimer: game.parryGuardTimer, parryGuardCooldown: game.parryGuardCooldown, reloading: game.reloading, reloadTimer: game.reloadTimer, inspectTimer: game.inspectTimer, throwTimer: game.throwTimer, weaponSwapTimer: game.weaponSwapTimer, meleeSwingTimer: game.meleeSwingTimer, parryAnimTimer: game.parryAnimTimer, visualRecoil: game.visualRecoil, radar: game.radarTimer > 0, scopeAmount: game.scopeAmount, camH: p.currentCamHeight }); }
   updateHud();
 }
 function updateFpsCamera(dt) {
@@ -202,7 +236,7 @@ function updateFpsCamera(dt) {
   camera.position.set(p.pos.x, p.pos.y + p.currentCamHeight, p.pos.z); camera.lookAt(camera.position.clone().add(directionFromAngles(p.yaw, p.pitch + game.visualRecoil * 0.018)));
   const cfg = weaponConfig(activeFpsWeaponId());
   const baseFov = game.fov || FPS_DEFAULT_FOV;
-  camera.fov = moveTowards(camera.fov, input.aiming ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix();
+  camera.fov = moveTowards(camera.fov, input.aiming && !game.parryGuardActive ? (cfg.aimFov || FPS_AIM_FOV) : baseFov, dt * (cfg.aimSpeed || 180)); camera.updateProjectionMatrix();
   updateScopeState(cfg, baseFov);
   // Spectating someone may have swapped the shared viewmodel to their weapon;
   // make sure it's back to ours before drawing our own first-person hands.
@@ -231,7 +265,7 @@ function resolveSpectateTarget() {
 function setSpectatorBanner(idx) {
   if (!spectateBanner) return;
   if (idx === null || idx === undefined || idx < 0) { spectateBanner.classList.add("hidden"); return; }
-  if (spectateBannerName) spectateBannerName.textContent = `P${idx + 1}`;
+  if (spectateBannerName) spectateBannerName.textContent = playerDisplayName(idx, `P${idx + 1}`);
   if (spectateBannerSub) {
     const info = game.lastKilledBy;
     spectateBannerSub.textContent = (Number.isInteger(info?.killerIndex) && info.killerIndex === idx) ? "your killer" : "";
@@ -268,7 +302,7 @@ function updateSpectatorView(dt) {
 function updateScopeState(cfg = weaponConfig(game.primaryWeapon), baseFov = game.fov || FPS_DEFAULT_FOV) {
   // scopeAmount tracks how far the FOV has converged on the scoped FOV; the
   // overlay and the black-and-white grade fade in past the 0.55 threshold.
-  const scoping = game.phase === "fps" && input.aiming && game.activeWeapon === "gun" && Boolean(cfg.scope);
+  const scoping = game.phase === "fps" && input.aiming && !game.parryGuardActive && game.activeWeapon === "gun" && Boolean(cfg.scope);
   if (scoping) {
     const aimFov = cfg.aimFov || FPS_AIM_FOV;
     game.scopeAmount = Math.max(0, Math.min(1, (baseFov - camera.fov) / Math.max(1, baseFov - aimFov)));
@@ -288,7 +322,8 @@ function localWeaponView() {
     radarActive: game.radarTimer > 0,
     activeWeapon: game.activeWeapon,
     primaryWeapon: game.primaryWeapon,
-    aiming: input.aiming,
+    aiming: input.aiming && !game.parryGuardActive,
+    parryGuardActive: game.parryGuardActive,
     inspectTimer: game.inspectTimer,
     throwTimer: game.throwTimer,
     weaponSwapTimer: game.weaponSwapTimer,
@@ -306,6 +341,7 @@ function remoteWeaponView(r) {
     activeWeapon: r.weapon === "melee" ? "melee" : "gun",
     primaryWeapon: r.primaryWeapon || "pistol",
     aiming: Boolean(r.aiming),
+    parryGuardActive: Boolean(r.parryGuardActive),
     inspectTimer: Number(r.inspectTimer) || 0,
     throwTimer: Number(r.throwTimer) || 0,
     weaponSwapTimer: Number(r.weaponSwapTimer) || 0,
@@ -431,7 +467,14 @@ function updateWeaponModel(dt, p, view = localWeaponView()) {
   let meleeSwing = 0;
   let parryGuard = 0;
   const swingingBlade = view.activeWeapon === "melee" || (view.activeWeapon === "gun" && cfg.meleeAttack);
-  if (!isRadarActive && swingingBlade && view.meleeSwingTimer > 0) {
+  const holdingParryGuard = !isRadarActive && swingingBlade && view.parryGuardActive;
+  if (holdingParryGuard) {
+    parryGuard = 1;
+    offset
+      .add(right.clone().multiplyScalar(-0.34))
+      .add(up.clone().multiplyScalar(0.28))
+      .add(camDir.clone().multiplyScalar(0.24));
+  } else if (!isRadarActive && swingingBlade && view.meleeSwingTimer > 0) {
     const swingDuration = 0.32;
     const progress = Math.max(0, Math.min(1, (swingDuration - view.meleeSwingTimer) / swingDuration));
     meleeSwing = progress;

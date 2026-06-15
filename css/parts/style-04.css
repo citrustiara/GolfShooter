@@ -185,6 +185,29 @@
   transform: translateX(-50%) rotate(0.6deg);
 }
 
+.settings-panel h2,
+.settings-panel h3 {
+  margin: 0 0 12px;
+  font-family: var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.settings-panel h2 {
+  display: inline-block;
+  padding: 4px 10px 6px;
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-size: 18px;
+}
+
+.settings-panel h3 {
+  margin-top: 14px;
+  font-size: 13px;
+}
+
 .settings-panel label {
   display: flex;
   align-items: center;
@@ -215,6 +238,67 @@
   box-shadow: none;
 }
 
+.overlay.fps-pause-open {
+  pointer-events: auto;
+}
+
+.overlay.fps-pause-open::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at center, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.72)),
+    rgba(0, 0, 0, 0.34);
+}
+
+.overlay.fps-pause-open .settings-panel {
+  top: 50%;
+  width: min(520px, calc(100vw - 36px));
+  transform: translate(-50%, -50%) rotate(0deg);
+  z-index: 14;
+  box-shadow: 7px 7px 0 var(--pink), 14px 14px 0 var(--ink);
+}
+
+.settings-ability-keys {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 3px dashed var(--ink);
+}
+
+.settings-key-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 8px;
+}
+
+.settings-key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(78px, auto);
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid var(--ink);
+  background: #fff8da;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.settings-key-row span {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.settings-key-row select {
+  min-height: 34px;
+  padding: 2px 26px 2px 8px;
+  font-size: 12px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
 /* ---------------- fps mode helpers ---------------- */
 .fps .crosshair,
 .fps .countdown {
@@ -243,6 +327,7 @@
   }
 
   .menu-grid,
+  .lobby-mode-picker,
   .join-row {
     grid-template-columns: 1fr;
   }

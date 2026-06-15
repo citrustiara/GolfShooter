@@ -378,6 +378,15 @@ function advanceAfterScore() {
 function nextHole() {
   game.holeIndex++;
   if (game.holeIndex >= holes.length) {
+    if (game.matchFlow === "golfThenFps") {
+      if (game.role !== "guest") {
+        game.matchFlow = "fpsOnly";
+        captureFpsReplaySnapshot();
+        if (game.role === "host") send({ type: "phaseFps", fpsState: serializeFpsDuelState(), playerNames: playerNamesPayload?.() || game.playerNames });
+        enterFps(false, { preserveFpsMatch: true, randomTournament: game.randomTournament, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout });
+      }
+      return;
+    }
     let winner = 0;
     if (game.role !== "solo") {
       const totals = totalStrokes();

@@ -309,7 +309,23 @@ select:focus {
   background: rgba(255, 255, 255, 0.13);
 }
 
+.fps-player-box.dead {
+  background: rgba(128, 128, 128, 0.18);
+  border-color: #777 !important;
+  filter: grayscale(1);
+  opacity: 0.58;
+}
+
+.fps-player-box.dead .fps-player-tag,
+.fps-player-box.dead .fps-player-rounds {
+  color: #b8b8b8 !important;
+}
+
 .fps-player-tag {
+  max-width: 126px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   font-weight: 700;
   color: var(--team, #fff);
@@ -360,6 +376,22 @@ select:focus {
 
 .fps-score-maps-num { font-variant-numeric: tabular-nums; }
 .fps-score-maps-sep { color: rgba(255, 255, 255, 0.3); }
+
+/* 3+ players: stack the timer/maps above a single centered row of player
+   scores instead of splitting them lopsidedly left and right of the timer.
+   Column direction sizes to the player row (no width-less flex-basis loop). */
+.fps-scoreboard.multi {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.fps-scoreboard.multi .fps-score-center { order: -1; }
+.fps-scoreboard.multi .fps-score-side {
+  justify-content: center;
+  flex-wrap: nowrap;
+  width: max-content;
+}
+.fps-scoreboard.multi .fps-score-side:empty { display: none; }
 
 /* ---------------- FPS hud (bottom right) ---------------- */
 .fps-hud {

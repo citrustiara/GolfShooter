@@ -1,8 +1,46 @@
 import "./globals.js";
 
 function onMouseMove(e) { if (!input.pointerLocked || game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) return; const sensitivity = input.mouseSensitivity * (input.aiming ? aimingSensitivityMultiplier() : 1); input.yaw += e.movementX * sensitivity; input.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, input.pitch - e.movementY * sensitivity)); }
-function onMouseDown(e) { if (game.phase === "fps" || game.phase === "fpsVictoryLap") { ensureAudio(); if (game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) { input.shootHeld = false; input.aiming = false; return; } if (!input.pointerLocked) { input.shootHeld = false; input.aiming = false; if (e.target === canvas && game.phase === "fps") requestPointerLockSafe(); return; } if (e.button === 2) input.aiming = true; if (e.button === 0) { input.shootHeld = true; if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan(); if (game.activeWeapon === "melee") fireMelee(); updateHud(); } } }
-function onMouseUp(e) { if (e.button === 2) input.aiming = false; if (e.button === 0) input.shootHeld = false; }
+function onMouseDown(e) {
+  if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
+  ensureAudio();
+  if (game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) {
+    input.shootHeld = false;
+    input.aiming = false;
+    cancelParryGuard();
+    return;
+  }
+  if (!input.pointerLocked) {
+    input.shootHeld = false;
+    input.aiming = false;
+    cancelParryGuard();
+    if (e.target === canvas && game.phase === "fps") requestPointerLockSafe();
+    return;
+  }
+  if (e.button === 2) {
+    input.aiming = false;
+    if (!localParryGuardWeapon()) input.aiming = true;
+    else startParryGuard();
+  }
+  if (e.button === 0) {
+    if (game.parryGuardActive) {
+      input.shootHeld = false;
+      updateHud();
+      return;
+    }
+    input.shootHeld = true;
+    if (game.countdown <= 0 && game.activeWeapon === "gun") fireHitscan();
+    if (game.activeWeapon === "melee") fireMelee();
+    updateHud();
+  }
+}
+function onMouseUp(e) {
+  if (e.button === 2) {
+    if (game.parryGuardActive) endParryGuard(true);
+    input.aiming = false;
+  }
+  if (e.button === 0) input.shootHeld = false;
+}
 function onClick(e) { if (game.phase === "fps" && e.target === canvas && !input.pointerLocked) requestPointerLockSafe(); }
 function pointerGroundPoint(e) {
   const rect = canvas.getBoundingClientRect();
@@ -60,16 +98,76 @@ function requestPointerLockSafe() {
     lockRequest?.catch?.(() => {});
   } catch {}
 }
+function canUsePauseMenu() { return game.phase === "fps" || game.phase === "golf"; }
+function syncAbilityKeySettings() {
+  if (!abilityKeySettings || !abilityKeyList) return;
+  const show = game.phase === "fps";
+  abilityKeySettings.classList.toggle("hidden", !show);
+  if (!show) {
+    abilityKeyList.replaceChildren();
+    return;
+  }
+  abilityKeyList.replaceChildren();
+  for (const ability of ABILITY_CHOICES) {
+    if (!abilityAllowed(ability.id)) continue;
+    const row = document.createElement("label");
+    row.className = "settings-key-row";
+    const name = document.createElement("span");
+    name.textContent = ability.label;
+    const select = document.createElement("select");
+    for (const key of ABILITY_KEY_OPTIONS) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = keyLabel(key);
+      select.appendChild(option);
+    }
+    select.value = getAbilityKey(ability.id);
+    select.addEventListener("change", () => {
+      setLocalAbilityKey?.(ability.id, select.value);
+      syncAbilityKeySettings();
+    });
+    row.append(name, select);
+    abilityKeyList.appendChild(row);
+  }
+  abilityKeySettings.classList.toggle("hidden", abilityKeyList.children.length === 0);
+}
+function setPauseMenuOpen(open = true) {
+  if (!canUsePauseMenu()) return;
+  const shouldOpen = Boolean(open);
+  settingsPanel.classList.toggle("hidden", !shouldOpen);
+  overlay.classList.toggle("fps-pause-open", shouldOpen && game.phase === "fps");
+  if (shouldOpen) {
+    if (game.phase === "fps") {
+      if (game.parryGuardActive) endParryGuard(true);
+      document.exitPointerLock?.();
+      input.pointerLocked = false;
+    }
+    input.aiming = false;
+    input.shootHeld = false;
+    game.dragging = false;
+    syncAbilityKeySettings();
+  } else {
+    overlay.classList.remove("fps-pause-open");
+  }
+}
 function updateFpsSettingsVisibility() {
-  const show = game.phase === "fps" && !input.pointerLocked;
-  settingsBtn.classList.toggle("hidden", !show);
-  settingsPanel.classList.toggle("hidden", !show);
-  if (show) {
+  const canPause = canUsePauseMenu();
+  const showButton = canPause && (game.phase === "golf" || !input.pointerLocked);
+  settingsBtn.classList.toggle("hidden", !showButton);
+  if (!canPause || (game.phase === "fps" && input.pointerLocked)) {
+    settingsPanel.classList.add("hidden");
+    overlay.classList.remove("fps-pause-open");
+  } else if (!settingsPanel.classList.contains("hidden")) {
+    overlay.classList.toggle("fps-pause-open", game.phase === "fps");
+    syncAbilityKeySettings();
+  }
+  if (canPause && game.phase === "fps" && !input.pointerLocked) {
+    if (game.parryGuardActive) endParryGuard(true);
     input.aiming = false;
     input.shootHeld = false;
   }
 }
-function syncSensitivity(v) { const m = Number(v); input.mouseSensitivity = FPS_BASE_MOUSE_SENSITIVITY * m; sensitivityInput.value = m; if (menuSensitivityInput) menuSensitivityInput.value = m; const l = `${m.toFixed(1)}x`; sensitivityValue.textContent = l; if (menuSensitivityValue) menuSensitivityValue.textContent = l; }
+function syncSensitivity(v) { const m = Number(v); input.mouseSensitivity = FPS_BASE_MOUSE_SENSITIVITY * m; sensitivityInput.value = m; const l = `${m.toFixed(1)}x`; sensitivityValue.textContent = l; }
 function codeFromKeyEvent(e) { if (e.code) return e.code; const k = e.key || ""; if (k === " ") return "Space"; if (k.startsWith("Arrow")) return k; if (/^[a-z]$/i.test(k)) return `Key${k.toUpperCase()}`; if (/^[0-9]$/.test(k)) return `Digit${k}`; return k; }
 function toggleBuildMode() { game.buildMode = !game.buildMode; lobbyStatus.textContent = game.buildMode ? "Build mode on. Press V to place a block." : lobbyStatus.textContent; }
 function placeBuildBox() {
@@ -79,7 +177,6 @@ function placeBuildBox() {
   clampArenaPosition(pos, 1.6);
   game.fpsCustomMap ||= { version: 1, boxes: [] };
   game.fpsCustomMap.boxes.push({ x: Number(pos.x.toFixed(2)), y: 0, z: Number(pos.z.toFixed(2)), sx: 4, sy: 2.5, sz: 4, color: 0x5ab0ff, isPlatform: true });
-  mapJsonInput && (mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2));
   setupArena();
 }
 function tryActivateAbilityKey(code) {
@@ -108,6 +205,7 @@ function tryActivateAbilityKey(code) {
 
 function animate(now = performance.now()) {
   const dt = Math.min(0.033, (now - lastFrame) / 1000 || clock.getDelta()); lastFrame = now;
+  if (game.killFadeTimer > 0) game.killFadeTimer = Math.max(0, game.killFadeTimer - dt);
   if (game.phase === "golf") updateGolf(dt); else hideGolfHoleTimer(); if (game.phase === "fps") { if (input.shootHeld && game.activeWeapon === "gun") fireHitscan(); updateFps(dt, now); }
   if (game.phase === "fpsVictoryLap") {
     updateFps(dt, now); const elapsed = (now - game.victoryLapStart) / 1000, target = fps.players[game.result.winner] || fps.players[game.localIndex], isW = game.localIndex === game.result.winner;
@@ -132,6 +230,9 @@ function animate(now = performance.now()) {
     }
   }
   const comicMono = victoryComicMonochromeAmount(now);
+  const killFadeAmount = game.killFadeDuration > 0 && game.killFadeTimer > 0
+    ? Math.pow(Math.max(0, Math.min(1, game.killFadeTimer / game.killFadeDuration)), 0.72) * (game.killFadeStrength || 0)
+    : 0;
   const finalKillCinematic = Boolean(game.finalKillCinematicActive);
   const radarMono = !finalKillCinematic && game.radarTimer > 0 && game.phase === "fps";
   // Scoped sniper view: fully desaturated (black-and-white) with the red channel boosted so highlighted enemies pop.
@@ -140,7 +241,7 @@ function animate(now = performance.now()) {
   const lowHpMono = (!finalKillCinematic && game.phase === "fps" && fps.players[game.localIndex]?.health > 0)
     ? Math.min(LOW_HP_MAX_GRAY, (game.lowHpEffectTimer / LOW_HP_EFFECT_DURATION) * LOW_HP_MAX_GRAY)
     : 0;
-  const monoAmount = finalKillCinematic ? 1.0 : (radarMono ? 1.0 : Math.max(comicMono, lowHpMono));
+  const monoAmount = finalKillCinematic ? 1.0 : (radarMono ? 1.0 : Math.max(comicMono, lowHpMono, killFadeAmount));
   renderScene(now * 0.001, {
     grayscale: monoAmount,
     desaturate: finalKillCinematic ? 1.0 : scopeMono,
@@ -162,7 +263,12 @@ document.addEventListener("pointerdown", (e) => {
   if (e.target.closest?.("button, .weapon-card, select, input, .map-pill")) playSound("uiClick", { volume: 0.8 });
 });
 window.addEventListener("keydown", (e) => {
-  const c = codeFromKeyEvent(e); if (e.code === "Escape" && game.phase === "fps") { document.exitPointerLock?.(); input.aiming = false; }
+  const c = codeFromKeyEvent(e);
+  if (e.code === "Escape" && canUsePauseMenu()) {
+    e.preventDefault();
+    setPauseMenuOpen(settingsPanel.classList.contains("hidden") || (game.phase === "fps" && input.pointerLocked));
+    return;
+  }
   ensureAudio(); input.keys.add(e.code); input.keys.add(c); if (game.phase === "golf" && ["Space", "ArrowLeft", "ArrowRight"].includes(c)) e.preventDefault();
   if ((game.phase === "fps" || game.phase === "fpsVictoryLap") && c.startsWith("Arrow")) e.preventDefault();
   if (game.phase === "fps" || game.phase === "fpsVictoryLap") {
@@ -196,7 +302,7 @@ window.addEventListener("keydown", (e) => {
         else if (tryActivateAbilityKey(c)) {}
         else if (c === "KeyB") toggleBuildMode();
         else if (c === "KeyV") placeBuildBox();
-        else if (c === "KeyF" && !game.reloading && game.meleeSwingTimer <= 0 && game.throwBlockTimer <= 0) game.inspectTimer = 2.0;
+        else if (c === "KeyF" && !game.parryGuardActive && !game.reloading && game.meleeSwingTimer <= 0 && game.throwBlockTimer <= 0) game.inspectTimer = 2.0;
       }
     }
   }
@@ -206,41 +312,88 @@ document.addEventListener("pointerlockchange", () => { input.pointerLocked = doc
 document.addEventListener("mousemove", onMouseMove); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!activeWeaponIds().includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));
 canvas.addEventListener("pointerdown", onPointerDown); window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", finishGolfDrag); window.addEventListener("mousedown", (e) => { if (e.button === 0 && game.phase === "golf") onPointerDown(e); }); window.addEventListener("mousemove", onPointerMove); window.addEventListener("mouseup", finishGolfDrag); canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-createBtn.addEventListener("click", createMatch); joinBtn.addEventListener("click", joinMatch); soloBtn.addEventListener("click", () => beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()));
+createBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); createMatch(); });
+joinBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); joinMatch(); });
+soloBtn.addEventListener("click", () => { syncLocalPlayerNameFromUi?.(); beginLocalMatch(cleanPhrase(phraseInput.value) || generatePhrase()); });
+function syncLobbyPlayerCount() {
+  if (game.role === "solo") syncPlayerCountFromUi();
+  else ensureFpsPlayers?.(game.playerCount);
+}
+function selectedGolfCourseIds(useSelection = true) {
+  if (useSelection && golfMapSelect?.value !== "") return [golfMapSelect.value];
+  return drawTournamentHoleIds();
+}
+function startConfiguredGolf(courseIds, flow = "golfOnly", includeFpsState = false) {
+  if (game.role === "guest") return;
+  syncLobbyPlayerCount();
+  game.matchFlow = flow;
+  const state = includeFpsState ? serializeFpsDuelState() : null;
+  send({ type: "startTournament", courseIds, playerCount: game.playerCount, playerNames: playerNamesPayload?.() || game.playerNames, matchFlow: flow, fpsState: state });
+  startGolf(courseIds);
+}
+function startConfiguredFps(random = false) {
+  if (game.role === "guest") return;
+  syncLobbyPlayerCount();
+  game.matchFlow = "fpsOnly";
+  resetFpsDuelState(Boolean(random));
+  if (!random) {
+    game.fpsMatchConfig = buildFpsMatchConfigFromUi();
+    applyFpsMatchMapSlot(0);
+  }
+  captureFpsReplaySnapshot();
+  send({ type: "phaseFps", fpsState: serializeFpsDuelState(), playerNames: playerNamesPayload?.() || game.playerNames });
+  enterFps(false, { preserveFpsMatch: true, randomTournament: Boolean(random), randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout });
+}
+function prepareCustomFpsForAfterGolf() {
+  resetFpsDuelState(false);
+  game.fpsMatchConfig = buildFpsMatchConfigFromUi();
+  applyFpsMatchMapSlot(0);
+  captureFpsReplaySnapshot();
+}
+quickTournamentBtn?.addEventListener("click", () => {
+  startConfiguredGolf(selectedGolfCourseIds(false), "golfOnly", false);
+});
+quickFpsDuelBtn?.addEventListener("click", () => {
+  startConfiguredFps(true);
+});
+customLobbyBtn?.addEventListener("click", () => {
+  setLobbyCustomVisible?.(true);
+});
+customBackBtn?.addEventListener("click", () => {
+  setLobbyCustomVisible?.(false);
+});
 startGolfBtn.addEventListener("click", () => { 
   if (game.role !== "guest") { 
-    if (game.role === "solo") syncPlayerCountFromUi();
-    let ids = drawTournamentHoleIds();
-    if (golfMapSelect?.value !== "") ids = [golfMapSelect.value];
-    send({ type: "startTournament", courseIds: ids, playerCount: game.playerCount }); 
-    startGolf(ids); 
+    startConfiguredGolf(selectedGolfCourseIds(true), "golfOnly", false);
   } 
 });
 startFpsBtn.addEventListener("click", () => { 
   if (game.role !== "guest") { 
-    if (game.role === "solo") syncPlayerCountFromUi();
-    resetFpsDuelState(false);
-    game.fpsMatchConfig = buildFpsMatchConfigFromUi();
-    applyFpsMatchMapSlot(0);
-    captureFpsReplaySnapshot();
-    send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); 
-    enterFps(false, { preserveFpsMatch: true }); 
+    startConfiguredFps(false);
   } 
 });
-startRandomFpsBtn?.addEventListener("click", () => { if (game.role !== "guest") { if (game.role === "solo") syncPlayerCountFromUi(); resetFpsDuelState(true); captureFpsReplaySnapshot(); send({ type: "phaseFps", fpsState: serializeFpsDuelState() }); enterFps(false, { preserveFpsMatch: true, randomTournament: true, randomWeapon: game.randomWeapon, randomLoadout: game.randomLoadout }); } });
+startCustomBothBtn?.addEventListener("click", () => {
+  if (game.role !== "guest") {
+    syncLobbyPlayerCount();
+    prepareCustomFpsForAfterGolf();
+    startConfiguredGolf(selectedGolfCourseIds(true), "golfThenFps", true);
+  }
+});
+startRandomFpsBtn?.addEventListener("click", () => { startConfiguredFps(true); });
 leaveBtn.addEventListener("click", () => { closePeer(); showMenu(); }); randomBtn.addEventListener("click", () => { phraseInput.value = generatePhrase(); if (menuError) menuError.textContent = ""; }); restartBtn.addEventListener("click", () => restartTournament());
 finalKillBackBtn?.addEventListener("click", () => finalKillBackToLobby()); finalKillReplayBtn?.addEventListener("click", () => replayFpsMatch());
 defeatBackBtn?.addEventListener("click", () => finalKillBackToLobby());
 defeatReplayBtn?.addEventListener("click", () => replayFpsMatch());
-settingsBtn.addEventListener("click", () => settingsPanel.classList.toggle("hidden")); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); menuSensitivityInput?.addEventListener("input", () => syncSensitivity(menuSensitivityInput.value));
+settingsBtn.addEventListener("click", () => setPauseMenuOpen(settingsPanel.classList.contains("hidden"))); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value));
 practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
 practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());
 fovInput?.addEventListener("input", () => syncFov(fovInput.value));
+nicknameInput?.addEventListener("change", () => {
+  const name = syncLocalPlayerNameFromUi?.();
+  if (game.connected) send({ type: "playerInfo", player: game.localIndex, name, playerNames: playerNamesPayload?.() || game.playerNames });
+});
 ingameLeaveBtn?.addEventListener("click", () => { document.exitPointerLock?.(); closePeer(); showMenu(); });
 function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
-loadMapBtn?.addEventListener("click", () => { try { game.fpsCustomMap = mapJsonInput?.value.trim() ? JSON.parse(mapJsonInput.value) : null; localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap)); if (game.fpsCustomMap) { addCustomMapOptionSelect(); selectCustomMapForPractice(); } else syncPracticeMapPlanner(); if (game.phase === "fps") setupArena(); } catch { if (mapJsonInput) mapJsonInput.value = "Invalid map JSON"; } });
-saveMapBtn?.addEventListener("click", () => { game.fpsCustomMap ||= { version: 1, boxes: [] }; const text = JSON.stringify(game.fpsCustomMap, null, 2); if (mapJsonInput) mapJsonInput.value = text; localStorage.setItem("golfDuelCustomArena", text); });
-loadAssetBtn?.addEventListener("click", () => { game.fpsImportedAssetUrl = assetUrlInput?.value.trim() || ""; localStorage.setItem("golfDuelArenaAsset", game.fpsImportedAssetUrl); if (game.phase === "fps") setupArena(); });
 
 mapUploadInput?.addEventListener("change", (e) => {
   const file = e.target.files[0];
@@ -252,7 +405,6 @@ mapUploadInput?.addEventListener("change", (e) => {
       try {
         game.fpsCustomMap = JSON.parse(event.target.result);
         localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
-        if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
         addCustomMapOptionSelect();
         selectCustomMapForPractice();
         console.log("Successfully loaded custom JSON map", game.fpsCustomMap);
@@ -279,7 +431,6 @@ mapUploadInput?.addEventListener("change", (e) => {
         ]
       };
       localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
-      if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2);
       addCustomMapOptionSelect();
       selectCustomMapForPractice();
       console.log("Successfully loaded custom GLB map", game.fpsCustomMap);
@@ -288,7 +439,7 @@ mapUploadInput?.addEventListener("change", (e) => {
   }
 });
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive || fps.players[game.localIndex]?.health <= 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
-phraseInput.value = generatePhrase(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
+phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");
 if (gdRoom && gdRole) {
@@ -300,7 +451,7 @@ if (gdRoom && gdRole) {
     sessionStorage.removeItem("gd_role");
   }
 }
-try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); if (mapJsonInput) mapJsonInput.value = JSON.stringify(game.fpsCustomMap, null, 2); addCustomMapOptionSelect(); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; if (assetUrlInput) assetUrlInput.value = game.fpsImportedAssetUrl; } catch {}
+try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); addCustomMapOptionSelect(); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; } catch {}
 
 Object.assign(globalThis, {
   onMouseMove,
@@ -314,6 +465,8 @@ Object.assign(globalThis, {
   finishGolfDrag,
   requestPointerLockSafe,
   updateFpsSettingsVisibility,
+  syncAbilityKeySettings,
+  setPauseMenuOpen,
   syncSensitivity,
   codeFromKeyEvent,
   toggleBuildMode,

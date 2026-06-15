@@ -14,6 +14,28 @@ function parryReloadForWeapon(id = activeFpsWeaponId()) {
 }
 function defaultWeaponList() { return [...standardWeaponIds, "melee"].filter((id, index, arr) => id && arr.indexOf(id) === index); }
 function defaultAbilityKeys() { return Object.fromEntries(ABILITY_CHOICES.map((ability) => [ability.id, ability.defaultKey])); }
+function validAbilityKey(code) { return ABILITY_KEY_OPTIONS.includes(code) ? code : null; }
+function setLocalAbilityKey(abilityName, code, persist = true) {
+  if (!ABILITY_CHOICES.some((ability) => ability.id === abilityName)) return;
+  const key = validAbilityKey(code);
+  if (!key) return;
+  game.localAbilityKeys ||= {};
+  game.localAbilityKeys[abilityName] = key;
+  if (persist) {
+    try { localStorage.setItem("golfDuelAbilityKeys", JSON.stringify(game.localAbilityKeys)); } catch {}
+  }
+  updateHud?.();
+}
+function loadLocalAbilityKeys() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("golfDuelAbilityKeys") || "{}"); } catch {}
+  game.localAbilityKeys = {};
+  for (const ability of ABILITY_CHOICES) {
+    const key = validAbilityKey(saved?.[ability.id]);
+    if (key) game.localAbilityKeys[ability.id] = key;
+  }
+  return game.localAbilityKeys;
+}
 function defaultLoadout() { return { id: "standard", hp: 100, speed: 1.0, gravity: FPS_DEFAULT_GRAVITY, abilities: ["jump", "heal", "grenade", "smoke", "radar"], cooldowns: {}, weapons: defaultWeaponList(), abilityKeys: defaultAbilityKeys() }; }
 function chooseRandomLoadout() { const presets = randomLoadoutPresets.length ? randomLoadoutPresets : [defaultLoadout()]; return presets[Math.floor(Math.random() * presets.length)] || presets[0]; }
 function chooseRandomFpsMap(exclude = -1) { const choices = fpsArenaThemes.map((_, index) => index).filter((index) => index !== exclude); return choices[Math.floor(Math.random() * choices.length)] ?? 0; }
@@ -41,6 +63,8 @@ function currentMapConfig() {
   return mergeMapConfig(mergeMapConfig(themeCfg, customCfg), entryCfg);
 }
 function getAbilityKey(abilityName) {
+  const localKey = validAbilityKey(game.localAbilityKeys?.[abilityName]);
+  if (localKey) return localKey;
   const loadout = activeLoadout();
   if (loadout?.abilityKeys?.[abilityName]) return loadout.abilityKeys[abilityName];
   const cfg = currentMapConfig();
@@ -268,14 +292,21 @@ function useGolfBall(index = activeGolfPlayerIndex()) {
 }
 function aliveFpsPlayerIndexes() { return fps.players.map((p, i) => p.health > 0 ? i : -1).filter(i => i !== -1); }
 function opposingFpsPlayers() { return fps.players.map((p, i) => ({ player: p, index: i })).filter(({ index, player }) => index !== game.localIndex && player.health > 0); }
-function formatScores(values) { return values.map((score, index) => `P${index + 1} ${score}`).join(" - "); }
+function formatScores(values) { return values.map((score, index) => `${playerDisplayName?.(index, `P${index + 1}`) || `P${index + 1}`} ${score}`).join(" - "); }
 function ensureFpsPlayers(count = game.playerCount) {
   const targetCount = Math.max(2, Math.floor(count || 2));
   game.playerCount = targetCount;
+  ensurePlayerNames?.(targetCount);
   while (fps.players.length < targetCount) {
-    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", stepTimer: 0, stepSide: 0, airTime: 0 });
+    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", parryGuardActive: false, parryGuardTimer: 0, parryGuardCooldown: 0, stepTimer: 0, stepSide: 0, airTime: 0 });
   }
   if (fps.players.length > targetCount) fps.players.length = targetCount;
+  ensurePlayerNames?.(targetCount);
+  for (const player of fps.players) {
+    player.parryGuardActive ??= false;
+    player.parryGuardTimer ??= 0;
+    player.parryGuardCooldown ??= 0;
+  }
   for (const prop of ["fpsMapWins", "fpsKillWins"]) {
     while (game[prop].length < targetCount) game[prop].push(0);
     if (game[prop].length > targetCount) game[prop].length = targetCount;
@@ -353,6 +384,9 @@ Object.assign(globalThis, {
   parryReloadForWeapon,
   defaultWeaponList,
   defaultAbilityKeys,
+  validAbilityKey,
+  setLocalAbilityKey,
+  loadLocalAbilityKeys,
   defaultLoadout,
   chooseRandomLoadout,
   chooseRandomFpsMap,

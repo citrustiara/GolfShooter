@@ -6,7 +6,7 @@ function updateHud() {
   holeLabel.textContent = isFps ? "Map" : "Hole";
   turnLabel.textContent = isFps ? "Rounds" : "Turn";
   strokeLabel.textContent = isFps ? "Maps" : "Strokes";
-  holeText.textContent = isFps ? `${rules.currentMapSlot + 1}/${rules.mapCount}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? `${formatScores(game.fpsKillWins)} / ${rules.roundsPerMap}` : (game.role === "solo" ? "Solo" : `P${game.localIndex + 1}`); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
+  holeText.textContent = isFps ? `${rules.currentMapSlot + 1}/${rules.mapCount}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? `${formatScores(game.fpsKillWins)} / ${rules.roundsPerMap}` : (game.role === "solo" ? "Solo" : playerDisplayName(game.localIndex, `P${game.localIndex + 1}`)); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
   healthChip.classList.toggle("hidden", !isFps); healthText.textContent = `${Math.ceil(fps.players[game.localIndex].health)}`; abilityContainer.classList.toggle("hidden", !isFps);
   if (isFps) {
     for (const [name, id] of [["jump", "#jumpAbility"], ["heal", "#healAbility"], ["radar", "#radarAbility"], ["grenade", "#grenadeAbility"], ["smoke", "#smokeAbility"], ["jetpack", "#jetpackAbility"], ["dash", "#dashAbility"], ["grapple", "#grappleAbility"]]) {
@@ -38,7 +38,7 @@ function updateHud() {
   const bladeEquipped = game.activeWeapon === "gun" && Boolean(weaponConfig(game.primaryWeapon).meleeAttack);
   ammoChip.classList.toggle("hidden", !isFps || game.activeWeapon !== "gun" || bladeEquipped); if (game.activeWeapon === "gun" && !bladeEquipped) ammoText.textContent = game.reloading ? "RELOAD" : `${game.ammo[game.primaryWeapon]} / ${weaponMaxAmmo(game.primaryWeapon)}`; if (game.phase === "golf") power.classList.remove("hidden");
   const progress = document.getElementById("reloadProgress");
-  if (progress && !game.reloading && game.radarTimer <= 0 && game.parryCooldown <= 0) progress.classList.add("hidden");
+  if (progress && !game.reloading && game.radarTimer <= 0 && game.parryCooldown <= 0 && !game.parryGuardActive && game.parryGuardCooldown <= 0) progress.classList.add("hidden");
   updateScoreboard();
 }
 
@@ -59,7 +59,12 @@ function buildScoreboard(n) {
   if (!fpsScoreLeft || !fpsScoreRight || !fpsScoreMaps) return;
   fpsScoreLeft.replaceChildren();
   fpsScoreRight.replaceChildren();
-  const mid = Math.ceil(n / 2);
+  // 1v1 keeps the CS2-style split with one score flanking each side of the
+  // timer. With 3+ players a left/right split reads as lopsided (e.g. 2 vs 1),
+  // so we stack: timer/maps on top, every player in one centered row below.
+  const stacked = n > 2;
+  fpsScoreboard?.classList.toggle("multi", stacked);
+  const mid = stacked ? n : Math.ceil(n / 2);
   for (let i = 0; i < n; i++) {
     const right = i >= mid;
     const box = document.createElement("div");
@@ -68,7 +73,7 @@ function buildScoreboard(n) {
     box.style.setProperty("--team", playerHudColor(i));
     const tag = document.createElement("span");
     tag.className = "fps-player-tag";
-    tag.textContent = `P${i + 1}`;
+    tag.textContent = playerDisplayName(i, `P${i + 1}`);
     const rounds = document.createElement("span");
     rounds.className = "fps-player-rounds";
     rounds.textContent = "0";
@@ -109,9 +114,15 @@ function updateScoreboard() {
   const bestRounds = killWins.length ? Math.max(...killWins) : 0;
   fpsScoreboard.querySelectorAll(".fps-player-box").forEach((box) => {
     const i = Number(box.dataset.index);
+    const tag = box.querySelector(".fps-player-tag");
+    if (tag) {
+      tag.textContent = playerDisplayName(i, `P${i + 1}`);
+      tag.title = tag.textContent;
+    }
     const r = box.querySelector(".fps-player-rounds");
     if (r) r.textContent = String(killWins[i] ?? 0);
     box.classList.toggle("leading", bestRounds > 0 && (killWins[i] ?? 0) === bestRounds);
+    box.classList.toggle("dead", isFps && (fps.players[i]?.health ?? 1) <= 0);
   });
   fpsScoreMaps?.querySelectorAll(".fps-score-maps-num").forEach((num) => {
     num.textContent = String(mapWins[Number(num.dataset.index)] ?? 0);
@@ -203,6 +214,7 @@ function requestWeaponSwap(aw, pw = game.primaryWeapon) {
       if (!meleeAllowed()) return;
     } else if (!activeWeaponIds().includes(pw)) return;
   }
+  if (game.parryGuardActive) endParryGuard(true);
   game.pendingActiveWeapon = aw;
   game.pendingPrimaryWeapon = pw;
   game.weaponSwapTimer = WEAPON_SWAP_DURATION;

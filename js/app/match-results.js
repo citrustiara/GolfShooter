@@ -62,6 +62,14 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
   game.parryCooldown = 0;
   game.parryReloadTotal = 0;
   game.parryAnimTimer = 0;
+  game.parryGuardActive = false;
+  game.parryGuardTimer = 0;
+  game.parryGuardCooldown = 0;
+  for (const player of fps.players) {
+    player.parryGuardActive = false;
+    player.parryGuardTimer = 0;
+    player.parryGuardCooldown = 0;
+  }
   document.getElementById("reloadProgress")?.classList.add("hidden");
   radarMarker.classList.add("hidden");
   if (winner !== game.localIndex) {
@@ -99,6 +107,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
 function activateRadar() {
   if (game.phase !== "fps" || game.countdown > 0 || fps.players[game.localIndex]?.health <= 0) return;
   if (!abilityAllowed("radar")) return;
+  if (game.parryGuardActive) endParryGuard(true);
   
   if (game.radarTimer > 0) {
     game.radarTimer = 0;
@@ -119,7 +128,7 @@ function defeatKilledByText() {
   const info = game.lastKilledBy;
   const weapon = info?.weaponName ? String(info.weaponName) : "";
   const killer = Number.isInteger(info?.killerIndex) && info.killerIndex >= 0 && info.killerIndex !== game.localIndex
-    ? `P${info.killerIndex + 1}` : "";
+    ? playerDisplayName(info.killerIndex, `P${info.killerIndex + 1}`) : "";
   if (weapon && killer) return `Eliminated by ${killer} · ${weapon}`;
   if (weapon) return `Eliminated by ${weapon}`;
   return "Eliminated";
@@ -174,6 +183,7 @@ function finishMatch(winner, reason) {
   world.playerMeshes.forEach((mesh) => { mesh.visible = false; });
   power.classList.add("hidden");
   overlay.classList.remove("fps");
+  overlay.classList.remove("fps-pause-open");
   settingsBtn.classList.add("hidden");
   settingsPanel.classList.add("hidden");
   clearVictoryBanner();
