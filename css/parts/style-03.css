@@ -49,42 +49,27 @@
 }
 
 /* ---------------- crosshair / hitmarker / reload ---------------- */
-/* Sleek crosshair: narrow floating ticks with a clear center gap.
-   A subtle shadow preserves contrast without returning to chunky blocks. */
+/* Dot crosshair: compact, centered, and readable without stealing the target. */
 .crosshair {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 34px;
-  height: 34px;
+  width: 7px;
+  height: 7px;
   transform: translate(-50%, -50%);
   display: none;
   pointer-events: none;
-  background: radial-gradient(circle at center, var(--paper) 0 1.35px, transparent 1.8px);
-  filter: drop-shadow(0 0 1px var(--ink)) drop-shadow(0 1px 2px rgba(14, 14, 17, 0.55));
+  border-radius: 50% !important;
+  clip-path: circle(50% at 50% 50%);
+  background: radial-gradient(circle, #fff 0 2px, rgba(15, 18, 22, 0.95) 2.1px 3.2px, transparent 3.35px);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.42), 0 0 1px 1px rgba(0, 0, 0, 0.72);
+  z-index: 10;
 }
 
 .crosshair::before,
 .crosshair::after {
   content: "";
-  position: absolute;
-  background: transparent;
-}
-
-.crosshair::before {
-  left: calc(50% - 0.75px);
-  top: 0;
-  width: 1.5px;
-  height: 100%;
-  background: linear-gradient(to bottom, var(--paper) 0 9px, transparent 9px 25px, var(--paper) 25px 100%);
-}
-
-.crosshair::after {
-  left: 0;
-  top: calc(50% - 0.75px);
-  width: 100%;
-  height: 1.5px;
-  background: linear-gradient(to right, var(--paper) 0 9px, transparent 9px 25px, var(--paper) 25px 100%);
+  display: none;
 }
 
 .crosshair .crosshair-dot,
@@ -207,40 +192,76 @@
   z-index: 60;
   pointer-events: none;
   opacity: 0;
-  background: rgba(255, 255, 255, 0.68);
+  overflow: hidden;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.98) 0 3%, rgba(126, 226, 255, 0.72) 5%, transparent 15%),
+    linear-gradient(90deg, transparent 0 18%, rgba(180, 235, 255, 0.18) 38%, #fff 50%, rgba(180, 235, 255, 0.18) 62%, transparent 82%),
+    radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(255, 244, 168, 0.16) 70%, transparent 88%);
+  filter: contrast(1.4) saturate(1.25);
 }
 
 .parry-impact-frame::before {
   content: "";
   position: absolute;
-  inset: -12%;
-  background: repeating-conic-gradient(from 0deg at 50% 50%,
-    rgba(255, 255, 255, 0) 0deg 4deg,
-    rgba(255, 255, 255, 0.82) 4deg 5.2deg,
-    rgba(255, 255, 255, 0) 5.2deg 9deg);
-  mix-blend-mode: difference;
+  left: 50%;
+  top: 50%;
+  width: min(62vw, 62vh);
+  height: min(62vw, 62vh);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.9),
+    0 0 44px rgba(126, 226, 255, 0.68),
+    inset 0 0 20px rgba(255, 244, 168, 0.45);
+  transform: translate(-50%, -50%) scale(0.45);
+  opacity: 0;
+}
+
+.parry-impact-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vw;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(ellipse at center, #fff 0 6%, rgba(126, 226, 255, 0.7) 10%, transparent 28%),
+    linear-gradient(90deg, transparent 0 14%, rgba(255, 255, 255, 0.12) 30%, #fff 50%, rgba(255, 255, 255, 0.12) 70%, transparent 86%);
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.82), 0 0 70px rgba(126, 226, 255, 0.58);
   opacity: 0;
 }
 
 .parry-impact-frame.active {
-  animation: parryImpactFrame 105ms steps(1, end) forwards;
+  animation: parryImpactFrame 145ms cubic-bezier(0.12, 0.82, 0.2, 1) forwards;
 }
 
 .parry-impact-frame.active::before {
-  animation: parryImpactLines 105ms ease-out forwards;
+  animation: parryImpactRing 145ms cubic-bezier(0.12, 0.82, 0.2, 1) forwards;
+}
+
+.parry-impact-frame.active::after {
+  animation: parryImpactGlare 145ms ease-out forwards;
 }
 
 @keyframes parryImpactFrame {
-  0% { opacity: 0.72; background: rgba(255, 255, 255, 0.72); }
-  38% { opacity: 0.52; background: rgba(8, 8, 10, 0.44); }
-  70% { opacity: 0.46; background: rgba(255, 246, 168, 0.42); }
-  100% { opacity: 0; background: rgba(255, 255, 255, 0); }
+  0% { opacity: 0; transform: scale(0.985); }
+  18% { opacity: 1; transform: scale(1.01); }
+  52% { opacity: 0.72; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
 }
 
-@keyframes parryImpactLines {
-  0% { opacity: 0; transform: scale(0.78); }
-  32% { opacity: 0.78; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.08); }
+@keyframes parryImpactRing {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.34); }
+  24% { opacity: 0.95; transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.32); }
+}
+
+@keyframes parryImpactGlare {
+  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.2); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scaleX(0.86); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.04); }
 }
 
 .hit-marker {
@@ -291,7 +312,7 @@
   inset: 0;
   opacity: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 42;
   background: radial-gradient(ellipse at 50% 50%, rgba(255, 0, 0, 0) 56%, rgba(208, 24, 18, 0.34) 84%, rgba(150, 6, 6, 0.6) 100%);
   box-shadow: inset 0 0 170px 46px rgba(200, 12, 12, 0.5);
   transition: opacity 200ms ease;
@@ -770,6 +791,9 @@
 }
 
 .final-kill-status {
+  grid-column: 2;
+  justify-self: center;
+  min-width: min(420px, 70vw);
   min-height: 20px;
   display: grid;
   place-items: center;
@@ -778,7 +802,8 @@
   color: #0a0a0c;
   font-size: clamp(10px, 1.2vw, 15px);
   font-weight: 900;
-  letter-spacing: 0.42em;
+  letter-spacing: 0.28em;
+  white-space: nowrap;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.95);
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.9), 0 0 54px rgba(255, 255, 255, 0.28);
 }

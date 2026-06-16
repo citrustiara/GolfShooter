@@ -446,7 +446,11 @@ function spreadSpawnSelection(spawns, count) {
 }
 
 export function getArenaSpawnPoints(theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0]) {
-  const map = (game.fpsCustomMapActive && game.fpsCustomMap) ? game.fpsCustomMap : theme;
+  const fallbackMap = {
+    bounds: { x: 42, z: 42 },
+    spawnPoints: [{ x: -42, z: 0 }, { x: 42, z: 0 }]
+  };
+  const map = (game.fpsCustomMapActive && game.fpsCustomMap) ? game.fpsCustomMap : (theme || fallbackMap);
   const baseSpawns = (Array.isArray(map.spawnPoints) && map.spawnPoints.length)
     ? map.spawnPoints
     : [{ x: -42, z: 0 }, { x: 42, z: 0 }];

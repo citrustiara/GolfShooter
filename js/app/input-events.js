@@ -331,7 +331,9 @@ function animate(now = performance.now()) {
     // Remote winners can be watching the same TARGET EXECUTED cinematic;
     // keep the host from advancing the map before that reveal finishes.
     const finalKillHold = game.finalKillCinematicActive || fpsResultHasFinalKillCinematic(game.result);
-    const victoryHold = finalKillHold ? 11.4 : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
+    const victoryHold = finalKillHold
+      ? (game.result.matchOver ? 11.4 : 4.4)
+      : (game.result.reason === "deathmatch" ? 5.2 : 3.2);
     if (elapsed >= victoryHold) {
       if (game.result.reason === "deathmatch" && !game.result.matchOver) continueFpsDuel();
       else if (!(game.finalKillCinematicActive && game.result.matchOver && game.result.matchWinner === game.localIndex)) finishMatch(game.result.matchWinner ?? game.result.winner, game.result.reason);

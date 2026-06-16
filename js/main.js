@@ -65,6 +65,8 @@ app.initNetworkLinks({
   weaponLabel: app.weaponLabel,
   showDamageDealt: app.showDamageDealt,
   showHitMarker: app.showHitMarker,
+  markEnemyOnHit: app.markEnemyOnHit,
+  markLocalPlayerOnHit: app.markLocalPlayerOnHit,
   showEliminationNotice: app.showEliminationNotice,
   showBattleLogElimination: app.showBattleLogElimination,
   triggerKillFade: app.triggerKillFade

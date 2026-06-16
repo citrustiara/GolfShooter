@@ -158,6 +158,116 @@ select {
   box-shadow: 0 0 14px rgba(255, 30, 30, 0.55), inset 0 0 10px rgba(255, 30, 30, 0.25);
 }
 
+.enemy-scope-box.marked {
+  border-color: rgba(255, 18, 18, 1);
+  box-shadow:
+    0 0 18px rgba(255, 20, 20, 0.82),
+    0 0 38px rgba(255, 20, 20, 0.36),
+    inset 0 0 12px rgba(255, 30, 30, 0.34);
+}
+
+.enemy-mark-label {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  padding: 2px 6px 3px;
+  background: rgba(12, 0, 0, 0.78);
+  border: 1px solid rgba(255, 42, 42, 0.9);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: 0 0 6px rgba(255, 40, 40, 0.95);
+  white-space: nowrap;
+  box-shadow: 0 0 10px rgba(255, 18, 18, 0.62);
+}
+
+.self-marked-warning {
+  position: absolute;
+  left: 50%;
+  top: clamp(82px, 13vh, 132px);
+  transform: translateX(-50%);
+  padding: 5px 16px 6px;
+  background: linear-gradient(90deg, transparent, rgba(18, 0, 0, 0.9) 14%, rgba(18, 0, 0, 0.9) 86%, transparent);
+  border-top: 1px solid rgba(255, 42, 42, 0.95);
+  border-bottom: 1px solid rgba(255, 42, 42, 0.95);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 8px rgba(255, 42, 42, 0.95), 0 0 18px rgba(255, 0, 0, 0.62);
+  white-space: nowrap;
+  box-shadow: 0 0 24px rgba(255, 18, 18, 0.42);
+  animation: self-marked-warning-pulse 0.32s ease-in-out infinite alternate;
+}
+
+.enemy-aim-glare {
+  position: absolute;
+  width: 136px;
+  height: 46px;
+  margin-left: 0;
+  margin-top: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  isolation: isolate;
+  background-image:
+    radial-gradient(circle, #fff 0 5px, rgba(230, 246, 255, 0.98) 6px 9px, rgba(134, 202, 255, 0.55) 11px 15px, transparent 23px),
+    linear-gradient(90deg, transparent 0, rgba(155, 210, 255, 0.08) 16%, rgba(230, 246, 255, 0.78) 43%, #fff 50%, rgba(230, 246, 255, 0.78) 57%, rgba(155, 210, 255, 0.08) 84%, transparent 100%),
+    linear-gradient(180deg, transparent 0, rgba(200, 232, 255, 0.08) 16%, rgba(255, 255, 255, 0.92) 48%, rgba(200, 232, 255, 0.08) 84%, transparent 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 58px 58px, 136px 5px, 5px 46px;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 1))
+    drop-shadow(0 0 10px rgba(170, 218, 255, 0.95))
+    drop-shadow(0 0 22px rgba(74, 154, 255, 0.56));
+  animation: enemy-aim-glare-pulse 0.42s ease-in-out infinite alternate;
+}
+
+.enemy-aim-glare::before,
+.enemy-aim-glare::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.enemy-aim-glare::before {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(156, 214, 255, 0.22),
+    0 0 8px rgba(255, 255, 255, 0.95),
+    inset 0 0 8px rgba(126, 190, 255, 0.62);
+}
+
+.enemy-aim-glare::after {
+  width: 52px;
+  height: 52px;
+  background:
+    linear-gradient(45deg, transparent 0 45%, rgba(255, 255, 255, 0.72) 49% 51%, transparent 55% 100%),
+    linear-gradient(135deg, transparent 0 46%, rgba(170, 220, 255, 0.44) 49% 51%, transparent 54% 100%);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.82));
+}
+
+@keyframes enemy-aim-glare-pulse {
+  from { opacity: 0.82; }
+  to { opacity: 1; }
+}
+
+@keyframes self-marked-warning-pulse {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 520px) {
   .fps-hud {
     right: 12px;

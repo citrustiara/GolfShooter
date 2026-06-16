@@ -7,6 +7,10 @@ function randRange(min, max) {
   return min + Math.random() * (max - min);
 }
 
+function botConfig(id) {
+  return weaponConfig(id) || weaponCatalog.pistol || {};
+}
+
 function practiceBotEnabled() {
   return game.phase === "fps"
     && game.role === "solo"
@@ -39,7 +43,7 @@ function botWeaponChoices() {
   const loadoutIds = loadoutWeaponList(activeLoadout()).filter((id, index, arr) => id && arr.indexOf(id) === index);
   const guns = loadoutIds
     .filter((id) => id !== "melee" && weaponCatalog[id])
-    .filter((id) => !weaponConfig(id).projectile);
+    .filter((id) => !botConfig(id).projectile);
   const choices = guns.map((primary) => ({ active: "gun", primary }));
   if (loadoutIds.includes("melee")) choices.push({ active: "melee", primary: guns[0] || "pistol" });
   if (!choices.length) choices.push({ active: "gun", primary: guns[0] || "pistol" });
@@ -73,11 +77,31 @@ function switchBotToParryWeapon(bot, state) {
   return true;
 }
 
+function placeBotAtEnemySpawn(bot) {
+  const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0];
+  const spawns = getArenaSpawnPoints(theme);
+  const spawn = spawns[PRACTICE_BOT_INDEX] || spawns[1] || spawns[0];
+  if (!spawn) return;
+  bot.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
+  bot.vel.set(0, 0, 0);
+  bot.grounded = false;
+  bot.groundSurface = null;
+  const target = fps.players[game.localIndex];
+  if (target) {
+    const look = aimAnglesFromTo(botViewOrigin(bot), playerBodyHitCenter(target));
+    bot.yaw = look.yaw;
+    bot.pitch = look.pitch;
+  }
+  bot.targetPos = bot.pos.clone();
+  bot.targetYaw = bot.yaw;
+  bot.targetPitch = bot.pitch;
+}
+
 function chooseBotWeapon(bot, state, targetDistance = 20, force = false) {
   const choices = botWeaponChoices();
   const current = botWeaponId(bot);
-  const currentIsMelee = bot.weapon === "melee" || Boolean(weaponConfig(current).meleeAttack);
-  const normalGuns = choices.filter((choice) => choice.active === "gun" && !weaponConfig(choice.primary).meleeAttack);
+  const currentIsMelee = bot.weapon === "melee" || Boolean(botConfig(current).meleeAttack);
+  const normalGuns = choices.filter((choice) => choice.active === "gun" && !botConfig(choice.primary).meleeAttack);
   const wantsGunPeek = (state.forceGunAfterMelee || state.forceGunAfterGuard || (currentIsMelee && targetDistance > 5.8 && Math.random() < 0.34)) && normalGuns.length > 0;
   if (!force && state.switchTimer > 0 && !wantsGunPeek) return;
   const parryActive = bot.parryGuardActive || bot.parryGuardTimer > 0;
@@ -90,10 +114,10 @@ function chooseBotWeapon(bot, state, targetDistance = 20, force = false) {
     pool = normalGuns;
   } else
   if (targetDistance < 5.2) {
-    const close = choices.filter((choice) => choice.active === "melee" || weaponConfig(choice.primary).meleeAttack);
+    const close = choices.filter((choice) => choice.active === "melee" || botConfig(choice.primary).meleeAttack);
     if (close.length && Math.random() < 0.55) pool = close;
   } else {
-    const guns = choices.filter((choice) => choice.active === "gun" && !weaponConfig(choice.primary).meleeAttack);
+    const guns = choices.filter((choice) => choice.active === "gun" && !botConfig(choice.primary).meleeAttack);
     if (guns.length) pool = guns;
   }
 
@@ -115,11 +139,14 @@ function resetPracticeBot() {
   const bot = fps.players[PRACTICE_BOT_INDEX];
   bot.isPracticeBot = true;
   setPlayerName?.(PRACTICE_BOT_INDEX, "Practice Bot");
+  placeBotAtEnemySpawn(bot);
   bot.practiceBot = {
     moveTimer: 0,
     switchTimer: randRange(2.8, 5.2),
     fireTimer: randRange(1.0, 1.8),
     parryThinkTimer: randRange(0.6, 1.4),
+    aimDecisionTimer: randRange(0.25, 0.7),
+    aimHoldTimer: randRange(0.35, 0.9),
     aimErrorTimer: 0,
     aimYawError: 0,
     aimPitchError: 0,
@@ -172,45 +199,6 @@ function botLineOfSight(origin, target) {
 function botCanSeePlayer(bot, target) {
   const origin = botViewOrigin(bot);
   return botLineOfSight(origin, playerBodyHitCenter(target)) || botLineOfSight(origin, playerHeadHitCenter(target));
-}
-
-function botPositionBlocked(position) {
-  const probe = new THREE.Vector3(position.x, position.y + 0.78, position.z);
-  for (const obs of world.obstacles) {
-    if (obs.userData?.isRamp) continue;
-    const box = new THREE.Box3().setFromObject(obs);
-    if (box.distanceToPoint(probe) < FPS_PLAYER_RADIUS_WORLD + 0.18) return true;
-  }
-  return sphereIntersectsTriangleMeshColliders(world.meshColliders, probe, FPS_PLAYER_RADIUS_WORLD + 0.12);
-}
-
-function tryRepositionBotNearTarget(bot, target, state) {
-  // Practice maps can be maze-like. If the dummy gets no line of sight for a
-  // while, quietly reacquire a nearby legal spot so it remains useful for tests.
-  for (let i = 0; i < 18; i++) {
-    const angle = target.yaw + randRange(-Math.PI * 0.9, Math.PI * 0.9);
-    const distance = randRange(10, 18);
-    const candidate = new THREE.Vector3(
-      target.pos.x + Math.sin(angle) * distance,
-      target.pos.y + 0.05,
-      target.pos.z - Math.cos(angle) * distance
-    );
-    if (!isPointInsideArena(candidate, world.arenaFloors, FPS_PLAYER_RADIUS_WORLD + 0.2)) continue;
-    clampArenaPosition(candidate, FPS_PLAYER_RADIUS_WORLD + 0.2);
-    if (candidate.distanceTo(target.pos) < 7 || botPositionBlocked(candidate)) continue;
-    const origin = new THREE.Vector3(candidate.x, candidate.y + BOT_EYE_HEIGHT, candidate.z);
-    if (!botLineOfSight(origin, playerBodyHitCenter(target)) && !botLineOfSight(origin, playerHeadHitCenter(target))) continue;
-    bot.pos.copy(candidate);
-    bot.vel.set(0, 0, 0);
-    bot.grounded = false;
-    bot.groundSurface = null;
-    state.noSightTimer = 0;
-    state.stuckTimer = 0;
-    state.moveTimer = 0;
-    state.fireTimer = Math.max(state.fireTimer || 0, randRange(0.55, 0.95));
-    return true;
-  }
-  return false;
 }
 
 function playerAimingAtBot(bot, target) {
@@ -271,15 +259,15 @@ function updateBotGuardState(bot, target, state, visible, distance, dt) {
   state.parryThinkTimer = randRange(0.32, 0.7);
 
   const threat = visible && playerAimingAtBot(bot, target) && (input.shootHeld || input.aiming || game.activeWeapon === "gun" || game.activeWeapon === "melee");
-  const ambient = visible && distance < 26 && Math.random() < 0.055;
+  const ambient = visible && distance < 28 && Math.random() < 0.075;
   if (!threat && !ambient) return;
 
   if (!isParryWeaponId(botWeaponId(bot))) {
-    if (Math.random() < (threat ? 0.55 : 0.28)) switchBotToParryWeapon(bot, state);
+    if (Math.random() < (threat ? 0.72 : 0.34)) switchBotToParryWeapon(bot, state);
     return;
   }
 
-  const chance = threat ? 0.42 : 0.5;
+  const chance = threat ? 0.5 : 0.42;
   if (Math.random() > chance) return;
   bot.parryGuardActive = true;
   bot.parryGuardTimer = randRange(PARRY_GUARD_DURATION * 0.52, PARRY_GUARD_DURATION);
@@ -319,9 +307,6 @@ function updateBotMovement(bot, target, state, visible, dt) {
   if (move.lengthSq() > 0.01 && moved < 0.035 && bot.grounded) state.stuckTimer += dt;
   else state.stuckTimer = Math.max(0, state.stuckTimer - dt * 2);
   state.noSightTimer = visible ? 0 : (state.noSightTimer || 0) + dt;
-  if ((state.noSightTimer > 4.6 || state.stuckTimer > 1.35) && tryRepositionBotNearTarget(bot, target, state)) {
-    return;
-  }
   if (state.stuckTimer > 0.45 && bot.grounded) {
     bot.vel.y = Math.max(bot.vel.y, 9.2);
     bot.grounded = false;
@@ -329,7 +314,7 @@ function updateBotMovement(bot, target, state, visible, dt) {
     state.strafeDir *= -1;
   }
 
-  const weaponMoveScale = Math.max(0.72, Math.min(1.1, weaponConfig(botWeaponId(bot)).moveScale || 1));
+  const weaponMoveScale = Math.max(0.72, Math.min(1.1, botConfig(botWeaponId(bot)).moveScale || 1));
   const accel = bot.grounded ? 55 : 18;
   bot.vel.addScaledVector(move, accel * weaponMoveScale * dt);
   const friction = Math.pow(bot.grounded ? 0.82 : 0.985, dt * 60);
@@ -415,7 +400,7 @@ function updateBotMovement(bot, target, state, visible, dt) {
 }
 
 function botShotSpread(weaponId, distance) {
-  const cfg = weaponConfig(weaponId);
+  const cfg = botConfig(weaponId);
   const base = weaponId === "sniper" || weaponId === "heavySniper" || weaponId === "tacticalSniper" ? 0.018 : 0.042;
   const rangePenalty = Math.max(0, Math.min(0.05, (distance - 16) * 0.0022));
   const weaponSpread = cfg.spread ? cfg.spread * 0.35 : 0;
@@ -423,7 +408,7 @@ function botShotSpread(weaponId, distance) {
 }
 
 function botFireDelay(weaponId) {
-  const cfg = weaponConfig(weaponId);
+  const cfg = botConfig(weaponId);
   const base = Math.max(0.28, (cfg.fireDelay || 450) / 1000);
   return base * randRange(1.2, cfg.fireDelay <= 130 ? 2.2 : 1.75) + randRange(0.04, 0.18);
 }
@@ -433,6 +418,7 @@ function botApplyDamageToLocal(botIndex, damage, headshot, distance, weaponId) {
   if (!target || target.health <= 0 || damage <= 0) return;
   const wasAlive = target.health > 0;
   target.health = Math.max(0, target.health - damage);
+  markLocalPlayerOnHit?.();
   showDamageTaken(damage);
   if (wasAlive && target.health <= 0) {
     showKilledBy(weaponLabelText(weaponId), { headshot, distance, killerIndex: botIndex });
@@ -451,6 +437,7 @@ function applyPracticeBotDamageEntry(entry, parryEvent = null) {
   const bot = fps.players[entry.target];
   if (!bot?.isPracticeBot || bot.health <= 0) return;
   const wasAlive = bot.health > 0;
+  markEnemyOnHit(entry.target);
   bot.health = Math.max(0, bot.health - entry.damage);
   const popPos = entry.headshot ? playerHeadHitCenter(bot) : playerBodyHitCenter(bot).add(new THREE.Vector3(0, 0.5, 0));
   showDamageDealt(entry.damage, popPos, Boolean(entry.headshot));
@@ -469,7 +456,7 @@ function applyPracticeBotDamageEntry(entry, parryEvent = null) {
 }
 
 function botMeleeStrike(bot, botIndex, target, weaponId, state) {
-  const cfg = weaponConfig(weaponId);
+  const cfg = botConfig(weaponId);
   const range = cfg.range || (weaponId === "melee" ? 2.6 : 4.6);
   const origin = botViewOrigin(bot);
   const dir = fpsPlayerAimDirection(bot).normalize();
@@ -488,11 +475,24 @@ function botMeleeStrike(bot, botIndex, target, weaponId, state) {
   if (distance > range || dir.dot(targetDir) < 0.72 || Math.random() < 0.18) return;
   const headshot = origin.distanceTo(head) < range && dir.dot(head.clone().sub(origin).normalize()) > 0.78 && Math.random() < 0.24;
   const damage = Math.max(12, Math.floor((headshot ? (cfg.damage || 60) * (cfg.crit || 1.25) : (cfg.damage || 45)) * 0.55));
+  if (canPlayerParryShot(game.localIndex, botIndex)) {
+    const parry = triggerParryForHit({
+      parrierIndex: game.localIndex,
+      attackerIndex: botIndex,
+      shotOrigin: origin,
+      incomingDirection: dir,
+      hitDistance: distance,
+      cfg: { damage: Math.max(1, Math.floor((cfg.damage || 45) * 0.55)), crit: cfg.crit || 1.25, range },
+      weaponId
+    });
+    if (parry.damageEntry) applyPracticeBotDamageEntry(parry.damageEntry, parry.event);
+    return;
+  }
   botApplyDamageToLocal(botIndex, damage, headshot, distance, weaponId);
 }
 
 function botFireGun(bot, botIndex, target, weaponId, state) {
-  const cfg = weaponConfig(weaponId);
+  const cfg = botConfig(weaponId);
   if (cfg.projectile) return;
   bot.botAmmo ||= freshAmmoState();
   const ammo = bot.botAmmo[weaponId] ?? weaponMaxAmmo(weaponId);
@@ -525,7 +525,8 @@ function botFireGun(bot, botIndex, target, weaponId, state) {
 
   bot.botAmmo[weaponId] = ammo - 1;
   bot.visualRecoil = Math.min(1.4, (bot.visualRecoil || 0) + (cfg.recoil ?? 0.35) * 0.45);
-  bot.aiming = true;
+  state.aimHoldTimer = Math.max(state.aimHoldTimer || 0, randRange(0.24, 0.55));
+  bot.aiming = state.aimHoldTimer > 0;
   playSound(weaponId, { position: origin, volume: 0.5, minDistance: 2, maxDistance: 58 });
   state.fireTimer = botFireDelay(weaponId);
   if (bot.botAmmo[weaponId] <= 0 && Math.random() < 0.7) {
@@ -565,12 +566,21 @@ function botFireGun(bot, botIndex, target, weaponId, state) {
 
 function updateBotCombat(bot, botIndex, target, state, visible, distance, dt) {
   state.fireTimer -= dt;
+  state.aimDecisionTimer = Math.max(0, (state.aimDecisionTimer || 0) - dt);
+  state.aimHoldTimer = Math.max(0, (state.aimHoldTimer || 0) - dt);
   if (!visible || game.countdown > 0 || bot.parryGuardActive || bot.reloading || (bot.weaponSwapTimer || 0) > 0) {
     bot.aiming = false;
     return;
   }
   const weaponId = botWeaponId(bot);
-  bot.aiming = bot.weapon === "gun" && !weaponConfig(weaponId).meleeAttack && distance > 5;
+  const cfg = botConfig(weaponId);
+  const canAds = bot.weapon === "gun" && !cfg.meleeAttack && distance > 5;
+  if (canAds && state.aimDecisionTimer <= 0) {
+    const aimChance = distance > 18 ? 0.76 : 0.48;
+    state.aimDecisionTimer = randRange(0.35, 0.95);
+    state.aimHoldTimer = Math.random() < aimChance ? randRange(0.42, 1.35) : 0;
+  }
+  bot.aiming = canAds && state.aimHoldTimer > 0;
   if (state.fireTimer > 0) return;
 
   const targetPoint = playerBodyHitCenter(target);
@@ -582,8 +592,8 @@ function updateBotCombat(bot, botIndex, target, state, visible, distance, dt) {
     return;
   }
 
-  if (bot.weapon === "melee" || weaponConfig(weaponId).meleeAttack) {
-    if (distance < (weaponConfig(weaponId).range || 4.6) + 0.8) botMeleeStrike(bot, botIndex, target, weaponId, state);
+  if (bot.weapon === "melee" || cfg.meleeAttack) {
+    if (distance < (cfg.range || 4.6) + 0.8) botMeleeStrike(bot, botIndex, target, weaponId, state);
     else state.fireTimer = randRange(0.25, 0.5);
     return;
   }

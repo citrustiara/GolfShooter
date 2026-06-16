@@ -217,7 +217,7 @@ function fpsResultHasFinalKillCinematic(result = game.result) {
 
 function finalKillStatusText(result = game.result) {
   if (result?.matchOver && result.matchWinner === game.localIndex) return "YOU WON THE MATCH";
-  if (result?.mapOver && !result.mapTied && fpsScoreLeader(game.fpsKillWins) === game.localIndex) return "YOU WON THE MAP";
+  if (result?.mapOver && !result.mapTied && fpsScoreLeader(game.fpsKillWins) === game.localIndex) return "MAP WON";
   return "YOU WON";
 }
 
@@ -298,7 +298,7 @@ function ensureFpsPlayers(count = game.playerCount) {
   game.playerCount = targetCount;
   ensurePlayerNames?.(targetCount);
   while (fps.players.length < targetCount) {
-    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", parryGuardActive: false, parryGuardTimer: 0, parryGuardCooldown: 0, stepTimer: 0, stepSide: 0, airTime: 0 });
+    fps.players.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), acc: new THREE.Vector3(), yaw: 0, pitch: 0, health: 100, grounded: false, groundSurface: null, sliding: false, visualSlide: 0, currentCamHeight: 1.58, weapon: "gun", primaryWeapon: "pistol", aiming: false, parryCooldown: 0, parryReloadTotal: 0, parryEffectTimer: 0, parryWeapon: "", parryGuardActive: false, parryGuardTimer: 0, parryGuardCooldown: 0, markedTimer: 0, stepTimer: 0, stepSide: 0, airTime: 0 });
   }
   if (fps.players.length > targetCount) fps.players.length = targetCount;
   ensurePlayerNames?.(targetCount);
@@ -306,6 +306,7 @@ function ensureFpsPlayers(count = game.playerCount) {
     player.parryGuardActive ??= false;
     player.parryGuardTimer ??= 0;
     player.parryGuardCooldown ??= 0;
+    player.markedTimer ??= 0;
   }
   for (const prop of ["fpsMapWins", "fpsKillWins"]) {
     while (game[prop].length < targetCount) game[prop].push(0);

@@ -37,14 +37,17 @@ export function buildPlayerOutline(group, color) {
     shells.push(shell);
   }
 
-  const handle = { material, shells, visible: false };
+  const handle = { material, shells, visible: false, defaultColor: tint.clone() };
   group.userData.outline = handle;
   return handle;
 }
 
-export function setPlayerOutlineVisible(group, visible) {
+export function setPlayerOutlineVisible(group, visible, color = null) {
   const handle = group?.userData?.outline;
-  if (!handle || handle.visible === visible) return;
+  if (!handle) return;
+  if (color !== null && color !== undefined) handle.material.color.set(color);
+  else if (handle.defaultColor) handle.material.color.copy(handle.defaultColor);
+  if (handle.visible === visible) return;
   handle.visible = visible;
   for (const shell of handle.shells) shell.visible = visible;
 }

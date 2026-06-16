@@ -5,11 +5,13 @@ Defaults:
   Source:      this script's folder
   Destination: D:\Repos\website
 
-The script refreshes only the deployed game targets (index.html, css, js,
-assets, maps), removes known GolfShooter dev leftovers from older broad copies,
-and leaves protected website folders alone (ZBS, BSK, .git). It does not copy
-.git, .antigravity/.antigravitycli, .claude, README/LICENSE files,
-node_modules, scratch, scripts, or other dev-only files.
+The script refreshes only the deployed game targets (index.html plus the css,
+js, assets, and maps folders). The folders are copied recursively, file-for-file,
+so new asset types keep deploying without updating this script. It removes known
+GolfShooter dev leftovers from older broad copies and leaves protected website
+folders alone (ZBS, BSK, .git). It does not copy .git,
+.antigravity/.antigravitycli, .claude, root README/LICENSE files, node_modules,
+scratch, scripts, or other dev-only top-level files.
 
 Run:
   powershell -ExecutionPolicy Bypass -File .\copy-game-to-website.ps1
@@ -35,16 +37,6 @@ $GameDirectories = @(
   "js",
   "assets",
   "maps"
-)
-
-# Extensions used by the browser-playable game. Markdown/docs and dev files are excluded.
-$AllowedExtensions = @(
-  ".html", ".css", ".js", ".json",
-  ".glb", ".gltf", ".bin",
-  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",
-  ".mp3", ".wav", ".ogg", ".m4a",
-  ".woff", ".woff2", ".ttf", ".otf",
-  ".wasm"
 )
 
 $NeverCopyOrDelete = @(
@@ -74,14 +66,9 @@ $StaleNonGameTargets = @(
 )
 
 $ExcludedFileNames = @(
-  "README",
-  "README.md",
-  "LICENSE",
-  "LICENSE.md"
-)
-
-$ExcludedFilePatterns = @(
-  "*.orig.*"
+  "Thumbs.db",
+  ".DS_Store",
+  "desktop.ini"
 )
 
 function Get-FullPath([string]$Path) {
@@ -112,7 +99,6 @@ function New-InsensitiveSet([string[]]$Values) {
 }
 
 $ProtectedSet = New-InsensitiveSet $NeverCopyOrDelete
-$AllowedExtensionSet = New-InsensitiveSet $AllowedExtensions
 $ExcludedFileNameSet = New-InsensitiveSet $ExcludedFileNames
 
 function Assert-NotProtectedTarget([string]$RelativePath) {
@@ -124,16 +110,7 @@ function Assert-NotProtectedTarget([string]$RelativePath) {
 
 function Test-ExcludedFile([System.IO.FileInfo]$File) {
   if ($ExcludedFileNameSet.Contains($File.Name)) { return $true }
-  foreach ($pattern in $ExcludedFilePatterns) {
-    if ($File.Name -like $pattern) { return $true }
-  }
   return $false
-}
-
-function Test-AllowedGameFile([System.IO.FileInfo]$File) {
-  if (Test-ExcludedFile $File) { return $false }
-  $extension = [System.IO.Path]::GetExtension($File.Name)
-  return $AllowedExtensionSet.Contains($extension)
 }
 
 function Remove-DestinationTarget([string]$RelativePath, [string]$Reason) {
@@ -264,7 +241,7 @@ foreach ($target in $StaleNonGameTargets) {
 
 foreach ($fileName in $RootGameFiles) {
   $file = Get-Item -LiteralPath (Join-Path $Source $fileName)
-  if (Test-AllowedGameFile $file) {
+  if (-not (Test-ExcludedFile $file)) {
     Copy-GameFile $file
   } else {
     $SkippedCount++
@@ -274,7 +251,7 @@ foreach ($fileName in $RootGameFiles) {
 foreach ($directoryName in $GameDirectories) {
   $directoryPath = Join-Path $Source $directoryName
   Get-ChildItem -LiteralPath $directoryPath -Recurse -File -Force | ForEach-Object {
-    if (Test-AllowedGameFile $_) {
+    if (-not (Test-ExcludedFile $_)) {
       Copy-GameFile $_
     } else {
       $SkippedCount++
@@ -292,5 +269,5 @@ $removeVerb = if ($DryRun) { "Would remove" } else { "Removed" }
 Write-Host "$verb $CopiedCount game file(s)."
 if (-not $DryRun) { Write-Host "Verified $VerifiedCount copied game file(s) in destination." }
 Write-Host "$removeVerb $RemovedCount old/non-game target(s)."
-Write-Host "Skipped $SkippedCount non-game file(s) from the source."
+Write-Host "Skipped $SkippedCount excluded file(s) from the source."
 Write-Host "Protected destination folders were left untouched: ZBS, BSK, .git"

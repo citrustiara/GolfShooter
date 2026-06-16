@@ -69,6 +69,7 @@ function startVictoryLap(winner, reason, announce = true, alreadyRecorded = fals
     player.parryGuardActive = false;
     player.parryGuardTimer = 0;
     player.parryGuardCooldown = 0;
+    player.markedTimer = 0;
   }
   document.getElementById("reloadProgress")?.classList.add("hidden");
   radarMarker.classList.add("hidden");

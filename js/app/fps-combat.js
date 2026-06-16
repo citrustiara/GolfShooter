@@ -50,6 +50,41 @@ function fpsPlayerAimDirection(player, preferNetworkTarget = false) {
   const pitch = preferNetworkTarget && Number.isFinite(player.targetPitch) ? player.targetPitch : (player.pitch || 0);
   return directionFromAngles(yaw, pitch).normalize();
 }
+const ENEMY_MARK_DURATION = 1.5;
+function enemyMarked(player) {
+  return Boolean(player && (player.markedTimer || 0) > 0);
+}
+function markEnemyOnHit(index, duration = ENEMY_MARK_DURATION) {
+  if (!Number.isInteger(index) || index === game.localIndex) return;
+  const target = fps.players[index];
+  if (!target || target.health <= 0) return;
+  target.markedTimer = Math.max(target.markedTimer || 0, duration);
+}
+function markLocalPlayerOnHit(duration = ENEMY_MARK_DURATION) {
+  const target = fps.players[game.localIndex];
+  if (!target || target.health <= 0) return;
+  target.markedTimer = Math.max(target.markedTimer || 0, duration);
+}
+function enemyAimingAtLocal(player) {
+  const local = fps.players[game.localIndex];
+  if (!local || local.health <= 0 || !player || player.health <= 0) return false;
+  const weaponId = player.weapon === "melee" ? "melee" : (player.primaryWeapon || "pistol");
+  if (player.weapon !== "gun" || weaponConfig(weaponId).meleeAttack) return false;
+  const intent = Boolean(player.aiming || (player.scopeAmount || 0) > 0.2 || (player.visualRecoil || 0) > 0.08);
+  if (!intent) return false;
+  const origin = fpsPlayerViewOrigin(player);
+  const aim = fpsPlayerAimDirection(player, true);
+  const points = [playerHeadHitCenter(local), playerBodyHitCenter(local)];
+  for (const point of points) {
+    const toLocal = point.clone().sub(origin);
+    const dist = toLocal.length();
+    if (dist < 0.4) continue;
+    const coneDeg = dist > 32 ? 14 : 22;
+    if (aim.dot(toLocal.multiplyScalar(1 / dist)) < Math.cos(THREE.MathUtils.degToRad(coneDeg))) continue;
+    if (parryAimHasLineOfSight(origin, point)) return true;
+  }
+  return false;
+}
 function fireHitscan() {
   if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.parryGuardActive) return;
   if (game.countdown > 0) return;
@@ -131,6 +166,7 @@ function fireHitscan() {
   for (const entry of normalDamages) {
     const target = fps.players[entry.target];
     const wasAlive = target.health > 0;
+    markEnemyOnHit(entry.target);
     target.health = Math.max(0, target.health - entry.damage);
     entry.killed = wasAlive && target.health === 0;
     const popPos = entry.headshot ? playerHeadHitCenter(target).add(new THREE.Vector3(0, 0.18, 0)) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
@@ -218,18 +254,84 @@ function playerBodyHitCenter(player) {
 }
 function meleeStrike({ range = 2.6, headDamage = 100, bodyDamage = 50, swingDuration = 0.32, minDelay = 320, sound = "melee", weaponId = "melee" } = {}) {
   if (!localFpsPlayerCanFight() || game.radarTimer > 0 || game.throwBlockTimer > 0 || game.parryGuardActive) return;
-  const now = performance.now(); if (now - game.lastShotAt < minDelay) return; game.lastShotAt = now; game.meleeSwingTimer = swingDuration; playSound(sound);
-  const s = fps.players[game.localIndex], origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z), dir = directionFromAngles(input.yaw, input.pitch).normalize();
+  const now = performance.now();
+  if (now - game.lastShotAt < minDelay) return;
+  game.lastShotAt = now;
+  game.meleeSwingTimer = swingDuration;
+  playSound(sound);
+  const s = fps.players[game.localIndex];
+  const origin = new THREE.Vector3(s.pos.x, s.pos.y + (s.currentCamHeight || 0.72), s.pos.z);
+  const dir = directionFromAngles(input.yaw, input.pitch).normalize();
   drawMeleeSwipe(origin, dir);
+
   let hit = false, hs = false, targetIndex = null, targetDist = Infinity;
   for (const { player: opp, index } of opposingFpsPlayers()) {
     const hC = playerHeadHitCenter(opp), bC = playerBodyHitCenter(opp), dH = origin.distanceTo(hC), dB = origin.distanceTo(bC);
     if (dH < targetDist && dH < range && dir.dot(hC.clone().sub(origin).normalize()) > 0.72) { hit = true; hs = true; targetIndex = index; targetDist = dH; }
     else if (dB < targetDist && dB < range && dir.dot(bC.clone().sub(origin).normalize()) > 0.7) { hit = true; hs = false; targetIndex = index; targetDist = dB; }
   }
-  let killed = false;
-  const dmg = hit ? (hs ? headDamage : bodyDamage) : 0; if (hit) { const opp = fps.players[targetIndex]; const wasAlive = opp.health > 0; opp.health = Math.max(0, opp.health - dmg); killed = wasAlive && opp.health === 0; showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs); showHitMarker(hs); if (killed && targetIndex !== game.localIndex) { const aliveAfterKill = aliveFpsPlayerIndexes(); const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex); const killDetails = { weapon: weaponId, distance: targetDist, headshot: hs, finalKill: aliveAfterKill.length <= 1 }; if (cinematicKill) broadcastKillEvent(targetIndex, { ...killDetails, finalKill: true }); else showEliminationNotice(targetIndex, killDetails); } }
-  send({ type: "fpsShot", player: game.localIndex, ox: origin.x, oy: origin.y, oz: origin.z, dx: dir.x, dy: dir.y, dz: dir.z, hit, damage: dmg, target: hit ? targetIndex : null, damages: hit ? [{ target: targetIndex, damage: dmg, headshot: hs, distance: targetDist, killed }] : [], isMelee: true, weapon: weaponId, headshot: hs, distance: hit ? targetDist : null, killed }); if (hit && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
+
+  let killed = false, parryEvent = null;
+  const deflectDamages = [];
+  const normalDamages = [];
+  const parryCfg = { damage: bodyDamage, crit: Math.max(1, headDamage / Math.max(1, bodyDamage)), range: Math.max(range, 8) };
+  const parried = hit && canPlayerParryShot(targetIndex, game.localIndex);
+  if (parried) {
+    const parry = triggerParryForHit({
+      parrierIndex: targetIndex,
+      attackerIndex: game.localIndex,
+      shotOrigin: origin,
+      incomingDirection: dir,
+      hitDistance: targetDist,
+      cfg: parryCfg,
+      weaponId
+    });
+    parryEvent = parry.event;
+    if (parry.damageEntry) deflectDamages.push(parry.damageEntry);
+  } else if (hit) {
+    const dmg = hs ? headDamage : bodyDamage;
+    const opp = fps.players[targetIndex];
+    const wasAlive = opp.health > 0;
+    markEnemyOnHit(targetIndex);
+    opp.health = Math.max(0, opp.health - dmg);
+    killed = wasAlive && opp.health === 0;
+    const entry = { target: targetIndex, damage: dmg, headshot: hs, distance: targetDist, killed };
+    normalDamages.push(entry);
+    showDamageDealt(dmg, hs ? playerHeadHitCenter(opp) : playerBodyHitCenter(opp), hs);
+    showHitMarker(hs);
+    if (killed && targetIndex !== game.localIndex) {
+      const aliveAfterKill = aliveFpsPlayerIndexes();
+      const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === game.localIndex && willFpsKillWinMapOrMatch(game.localIndex);
+      const killDetails = { weapon: weaponId, distance: targetDist, headshot: hs, finalKill: aliveAfterKill.length <= 1 };
+      if (cinematicKill) broadcastKillEvent(targetIndex, { ...killDetails, finalKill: true });
+      else showEliminationNotice(targetIndex, killDetails);
+    }
+  }
+
+  for (const entry of deflectDamages) applyLocalDeflectedDamage(entry, parryEvent);
+  const damages = [...normalDamages, ...deflectDamages];
+  const visualHit = hit || Boolean(parryEvent);
+  send({
+    type: "fpsShot",
+    player: game.localIndex,
+    ox: origin.x,
+    oy: origin.y,
+    oz: origin.z,
+    dx: dir.x,
+    dy: dir.y,
+    dz: dir.z,
+    hit: visualHit,
+    damage: damages[0]?.damage || 0,
+    target: damages[0]?.target ?? (hit && !parried ? targetIndex : null),
+    damages,
+    isMelee: true,
+    weapon: weaponId,
+    headshot: hs || Boolean(parryEvent?.headshot),
+    distance: hit ? targetDist : null,
+    killed,
+    parry: parryEvent
+  });
+  if ((hit || deflectDamages.some((entry) => entry.target === game.localIndex)) && aliveFpsPlayerIndexes().length === 1) startVictoryLap(aliveFpsPlayerIndexes()[0], "deathmatch");
 }
 function fireMelee() { meleeStrike(); }
 function rayHitsSphere(origin, direction, sphereCenter, radius) { const toCenter = sphereCenter.clone().sub(origin), projected = toCenter.dot(direction); if (projected < 0) return null; const closest = origin.clone().addScaledVector(direction, projected); return closest.distanceTo(sphereCenter) < radius ? projected : null; }
@@ -248,6 +350,7 @@ const TRACER_STYLES = {
   drumShotgun: { core: 0xffe9cc, glow: 0xff8a4d, width: 0.65 },
   laser: { core: 0xffffff, glow: 0xff3ea5, width: 1.1 },
   bouncer: { core: 0xeaffe9, glow: 0x6bf178, width: 1.2 },
+  grapple: { core: 0xffffff, glow: 0xff7ee8, width: 1.05 },
   parry: { core: 0xffffff, glow: 0x7ee2ff, width: 1.65 },
   spermShooter: { core: 0xffffff, glow: 0xfff9e6, width: 0.9 },
   heavySpermShooter: { core: 0xffffff, glow: 0xfff3c4, width: 1.15 },
@@ -364,56 +467,75 @@ function flashParryImpactFrame() {
   frame.classList.remove("active");
   void frame.offsetWidth;
   frame.classList.add("active");
-  window.setTimeout(() => frame.classList.remove("active"), 130);
+  window.setTimeout(() => frame.classList.remove("active"), 180);
 }
 function drawParryEffect(position, incomingDirection, outgoingDirection, weaponId = "melee", localImpact = false) {
   const pos = position.clone();
   const incoming = incomingDirection.clone().normalize();
   const outgoing = outgoingDirection.clone().normalize();
   const group = new THREE.Group();
-  const color = weaponId === "katana" ? 0x9ff7ff : 0xfff4a8;
+  const color = weaponId === "katana" ? 0x9ff7ff : (weaponId === "grapple" ? 0xff7ee8 : 0xfff4a8);
+  const normal = incoming.clone().negate().add(outgoing).normalize();
+  const planeNormal = normal.lengthSq() > 0.001 ? normal : outgoing;
+  const right = new THREE.Vector3().crossVectors(planeNormal, new THREE.Vector3(0, 1, 0));
+  if (right.lengthSq() < 0.01) right.set(1, 0, 0);
+  right.normalize();
+  const up = new THREE.Vector3().crossVectors(right, planeNormal).normalize();
+  const hotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false });
+  const accentMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.84, blending: THREE.AdditiveBlending, depthWrite: false });
   const hot = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 14, 10),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false })
+    new THREE.SphereGeometry(0.3, 18, 12),
+    hotMat.clone()
   );
   hot.position.copy(pos);
   const halo = new THREE.Mesh(
-    new THREE.SphereGeometry(0.48, 18, 12),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false })
+    new THREE.SphereGeometry(0.72, 22, 14),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })
   );
   halo.position.copy(pos);
-  const normal = incoming.clone().negate().add(outgoing).normalize();
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.44, 0.035, 8, 28),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  ring.position.copy(pos);
-  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.lengthSq() > 0.001 ? normal : outgoing);
-  const flash = new THREE.Mesh(
-    new THREE.ConeGeometry(0.16, 0.62, 10),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  flash.position.copy(pos).addScaledVector(outgoing, 0.26);
-  flash.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), outgoing);
-  group.add(halo, hot, ring, flash);
-  const right = new THREE.Vector3().crossVectors(outgoing, new THREE.Vector3(0, 1, 0));
-  if (right.lengthSq() < 0.01) right.set(1, 0, 0);
-  right.normalize();
-  const up = new THREE.Vector3().crossVectors(right, outgoing).normalize();
-  for (let i = 0; i < 10; i++) {
-    const angle = (i / 10) * Math.PI * 2;
-    const dir = right.clone().multiplyScalar(Math.cos(angle)).add(up.clone().multiplyScalar(Math.sin(angle))).add(outgoing.clone().multiplyScalar(0.55)).normalize();
-    const len = 0.28 + Math.random() * 0.42;
+  halo.userData.parryGrow = 1.4;
+  group.add(halo, hot);
+
+  for (const [radius, tube, opacity, spin] of [[0.48, 0.028, 0.95, 0], [0.76, 0.018, 0.62, Math.PI / 2]]) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(radius, tube, 8, 42),
+      accentMat.clone()
+    );
+    ring.material.opacity = opacity;
+    ring.position.copy(pos);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), planeNormal);
+    ring.rotateZ(spin);
+    ring.userData.parryGrow = radius > 0.5 ? 0.85 : 0.55;
+    group.add(ring);
+  }
+
+  for (const [axis, len, width, opacity] of [[right, 1.7, 0.035, 0.96], [up, 1.15, 0.025, 0.64], [outgoing, 0.92, 0.04, 0.78]]) {
+    const streak = new THREE.Mesh(
+      new THREE.CylinderGeometry(width, width * 0.45, len, 7),
+      (axis === outgoing ? hotMat : accentMat).clone()
+    );
+    streak.material.opacity = opacity;
+    streak.position.copy(pos).addScaledVector(axis, len * 0.08);
+    streak.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+    streak.userData.parryGrow = 0.25;
+    group.add(streak);
+  }
+
+  for (let i = 0; i < 18; i++) {
+    const angle = (i / 18) * Math.PI * 2;
+    const dir = right.clone().multiplyScalar(Math.cos(angle)).add(up.clone().multiplyScalar(Math.sin(angle))).add(outgoing.clone().multiplyScalar(0.44 + Math.random() * 0.52)).normalize();
+    const len = 0.32 + Math.random() * 0.68;
     const spark = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.012, 0.026, len, 5),
-      new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffffff : color, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending, depthWrite: false })
+      new THREE.CylinderGeometry(0.01, 0.032, len, 5),
+      new THREE.MeshBasicMaterial({ color: i % 3 ? color : 0xffffff, transparent: true, opacity: 0.86, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     spark.position.copy(pos).addScaledVector(dir, len * 0.5);
     spark.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    spark.userData.parryGrow = 0.4 + Math.random() * 0.8;
     group.add(spark);
   }
   world.arenaRoot.add(group);
-  world.lasers.push({ beam: group, ttl: 0.24, maxTtl: 0.24, isParry: true });
+  world.lasers.push({ beam: group, ttl: 0.28, maxTtl: 0.28, isParry: true });
   if (localImpact) flashParryImpactFrame();
 }
 function updateLasers(dt) {
@@ -432,6 +554,8 @@ function updateLasers(dt) {
         } else if (l.isTracer && c.geometry?.type !== "CylinderGeometry") {
           const grow = 1 + (1 - life) * 1.6;
           c.scale.setScalar(grow);
+        } else if (l.isParry && c.userData.parryGrow) {
+          c.scale.setScalar(1 + (1 - life) * c.userData.parryGrow);
         }
       });
     } else {
@@ -503,24 +627,43 @@ function scopeHighlightActive() {
   return game.phase === "fps" && (game.scopeAmount || 0) > 0.55;
 }
 
+function enemyGlareScreenPoint(player) {
+  const point = playerHeadHitCenter(player).lerp(playerBodyHitCenter(player), 0.18);
+  const viewDir = directionFromAngles(input.yaw, input.pitch);
+  if (point.clone().sub(camera.position).dot(viewDir) < 0.2) return null;
+  return toScreen(point);
+}
+
 function updateScopeEnemyBoxes() {
   if (!enemyBoxLayer) return;
+  let selfWarning = enemyBoxLayer.querySelector(".self-marked-warning");
+  if (game.phase === "fps" && enemyMarked(fps.players[game.localIndex])) {
+    if (!selfWarning) {
+      selfWarning = document.createElement("div");
+      selfWarning.className = "self-marked-warning";
+      selfWarning.textContent = "YOU ARE MARKED";
+      enemyBoxLayer.appendChild(selfWarning);
+    }
+  } else {
+    selfWarning?.remove();
+  }
   const scoped = scopeHighlightActive();
   // The radar pings enemies through walls, so it draws the same red boxes but
   // skips the line-of-sight gate the scope requires.
   const radar = game.phase === "fps" && game.radarTimer > 0;
-  const active = scoped || radar;
-  const used = new Set();
-  if (active) {
-    for (const { player, index } of opposingFpsPlayers()) {
-      const mesh = world.playerMeshes[index];
-      if (!mesh?.visible) continue;
-      // Radar uses the same screen-space red boxes as the sniper scope, but it
-      // only skips the line-of-sight portion of the scope visibility test.
-      if (radar ? !enemyInCameraFrustum(player) : !enemyVisibleToCamera(player)) continue;
+  const usedBoxes = new Set();
+  const usedGlares = new Set();
+  for (const { player, index } of opposingFpsPlayers()) {
+    const mesh = world.playerMeshes[index];
+    if (!mesh?.visible) continue;
+    const marked = enemyMarked(player);
+    const shouldBox = scoped || radar || marked;
+    if (shouldBox) {
+      const visibleForBox = (radar || marked) ? enemyInCameraFrustum(player) : enemyVisibleToCamera(player);
+      if (!visibleForBox) continue;
       const rect = enemyScreenRect(player);
       if (!rect) continue;
-      used.add(String(index));
+      usedBoxes.add(String(index));
       let el = enemyBoxLayer.querySelector(`[data-enemy="${index}"]`);
       if (!el) {
         el = document.createElement("div");
@@ -528,14 +671,45 @@ function updateScopeEnemyBoxes() {
         el.dataset.enemy = String(index);
         enemyBoxLayer.appendChild(el);
       }
+      el.classList.toggle("marked", marked);
       el.style.left = `${rect.left}px`;
       el.style.top = `${rect.top}px`;
       el.style.width = `${rect.width}px`;
       el.style.height = `${rect.height}px`;
+      let label = el.querySelector(".enemy-mark-label");
+      if (marked) {
+        if (!label) {
+          label = document.createElement("span");
+          label.className = "enemy-mark-label";
+          el.appendChild(label);
+        }
+        label.textContent = playerDisplayName?.(index, `P${index + 1}`) || `P${index + 1}`;
+      } else {
+        label?.remove();
+      }
+    }
+
+    if (game.phase === "fps" && enemyAimingAtLocal(player) && enemyVisibleToCamera(player)) {
+      const screen = enemyGlareScreenPoint(player);
+      if (!screen) continue;
+      usedGlares.add(String(index));
+      let glare = enemyBoxLayer.querySelector(`[data-aim-glare="${index}"]`);
+      if (!glare) {
+        glare = document.createElement("div");
+        glare.className = "enemy-aim-glare";
+        glare.dataset.aimGlare = String(index);
+        enemyBoxLayer.appendChild(glare);
+      }
+      const distance = camera.position.distanceTo(playerHeadHitCenter(player));
+      const scale = Math.max(0.78, Math.min(1.32, 26 / Math.max(12, distance)));
+      glare.style.left = `${screen.x}px`;
+      glare.style.top = `${screen.y}px`;
+      glare.style.transform = `translate(-50%, -50%) scale(${scale})`;
     }
   }
   for (const el of [...enemyBoxLayer.children]) {
-    if (!used.has(el.dataset.enemy)) el.remove();
+    if (el.classList.contains("enemy-scope-box") && !usedBoxes.has(el.dataset.enemy)) el.remove();
+    if (el.classList.contains("enemy-aim-glare") && !usedGlares.has(el.dataset.aimGlare)) el.remove();
   }
 }
 
@@ -628,6 +802,7 @@ function updatePlayerMeshes(dt = 1 / 60) {
     // bright red (depth-tested — never through walls).
     const scopeHighlight = scopeActive && visibleToCam;
     const parryGuardGlow = mesh.visible && Boolean(player.parryGuardActive);
+    const markedGlow = mesh.visible && i !== game.localIndex && enemyMarked(player);
 
     // Wallhack uses per-mesh cloned materials so shared player materials are never left hidden/mutated.
     mesh.traverse((child) => {
@@ -636,7 +811,7 @@ function updatePlayerMeshes(dt = 1 / 60) {
         child.userData.baseMaterial = child.material;
         child.userData.baseRenderOrder = child.renderOrder || 0;
       }
-      if (isRadarActive && mesh.visible) {
+      if ((isRadarActive || markedGlow) && mesh.visible) {
         if (!child.userData.wallhackMaterial) {
           child.userData.wallhackMaterial = new THREE.MeshBasicMaterial({
             color: 0xff1f1f,
@@ -673,7 +848,11 @@ function updatePlayerMeshes(dt = 1 / 60) {
     // Soft "sticker" outline in the enemy's own team colour whenever they are on
     // screen — a quieter, box-free cousin of the scope highlight that keeps
     // players readable. Suppressed while radar/scope already recolour them.
-    setPlayerOutlineVisible(mesh, game.phase === "fps" && visibleToCam && !isRadarActive && !scopeHighlight);
+    setPlayerOutlineVisible(
+      mesh,
+      game.phase === "fps" && mesh.visible && (markedGlow || (visibleToCam && !isRadarActive && !scopeHighlight)),
+      markedGlow ? 0xff1f1f : null
+    );
   }
 }
 
@@ -685,10 +864,14 @@ Object.assign(globalThis, {
   enemyInCameraFrustum,
   enemyVisibleToCamera,
   scopeHighlightActive,
+  enemyMarked,
   updateScopeEnemyBoxes,
+  enemyGlareScreenPoint,
   fpsPlayerViewOrigin,
   fpsPlayerAimDirection,
   countObstaclesBeforeDistance,
+  markEnemyOnHit,
+  markLocalPlayerOnHit,
   flashParryImpactFrame,
   fireHitscan,
   isPointInsideProjectileBlocker,

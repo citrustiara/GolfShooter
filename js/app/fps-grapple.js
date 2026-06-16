@@ -55,6 +55,54 @@ function findGrappleLockTarget(origin, dir, range = GRAPPLE_RANGE) {
   }
   return best;
 }
+function spendGrappleCharge() {
+  game.grappleCharges = Math.max(0, game.grappleCharges - 1);
+  game.grappleGapTimer = GRAPPLE_QUICK_GAP;
+  if (game.grappleChargeTimer <= 0) game.grappleChargeTimer = grappleRechargeTime();
+}
+function applyGrappleDeflectDamage(entry, parryEvent) {
+  if (!entry) return;
+  if (typeof applyPracticeBotDamageEntry === "function") applyPracticeBotDamageEntry(entry, parryEvent);
+  else applyLocalDeflectedDamage(entry, parryEvent);
+}
+function tryParryGrappleTarget(targetIndex, origin, point, damage = GRAPPLE_PLAYER_DAMAGE) {
+  if (!Number.isInteger(targetIndex) || targetIndex === game.localIndex) return false;
+  if (!canPlayerParryShot(targetIndex, game.localIndex)) return false;
+  const incoming = point.clone().sub(origin);
+  const hitDistance = incoming.length();
+  if (hitDistance <= 0.1) return false;
+  incoming.multiplyScalar(1 / hitDistance);
+  const cfg = { damage: Math.max(1, Number(damage) || GRAPPLE_PLAYER_DAMAGE), crit: 1, range: GRAPPLE_RANGE };
+  const parry = triggerParryForHit({
+    parrierIndex: targetIndex,
+    attackerIndex: game.localIndex,
+    shotOrigin: origin,
+    incomingDirection: incoming,
+    hitDistance,
+    cfg,
+    weaponId: "grapple"
+  });
+  if (parry.damageEntry) applyGrappleDeflectDamage(parry.damageEntry, parry.event);
+  send({
+    type: "fpsShot",
+    player: game.localIndex,
+    ox: origin.x,
+    oy: origin.y,
+    oz: origin.z,
+    dx: incoming.x,
+    dy: incoming.y,
+    dz: incoming.z,
+    hit: true,
+    length: hitDistance,
+    damage: parry.damageEntry?.damage || 0,
+    target: parry.damageEntry?.target ?? null,
+    damages: parry.damageEntry ? [parry.damageEntry] : [],
+    weapon: "grapple",
+    isGrapple: true,
+    parry: parry.event
+  });
+  return true;
+}
 function activateGrappleAbility() {
   if (!localFpsPlayerCanFight() || game.countdown > 0 || game.radarTimer > 0 || !abilityAllowed("grapple")) return;
   // Hold-to-stay: already grappling (or the key is auto-repeating) keeps the
@@ -76,13 +124,19 @@ function activateGrappleAbility() {
     return;
   }
   // Spend a charge and (re)start the background refill toward the next one.
-  game.grappleCharges = Math.max(0, game.grappleCharges - 1);
-  game.grappleGapTimer = GRAPPLE_QUICK_GAP;
-  if (game.grappleChargeTimer <= 0) game.grappleChargeTimer = grappleRechargeTime();
+  spendGrappleCharge();
   if (lock) {
+    if (tryParryGrappleTarget(lock.index, origin, lock.point, GRAPPLE_LOCK_DAMAGE)) {
+      updateHud();
+      return;
+    }
     game.grapple = { active: true, point: lock.point.clone(), targetPlayer: lock.index, locked: true, holdTimer: GRAPPLE_HOLD_LIMIT };
     grappleHitPlayer(lock.index, GRAPPLE_LOCK_DAMAGE);
   } else {
+    if (target.targetPlayer != null && tryParryGrappleTarget(target.targetPlayer, origin, target.point, GRAPPLE_PLAYER_DAMAGE)) {
+      updateHud();
+      return;
+    }
     game.grapple = { active: true, point: target.point.clone(), targetPlayer: target.targetPlayer, locked: false, holdTimer: GRAPPLE_HOLD_LIMIT };
     if (target.targetPlayer != null) grappleHitPlayer(target.targetPlayer, GRAPPLE_PLAYER_DAMAGE);
   }
@@ -98,6 +152,7 @@ function grappleHitPlayer(index, damage = GRAPPLE_PLAYER_DAMAGE) {
   const wasAlive = target.health > 0;
   if (!wasAlive) return;
   const dmg = Math.max(0, Math.round(Number(damage) || 0));
+  markEnemyOnHit(index);
   target.health = Math.max(0, target.health - dmg);
   const popPos = playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.65, 0));
   showDamageDealt(dmg, popPos, false);
@@ -205,6 +260,8 @@ Object.assign(globalThis, {
   grappleMaxCharges,
   grappleRechargeTime,
   findGrappleLockTarget,
+  spendGrappleCharge,
+  tryParryGrappleTarget,
   activateGrappleAbility,
   grappleHitPlayer,
   updateGrappleReticle,

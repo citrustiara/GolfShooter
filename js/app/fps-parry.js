@@ -161,6 +161,7 @@ function applyLocalDeflectedDamage(entry, parryEvent) {
   const me = fps.players[game.localIndex];
   const wasAlive = me.health > 0;
   me.health = Math.max(0, me.health - entry.damage);
+  markLocalPlayerOnHit?.();
   showDamageTaken(entry.damage);
   if (wasAlive && me.health <= 0) {
     showKilledBy(entry.weaponName || "Parried Shot", { headshot: entry.headshot, distance: entry.distance, killerIndex: parryEvent?.parrier });

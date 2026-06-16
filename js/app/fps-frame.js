@@ -139,6 +139,7 @@ function updateFps(dt, now) {
       if (player.parryGuardTimer <= 0) player.parryGuardActive = false;
     }
     if (player.parryEffectTimer > 0) player.parryEffectTimer = Math.max(0, player.parryEffectTimer - dt);
+    if (player.markedTimer > 0) player.markedTimer = Math.max(0, player.markedTimer - dt);
   }
   if (localPlayer) {
     localPlayer.aiming = localAlive && input.aiming && !game.parryGuardActive;

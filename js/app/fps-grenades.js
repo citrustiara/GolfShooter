@@ -247,10 +247,14 @@ function explodeGrenade(g) {
         const damageEntry = { target: i, damage: dmg, headshot: false, distance: killDistance, weaponName, killed: false };
         damages.push(damageEntry);
         const wasAlive = target.health > 0;
+        if (g.owner === game.localIndex && i !== game.localIndex) markEnemyOnHit(i);
         target.health = Math.max(0, target.health - dmg);
         damageEntry.killed = wasAlive && target.health === 0;
         if (g.owner === game.localIndex) showDamageDealt(dmg, target.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), false);
-        if (i === game.localIndex) showDamageTaken(dmg);
+        if (i === game.localIndex) {
+          if (g.owner !== game.localIndex) markLocalPlayerOnHit?.();
+          showDamageTaken(dmg);
+        }
         if (damageEntry.killed && i !== game.localIndex && g.owner === game.localIndex) {
           const aliveAfterKill = aliveFpsPlayerIndexes();
           const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === g.owner && willFpsKillWinMapOrMatch(g.owner);

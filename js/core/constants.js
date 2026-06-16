@@ -12,7 +12,7 @@ export const FPS_LASER_TTL = 0.2;
 export const FPS_BASE_MOUSE_SENSITIVITY = 0.0022;
 export const FPS_PLAYER_HIT_RADIUS = 1.32;
 export const FPS_AIM_SENSITIVITY_MULTIPLIER = 0.72;
-export const FPS_DEFAULT_FOV = 90;
+export const FPS_DEFAULT_FOV = 85;
 export const FPS_AIM_FOV = 64;
 export const FPS_SNIPER_AIM_FOV = 14;
 export const FPS_HEAD_HIT_RADIUS = 0.66;
@@ -73,9 +73,9 @@ export const DASH_SPEED = 60;
 export const GRAPPLE_COOLDOWN = 3.5;
 export const GRAPPLE_RANGE = 95;
 export const GRAPPLE_SPEED = 74;
-export const GRAPPLE_HOLD_LIMIT = 2.5;
-// Damage dealt when the grapple hook latches onto an enemy player with a direct ray hit.
-export const GRAPPLE_PLAYER_DAMAGE = 50;
+export const GRAPPLE_HOLD_LIMIT = 1.5;
+// Damage dealt when the grapple hook latches onto an enemy player.
+export const GRAPPLE_PLAYER_DAMAGE = 5;
 // Two-charge grapple: each charge recharges at GRAPPLE_COOLDOWN; once you have a
 // charge the next one refills in the background, and consecutive throws are gated
 // by a short gap so both hooks can be spent quickly but not on the same frame.
@@ -83,7 +83,7 @@ export const GRAPPLE_MAX_CHARGES = 2;
 export const GRAPPLE_QUICK_GAP = 0.5;
 // Aim-assist lock: aiming near an in-range enemy snaps the hook onto them for a
 // guaranteed hit at reduced damage.
-export const GRAPPLE_LOCK_DAMAGE = 25;
+export const GRAPPLE_LOCK_DAMAGE = 5;
 export const GRAPPLE_LOCK_CONE_DEG = 6;
 export const PARRY_GUARD_DURATION = 3.0;
 export const PARRY_GUARD_COOLDOWN = 3.0;

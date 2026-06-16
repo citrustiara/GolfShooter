@@ -213,6 +213,8 @@ export const networkLinks = {
   weaponLabel: null,
   showDamageDealt: null,
   showHitMarker: null,
+  markEnemyOnHit: null,
+  markLocalPlayerOnHit: null,
   showEliminationNotice: null,
   showBattleLogElimination: null,
   triggerKillFade: null
@@ -438,6 +440,7 @@ function applyLocalParryCredit(message) {
     const wasAlive = target.health > 0;
     target.health = Math.max(0, target.health - entry.damage);
     const popPos = target.pos.clone().add(new THREE.Vector3(0, entry.headshot ? 1.85 : 1.1, 0));
+    networkLinks.markEnemyOnHit?.(entry.target);
     networkLinks.showDamageDealt?.(entry.damage, popPos, Boolean(entry.headshot));
     networkLinks.showHitMarker?.(Boolean(entry.headshot));
     if (wasAlive && target.health <= 0) {
@@ -687,9 +690,9 @@ export function handleMessage(message, sourceConnection = null) {
       } else {
         networkLinks.drawLaser(origin, direction, message.length, message.hit, true, message.weapon);
       }
-      handleParryShotVisuals(message);
-      applyLocalParryCredit(message);
     }
+    handleParryShotVisuals(message);
+    applyLocalParryCredit(message);
     const localDamageEntries = Array.isArray(message.damages) ? message.damages.filter((entry) => entry.target === game.localIndex) : [];
     const localDamage = localDamageEntries.length ? localDamageEntries.reduce((merged, entry) => ({
       ...merged,
@@ -707,6 +710,7 @@ export function handleMessage(message, sourceConnection = null) {
       const wasAlive = me.health > 0;
       if (!wasAlive) return;
       me.health = Math.max(0, me.health - dmg);
+      networkLinks.markLocalPlayerOnHit?.();
       networkLinks.showDamageTaken(dmg);
       if (wasAlive && me.health <= 0) {
         const killedBy = localDamage.parried
@@ -732,6 +736,7 @@ export function handleMessage(message, sourceConnection = null) {
       const wasAlive = me.health > 0;
       if (!wasAlive) return;
       me.health = Math.max(0, me.health - dmg);
+      networkLinks.markLocalPlayerOnHit?.();
       networkLinks.showDamageTaken(dmg);
       if (wasAlive && me.health <= 0) {
         networkLinks.showKilledBy(networkLinks.weaponLabel("grapple"), { headshot: false, distance: 0, killerIndex: message.player });
@@ -771,6 +776,7 @@ export function handleMessage(message, sourceConnection = null) {
       const wasAlive = me.health > 0;
       if (!wasAlive) return;
       me.health = Math.max(0, me.health - localDamage.damage);
+      networkLinks.markLocalPlayerOnHit?.();
       networkLinks.showDamageTaken(localDamage.damage);
       if (wasAlive && me.health <= 0) {
         const weaponName = localDamage.weaponName || message.weaponName || (message.weapon ? networkLinks.weaponLabel(message.weapon) : "Grenade");

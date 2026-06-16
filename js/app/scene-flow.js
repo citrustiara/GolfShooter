@@ -216,6 +216,7 @@ function hideFpsHudUi() {
     player.parryGuardActive = false;
     player.parryGuardTimer = 0;
     player.parryGuardCooldown = 0;
+    player.markedTimer = 0;
   }
   game.radarTimer = 0;
   game.scopeAmount = 0;
@@ -319,7 +320,7 @@ function applyGolfAtmosphere(hole) {
 }
 function enterFps(isSimulation = false, options = {}) {
   clearVictoryBanner(); hideDefeatScreen?.(); stopLobbyMusic(); ensureFpsPlayers(game.playerCount);
-  game.phase = "fps"; overlay.classList.add("fps"); overlay.classList.remove("fps-pause-open"); menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); weaponSelectOverlay.hidden = true; weaponSelectOverlay.style.display = "none"; resultPanel.classList.add("hidden"); resultPanel.classList.remove("fps-result"); world.golfRoot.visible = false; world.arenaRoot.visible = true; world.weapon.visible = true; world.meleeWeapon.visible = true;
+  game.phase = "fps"; overlay.classList.add("fps"); overlay.classList.remove("fps-pause-open"); menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); weaponSelectOverlay.hidden = true; weaponSelectOverlay.style.display = "none"; resultPanel.classList.add("hidden"); resultPanel.classList.remove("fps-result"); world.golfRoot.visible = false; world.arenaRoot.visible = true; world.weapon && (world.weapon.visible = true); world.meleeWeapon && (world.meleeWeapon.visible = true);
   updateFpsSettingsVisibility();
   power.classList.add("hidden"); shotArrow.classList.add("hidden"); game.dragging = false;
   if (!options.preserveFpsMatch) { game.fpsMapIndex = 0; game.fpsMapWins = Array(game.playerCount).fill(0); }
@@ -342,7 +343,7 @@ function enterFps(isSimulation = false, options = {}) {
   const startingWeapon = game.randomTournament && !randomMelee ? game.randomWeapon : 
                          (allowedWeapons.find((id) => id !== "melee") || allowedWeapons[0] || "pistol");
   const startAsMelee = randomMelee || startingWeapon === "melee";
-  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.stepTimer = 0; p.stepSide = 0; p.airTime = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.aiming = false; p.parryCooldown = 0; p.parryReloadTotal = 0; p.parryEffectTimer = 0; p.parryWeapon = ""; p.parryGuardActive = false; p.parryGuardTimer = 0; p.parryGuardCooldown = 0; p.isPracticeBot = false; p.practiceBot = null; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
+  fps.players.forEach((p, i) => { const spawn = spawns[i] || spawns[i % Math.max(1, spawns.length)] || { x: i === 0 ? -42 : 42, z: 0 }; p.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z); p.vel.set(0, 0, 0); p.yaw = i === 0 ? 0 : Math.PI; p.pitch = 0; p.health = game.maxHealth; p.maxHealth = game.maxHealth; p.grounded = false; p.sliding = false; p.visualSlide = 0; p.stepTimer = 0; p.stepSide = 0; p.airTime = 0; p.currentCamHeight = 1.58; p.weapon = startAsMelee ? "melee" : "gun"; p.primaryWeapon = startingWeapon; p.aiming = false; p.parryCooldown = 0; p.parryReloadTotal = 0; p.parryEffectTimer = 0; p.parryWeapon = ""; p.parryGuardActive = false; p.parryGuardTimer = 0; p.parryGuardCooldown = 0; p.markedTimer = 0; p.isPracticeBot = false; p.practiceBot = null; p.targetPos = p.pos.clone(); p.targetYaw = p.yaw; p.targetPitch = p.pitch; });
   game.ammo = freshAmmoState(); game.reloading = false; game.reloadTimer = 0; game.reloadWeapon = null; game.activeWeapon = startAsMelee ? "melee" : "gun"; game.primaryWeapon = startingWeapon; game.meleeSwingTimer = 0; game.parryCooldown = 0; game.parryReloadTotal = 0; game.parryAnimTimer = 0; game.parryGuardActive = false; game.parryGuardTimer = 0; game.parryGuardCooldown = 0; game.throwTimer = 0; game.throwBlockTimer = 0; game.throwKind = ""; game.weaponSwapTimer = 0; game.jumpCooldown = 0; game.healCooldown = 0; game.grenadeCooldown = 0; game.smokeCooldown = 0; game.radarCooldown = 0; game.radarTimer = 0; game.slideTimer = 0; game.slideCooldown = 0; game.visualRecoil = 0; game.dashCooldown = 0; game.dashTimer = 0; game.grappleCooldown = 0; game.grappleCharges = GRAPPLE_MAX_CHARGES; game.grappleChargeTimer = 0; game.grappleGapTimer = 0; game.lowHpEffectTimer = 0; game.lowHpHeartbeatTimer = 0; game.healEffectTimer = 0; game.damageEffectTimer = 0; game.scopeAmount = 0; game.spectateTarget = -1; game.roundTimeLeft = ROUND_TIME_LIMIT; game.roundTimedOut = false; releaseGrapple?.(); setSpectatorBanner?.(-1);
   if (game.role === "solo") game.localIndex = 0;
   resetPracticeBot?.();
