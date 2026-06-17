@@ -403,6 +403,31 @@ function knownRemotePlayerIsDead(index) {
   return index !== null && index !== game.localIndex && fps.players[index] && fps.players[index].health <= 0;
 }
 
+function vectorFromMessage(message, xKey, yKey, zKey) {
+  const x = Number(message?.[xKey]);
+  const y = Number(message?.[yKey]);
+  const z = Number(message?.[zKey]);
+  if (![x, y, z].every(Number.isFinite)) return null;
+  return new THREE.Vector3(x, y, z);
+}
+
+function remotePlayerSoundPosition(index) {
+  const player = fps.players[index];
+  if (!player?.pos) return null;
+  return player.pos.clone().add(new THREE.Vector3(0, player.currentCamHeight || 1.35, 0));
+}
+
+function playRemotePlayerSound(type, position, options = {}) {
+  if (!position) return;
+  const melee = Boolean(options.melee);
+  playSound(type, {
+    position,
+    volume: options.volume ?? (melee ? 0.74 : 0.88),
+    minDistance: options.minDistance ?? (melee ? 1.1 : 2.4),
+    maxDistance: options.maxDistance ?? (melee ? 28 : 72)
+  });
+}
+
 function showKillEventInBattleLog(message) {
   const victim = messagePlayerIndex(message.victim ?? message.target);
   if (victim === null) return;
@@ -676,13 +701,14 @@ export function handleMessage(message, sourceConnection = null) {
   if (message.type === "fpsShot") {
     const shooterIndex = messagePlayerIndex(message.player);
     if (knownRemotePlayerIsDead(shooterIndex)) return;
-    const origin = new THREE.Vector3(message.ox, message.oy, message.oz);
-    const direction = new THREE.Vector3(message.dx, message.dy, message.dz);
+    const origin = vectorFromMessage(message, "ox", "oy", "oz") || remotePlayerSoundPosition(shooterIndex);
+    const direction = vectorFromMessage(message, "dx", "dy", "dz");
+    if (!origin || !direction) return;
     if (message.isMelee) {
-      playSound(message.weapon === "katana" ? "katana" : "melee");
+      playRemotePlayerSound(message.weapon === "katana" ? "katana" : "melee", origin, { melee: true });
       networkLinks.drawMeleeSwipe(origin, direction);
     } else {
-      playSound(message.weapon || "pistol");
+      playRemotePlayerSound(message.weapon || "pistol", origin);
       if (Array.isArray(message.pellets)) {
         for (const pellet of message.pellets) {
           networkLinks.drawLaser(origin, new THREE.Vector3(pellet.dx, pellet.dy, pellet.dz), pellet.length, pellet.hit, true, message.weapon);
@@ -751,9 +777,10 @@ export function handleMessage(message, sourceConnection = null) {
 
   if (message.type === "fpsGrenadeThrow") {
     if (knownRemotePlayerIsDead(messagePlayerIndex(message.owner))) return;
-    playSound(message.kind === "smoke" ? "smoke" : (message.kind === "bouncer" ? "bouncerShot" : (message.kind === "rocket" ? "rocket" : "grenade")));
+    const origin = vectorFromMessage(message, "x", "y", "z") || remotePlayerSoundPosition(messagePlayerIndex(message.owner));
+    playRemotePlayerSound(message.kind === "smoke" ? "smoke" : (message.kind === "bouncer" ? "bouncerShot" : (message.kind === "rocket" ? "rocket" : "grenade")), origin, { maxDistance: 72 });
     networkLinks.spawnGrenade(
-      new THREE.Vector3(message.x, message.y, message.z),
+      origin || new THREE.Vector3(message.x, message.y, message.z),
       new THREE.Vector3(message.vx, message.vy, message.vz),
       false,
       message.owner,
@@ -762,9 +789,10 @@ export function handleMessage(message, sourceConnection = null) {
   }
 
   if (message.type === "fpsSmokeDeploy") {
-    playSound("smoke");
-    networkLinks.removeRemoteGrenadesNear(new THREE.Vector3(message.x, message.y, message.z));
-    networkLinks.createSmokeCloud?.(new THREE.Vector3(message.x, message.y, message.z), message.radius, message.duration, message.id || null);
+    const pos = vectorFromMessage(message, "x", "y", "z");
+    playRemotePlayerSound("smoke", pos, { volume: 0.8, maxDistance: 52 });
+    networkLinks.removeRemoteGrenadesNear(pos || new THREE.Vector3(message.x, message.y, message.z));
+    networkLinks.createSmokeCloud?.(pos || new THREE.Vector3(message.x, message.y, message.z), message.radius, message.duration, message.id || null);
   }
 
   if (message.type === "fpsGrenadeExplode") {
