@@ -263,78 +263,98 @@ select:focus {
   letter-spacing: 0.06em;
 }
 
-/* ---------------- FPS scoreboard (top-middle, CS2-style) ---------------- */
+/* ---------------- FPS scoreboard (top-middle) ---------------- */
 .fps-scoreboard {
   position: absolute;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
+  --score-name-width: min(var(--score-name-target, 10ch), 22ch);
   display: flex;
   align-items: stretch;
-  gap: 10px;
-  padding: 8px 10px;
-  background: rgba(12, 12, 16, 0.84);
-  border: 2px solid var(--ink);
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.32);
+  gap: 8px;
+  max-width: calc(100vw - 28px);
+  padding: 8px 10px 10px;
+  background: var(--paper);
+  border: var(--border-fat);
+  box-shadow: 5px 5px 0 var(--cyan), 10px 10px 0 var(--ink);
   pointer-events: none;
   z-index: 8;
-  color: #fff;
+  color: var(--ink);
   font-family: "Space Grotesk", Inter, system-ui, sans-serif;
 }
 
 .fps-score-side {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-width: 0;
 }
 
 .fps-score-left { justify-content: flex-end; }
 .fps-score-right { justify-content: flex-start; }
 
 .fps-player-box {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 4px 11px;
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 4px solid var(--team, #888);
+  justify-content: space-between;
+  gap: 8px;
+  width: calc(var(--score-name-width) + 54px);
+  min-height: 40px;
+  padding: 6px 8px 7px;
+  background: var(--paper);
+  border: var(--border);
+  border-top: 7px solid var(--team, var(--yellow));
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--ink);
 }
 
 .fps-player-box.right {
-  border-left: 0;
-  border-right: 4px solid var(--team, #888);
+  border-left: var(--border);
+  border-right: var(--border);
 }
 
 .fps-player-box.leading {
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--lime);
+  box-shadow: 3px 3px 0 var(--pink), 6px 6px 0 var(--ink);
 }
 
 .fps-player-box.dead {
-  background: rgba(128, 128, 128, 0.18);
+  background: #d8d8d8;
   border-color: #777 !important;
   filter: grayscale(1);
-  opacity: 0.58;
+  opacity: 0.68;
+  box-shadow: 3px 3px 0 #777;
 }
 
 .fps-player-box.dead .fps-player-tag,
 .fps-player-box.dead .fps-player-rounds {
-  color: #b8b8b8 !important;
+  color: #555 !important;
 }
 
 .fps-player-tag {
-  max-width: 126px;
+  width: var(--score-name-width);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--team, #fff);
+  padding: 2px 5px 3px;
+  background: var(--team, var(--cyan));
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: 2px 2px 0 var(--ink);
 }
 
 .fps-player-rounds {
-  min-width: 16px;
+  min-width: 2ch;
+  font-family: var(--display);
   font-size: 22px;
-  font-weight: 800;
   line-height: 1;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -345,37 +365,43 @@ select:focus {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 0 14px;
-  min-width: 94px;
+  gap: 2px;
+  min-width: 92px;
+  padding: 5px 12px 6px;
+  background: var(--ink);
+  border: var(--border);
+  box-shadow: 3px 3px 0 var(--yellow);
+  color: var(--paper);
+  transform: rotate(-0.7deg);
 }
 
 .fps-score-timer {
+  font-family: var(--display);
   font-size: 25px;
-  font-weight: 800;
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.fps-score-timer.low { color: #ff5a4d; }
+.fps-score-timer.low { color: var(--red); }
 
 .fps-score-maps {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .fps-score-maps-label {
   margin-right: 2px;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.08em;
+  color: var(--yellow);
 }
 
 .fps-score-maps-num { font-variant-numeric: tabular-nums; }
-.fps-score-maps-sep { color: rgba(255, 255, 255, 0.3); }
+.fps-score-maps-sep { color: rgba(255, 253, 245, 0.45); }
 
 /* 3+ players: stack the timer/maps above a single centered row of player
    scores instead of splitting them lopsidedly left and right of the timer.
@@ -388,10 +414,50 @@ select:focus {
 .fps-scoreboard.multi .fps-score-center { order: -1; }
 .fps-scoreboard.multi .fps-score-side {
   justify-content: center;
-  flex-wrap: nowrap;
-  width: max-content;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 54px);
 }
 .fps-scoreboard.multi .fps-score-side:empty { display: none; }
+
+@media (max-width: 640px) {
+  .fps-scoreboard {
+    --score-name-width: min(var(--score-name-target, 8ch), 9ch);
+    gap: 5px;
+    padding: 6px 7px 8px;
+    box-shadow: 4px 4px 0 var(--cyan), 8px 8px 0 var(--ink);
+  }
+
+  .fps-score-side {
+    gap: 5px;
+  }
+
+  .fps-player-box {
+    width: calc(var(--score-name-width) + 42px);
+    min-height: 34px;
+    gap: 5px;
+    padding: 5px 6px 6px;
+  }
+
+  .fps-player-tag {
+    font-size: 8px;
+    padding-inline: 3px;
+  }
+
+  .fps-player-rounds,
+  .fps-score-timer {
+    font-size: 18px;
+  }
+
+  .fps-score-center {
+    min-width: 74px;
+    padding-inline: 8px;
+  }
+
+  .fps-score-maps {
+    font-size: 8px;
+    gap: 3px;
+  }
+}
 
 /* ---------------- FPS hud (bottom right) ---------------- */
 .fps-hud {

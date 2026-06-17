@@ -26,7 +26,7 @@ JSON, and supports solo practice or peer-to-peer multiplayer lobbies.
 
 ![Mini golf hole](assets/screenshots/golf-hole.png)
 
-![FPS practice duel](assets/screenshots/fps-practice.png)
+![Needle Street FPS practice duel](assets/screenshots/fps-practice.png)
 
 ## Run locally
 

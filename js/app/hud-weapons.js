@@ -42,7 +42,7 @@ function updateHud() {
   updateScoreboard();
 }
 
-// ---- Top-middle CS2-style scoreboard ----
+// ---- Top-middle FPS scoreboard ----
 let scoreboardBuiltCount = 0;
 function playerHudColor(index) {
   const c = PLAYER_HUD_COLORS;
@@ -52,14 +52,23 @@ function formatRoundClock(seconds) {
   const s = Math.max(0, Math.ceil(Number(seconds) || 0));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
+function syncScoreboardNameWidth(n) {
+  if (!fpsScoreboard) return;
+  let longest = 2;
+  for (let i = 0; i < n; i++) {
+    const name = playerDisplayName(i, `P${i + 1}`);
+    longest = Math.max(longest, Array.from(name).length);
+  }
+  fpsScoreboard.style.setProperty("--score-name-target", `${Math.min(24, longest + 1)}ch`);
+}
 // Rebuild the player boxes (per-map round score by each name) and the overall
 // map-win numbers when the player count changes. Boxes split left/right of the
-// central timer so a 1v1 reads exactly like CS2's two flanking team scores.
+// central timer so a 1v1 reads as two balanced panels flanking the clock.
 function buildScoreboard(n) {
   if (!fpsScoreLeft || !fpsScoreRight || !fpsScoreMaps) return;
   fpsScoreLeft.replaceChildren();
   fpsScoreRight.replaceChildren();
-  // 1v1 keeps the CS2-style split with one score flanking each side of the
+  // 1v1 keeps the split with one score flanking each side of the
   // timer. With 3+ players a left/right split reads as lopsided (e.g. 2 vs 1),
   // so we stack: timer/maps on top, every player in one centered row below.
   const stacked = n > 2;
@@ -109,6 +118,7 @@ function updateScoreboard() {
   if (!isFps) return;
   const n = Math.max(2, game.playerCount || 2);
   if (scoreboardBuiltCount !== n) buildScoreboard(n);
+  syncScoreboardNameWidth(n);
   const killWins = game.fpsKillWins || [];
   const mapWins = game.fpsMapWins || [];
   const bestRounds = killWins.length ? Math.max(...killWins) : 0;
