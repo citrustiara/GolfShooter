@@ -477,6 +477,20 @@
 
 .practice-ability-row .practice-check { margin: 0; }
 
+.practice-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.45rem 0 0.1rem;
+}
+
+.practice-preset-btn {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 12px;
+  background: var(--cyan);
+}
+
 .practice-ability-row select {
   width: 100%;
   min-width: 0;

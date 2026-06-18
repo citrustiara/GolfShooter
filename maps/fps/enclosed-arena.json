@@ -1,5 +1,17 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 88,
+    "spacing": 16,
+    "innerMargin": 8,
+    "minHeight": 8,
+    "maxHeight": 40,
+    "gapChance": 0.24,
+    "seed": 3360,
+    "groundColor": "#0a0b10",
+    "colors": ["#12141c", "#171a26", "#0e1016", "#1d1430", "#101a22"]
+  },
   "id": "enclosed-arena",
   "name": "Enclosed Arena: Neon Killbox",
   "sky": 790290,

@@ -68,6 +68,12 @@ function rawConfigForMapValue(mapValue) {
   const theme = fpsArenaThemes[Number.isInteger(index) ? index : 0] || fpsArenaThemes[0];
   return theme?.config || theme?.loadout || {};
 }
+function mapConfigPresets(mapValue) {
+  const source = mapValue === "custom"
+    ? game.fpsCustomMap
+    : fpsArenaThemes[Number.isInteger(Number(mapValue)) ? Number(mapValue) : 0];
+  return Array.isArray(source?.configPresets) ? source.configPresets : [];
+}
 function normalizePracticeConfig(config = {}) {
   const base = defaultLoadout();
   const validWeapons = selectableWeaponIds();
@@ -154,7 +160,7 @@ function syncPracticeMapPlanner() {
     configBtn.type = "button";
     configBtn.className = "practice-config-btn";
     configBtn.textContent = "Config";
-    configBtn.addEventListener("click", () => row.classList.toggle("open"));
+    configBtn.addEventListener("click", () => { entry.open = !entry.open; row.classList.toggle("open", entry.open); });
     main.append(badge, select, configBtn);
 
     const summary = document.createElement("div");
@@ -243,7 +249,34 @@ function syncPracticeMapPlanner() {
     }
     detail.append(abilitiesTitle, abilityGrid);
 
+    // Map-specific loadout presets (plus the map's shipped default) sit below the
+    // abilities; one click fills in stats, weapons, abilities and ability keys.
+    const presetTitle = document.createElement("div");
+    presetTitle.className = "practice-map-summary";
+    presetTitle.textContent = "Presets";
+    const presetRow = document.createElement("div");
+    presetRow.className = "practice-preset-row";
+    const applyPreset = (cfg) => {
+      entry.config = normalizePracticeConfig(cfg);
+      entry.open = true;
+      syncPracticeMapPlanner();
+    };
+    const addPresetBtn = (label, cfg) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "practice-preset-btn";
+      btn.textContent = label;
+      btn.addEventListener("click", () => applyPreset(cfg));
+      presetRow.appendChild(btn);
+    };
+    addPresetBtn("Map default", rawConfigForMapValue(entry.mapValue));
+    for (const preset of mapConfigPresets(entry.mapValue)) {
+      addPresetBtn(preset.label || preset.id || "Preset", preset.config || {});
+    }
+    detail.append(presetTitle, presetRow);
+
     row.append(main, summary, detail);
+    if (entry.open) row.classList.add("open");
     practiceMapList.appendChild(row);
   }
 }
@@ -307,6 +340,7 @@ Object.assign(globalThis, {
   fpsMapDisplayName,
   selectableWeaponIds,
   rawConfigForMapValue,
+  mapConfigPresets,
   normalizePracticeConfig,
   defaultPracticeMapEntry,
   ensurePracticeMapConfigCount,

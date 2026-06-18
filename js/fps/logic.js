@@ -83,12 +83,23 @@ export function setupArena() {
     world.arenaRoot.add(grid);
   }
 
+  // Every map can surround the playfield with low-detail scenery so the arena
+  // doesn't read as a floating island from the air. The sky shell has to grow to
+  // enclose that backdrop, otherwise its BackSide depth would occlude the distant
+  // silhouette.
+  const backdropSpec = activeMap.backdrop || theme.backdrop || null;
+  const backdropFogFar = activeMap.fogFar ?? theme.fogFar ?? 300;
+  const backdropRadius = backdropSpec ? (Number(backdropSpec.radius) || Math.round(backdropFogFar * 1.05)) : 0;
+  const skyRadius = Math.max(170, backdropRadius + 120);
+
   const skyShell = new THREE.Mesh(
-    new THREE.SphereGeometry(170, 32, 16),
+    new THREE.SphereGeometry(skyRadius, 32, 16),
     new THREE.MeshBasicMaterial({ color: brightenArenaColor(theme.sky, 0.64, 0.34), side: THREE.BackSide })
   );
   skyShell.position.y = 28;
   world.arenaRoot.add(skyShell);
+
+  if (backdropSpec) buildBackdrop(backdropSpec, floorDefs, backdropFogFar, { x: boundsX, z: boundsZ });
 
   // Thin perimeter walls. They join world.obstacles so they are real for
   // combat: hitscan stops at the border, grenades bounce, and ricochet orbs
@@ -285,6 +296,124 @@ function applyFpsArenaTheme(theme) {
     lights.sun.intensity = 3.65;
     lights.sun.position.set(14, 26, 10);
   }
+}
+
+// Deterministic 0..1 hash for a grid cell — cheap value noise so every client
+// builds an identical skyline without storing any per-building data.
+function cityCellHash(ix, iz, salt) {
+  let h = Math.imul(ix | 0, 374761393) + Math.imul(iz | 0, 668265263) + Math.imul(salt | 0, 362437);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967295;
+}
+
+// Low-detail surrounding scenery (city skyline, spires, mesas, monoliths…) ringed
+// around the playfield so a map never reads as a floating island from the air.
+// Everything is one InstancedMesh (a single draw call) of boxes or cones, plus an
+// optional ground slab. Purely visual: nothing here joins world.obstacles/floors,
+// so it never affects combat, collision, or spawns. The skyline is derived from a
+// deterministic per-cell hash, so it's cheap and identical on every client.
+function buildBackdrop(spec, floorDefs, fogFar = 300, bounds = null) {
+  const shape = spec.shape === "cone" ? "cone" : "box";
+  const radius = Number(spec.radius) || Math.round(fogFar * 1.05);
+  const spacing = Math.max(10, Number(spec.spacing) || 26);
+  const innerMargin = Number(spec.innerMargin ?? 16);
+  const minHeight = Number(spec.minHeight ?? 8);
+  const maxHeight = Number(spec.maxHeight ?? 60);
+  const widthMin = Number(spec.widthMin ?? 0.5);
+  const widthMax = Number(spec.widthMax ?? 0.86);
+  const heightExp = Number(spec.heightExp ?? 1.7);
+  const recedeAmt = Math.max(0, Math.min(0.9, Number(spec.recede ?? 0.32)));
+  const gapChance = Math.max(0, Math.min(0.9, Number(spec.gapChance ?? 0.16)));
+  const jitterFrac = Number(spec.jitter ?? 0.34);
+  const baseY = Number(spec.baseY ?? 0);
+  const seed = Number(spec.seed ?? 1337);
+  const palette = (Array.isArray(spec.colors) && spec.colors.length ? spec.colors : [0x4a5066, 0x363c4e, 0x586079])
+    .map((c) => new THREE.Color(c));
+
+  // Keep scenery clear of the playable footprint (widest of the floor extents and
+  // the declared map bounds, plus a margin).
+  let halfX = bounds ? Math.abs(Number(bounds.x) || 0) : 8;
+  let halfZ = bounds ? Math.abs(Number(bounds.z) || 0) : 8;
+  for (const floor of floorDefs) {
+    if (floor.type === "circle") {
+      halfX = Math.max(halfX, Math.abs(floor.x || 0) + (floor.r || 0));
+      halfZ = Math.max(halfZ, Math.abs(floor.z || 0) + (floor.r || 0));
+    } else {
+      halfX = Math.max(halfX, Math.abs(floor.x || 0) + (floor.sx || 0) / 2);
+      halfZ = Math.max(halfZ, Math.abs(floor.z || 0) + (floor.sz || 0) / 2);
+    }
+  }
+  const keepOutX = halfX + innerMargin;
+  const keepOutZ = halfZ + innerMargin;
+
+  const items = [];
+  const steps = Math.ceil(radius / spacing);
+  for (let ix = -steps; ix <= steps; ix++) {
+    for (let iz = -steps; iz <= steps; iz++) {
+      const cx = ix * spacing;
+      const cz = iz * spacing;
+      const dist = Math.hypot(cx, cz);
+      if (dist > radius) continue;
+      if (Math.abs(cx) < keepOutX && Math.abs(cz) < keepOutZ) continue;
+      // Procedural gaps carve streets / open ground through the grid.
+      if (cityCellHash(ix, iz, seed + 7) < gapChance) continue;
+      const tall = cityCellHash(ix, iz, seed + 1);
+      const jx = (cityCellHash(ix, iz, seed + 4) - 0.5) * spacing * jitterFrac;
+      const jz = (cityCellHash(ix, iz, seed + 5) - 0.5) * spacing * jitterFrac;
+      const w = spacing * (widthMin + cityCellHash(ix, iz, seed + 2) * (widthMax - widthMin));
+      const d = spacing * (widthMin + cityCellHash(ix, iz, seed + 3) * (widthMax - widthMin));
+      // Bias toward mid height with occasional tall ones, and let the silhouette
+      // recede toward the far edge so it folds into the fog instead of forming a
+      // hard wall.
+      const recede = 1 - Math.min(1, dist / radius) * recedeAmt;
+      const h = Math.max(1, (minHeight + Math.pow(tall, heightExp) * (maxHeight - minHeight)) * recede);
+      const color = palette[Math.floor(cityCellHash(ix, iz, seed + 6) * palette.length) % palette.length];
+      items.push({ x: cx + jx, z: cz + jz, w, d, h, color });
+    }
+  }
+  if (!items.length) return;
+
+  if (spec.ground !== false) {
+    const groundColor = new THREE.Color(spec.groundColor ?? 0x2b2f38);
+    const groundSize = radius * 2.3;
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(groundSize, groundSize),
+      new THREE.MeshStandardMaterial({ color: groundColor, roughness: 0.97, metalness: 0.0 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = baseY - 0.6;
+    ground.userData.isBackdrop = true;
+    world.arenaRoot.add(ground);
+  }
+
+  const geometry = shape === "cone"
+    ? new THREE.ConeGeometry(0.5, 1, Math.max(4, Number(spec.coneSegments) || 6))
+    : new THREE.BoxGeometry(1, 1, 1);
+  const mesh = new THREE.InstancedMesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0.0 }),
+    items.length
+  );
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.userData.isBackdrop = true;
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < items.length; i++) {
+    const b = items[i];
+    dummy.position.set(b.x, baseY + b.h / 2, b.z);
+    dummy.scale.set(b.w, b.h, b.d);
+    dummy.rotation.set(0, 0, 0);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix);
+    mesh.setColorAt(i, b.color);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  // Derive the bounding volume from the instances so frustum culling keys off the
+  // whole spread-out silhouette, not the unit geometry at the origin.
+  mesh.computeBoundingSphere();
+  world.arenaRoot.add(mesh);
 }
 
 function playerMaterial(index) {

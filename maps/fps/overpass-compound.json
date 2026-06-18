@@ -93,5 +93,38 @@
       "desertEagle",
       "melee"
     ]
+  },
+  "configPresets": [
+    {
+      "id": "urban-cqb",
+      "label": "Urban CQB",
+      "config": {
+        "hp": 120,
+        "weapons": ["ak47", "drumShotgun", "katana"],
+        "abilities": ["dash", "grenade", "smoke"],
+        "abilityKeys": { "dash": "KeyE" }
+      }
+    },
+    {
+      "id": "rooftop-snipers",
+      "label": "Rooftop Snipers",
+      "config": {
+        "hp": 100,
+        "weapons": ["tacticalSniper", "sniper", "melee"],
+        "abilities": ["dash", "radar"],
+        "abilityKeys": { "dash": "KeyE" }
+      }
+    }
+  ],
+  "backdrop": {
+    "shape": "box",
+    "radius": 250,
+    "spacing": 26,
+    "innerMargin": 16,
+    "minHeight": 8,
+    "maxHeight": 54,
+    "seed": 8821,
+    "groundColor": "#33352f",
+    "colors": ["#5b5d62", "#6d6a63", "#4f5359", "#787067", "#5c5650", "#474a4d"]
   }
 }

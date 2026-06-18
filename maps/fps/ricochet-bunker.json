@@ -1,5 +1,17 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 102,
+    "spacing": 18,
+    "innerMargin": 10,
+    "minHeight": 8,
+    "maxHeight": 46,
+    "gapChance": 0.2,
+    "seed": 6612,
+    "groundColor": "#1a1d22",
+    "colors": ["#262a30", "#2e3239", "#21252b", "#1c2026", "#33373d"]
+  },
   "id": "ricochet-bunker",
   "name": "Ricochet Bullseye: Target Bunker",
   "sky": 1777190,

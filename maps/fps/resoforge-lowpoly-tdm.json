@@ -1,5 +1,16 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 220,
+    "spacing": 24,
+    "innerMargin": 20,
+    "minHeight": 12,
+    "maxHeight": 76,
+    "seed": 8123,
+    "ground": false,
+    "colors": ["#16202c", "#1b2735", "#101822", "#22304a", "#202a3a"]
+  },
   "id": "resoforge-lowpoly-tdm",
   "name": "ResoForge Lowpoly TDM",
   "sky": 1054754,

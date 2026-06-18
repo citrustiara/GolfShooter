@@ -11,17 +11,30 @@ function botConfig(id) {
   return weaponConfig(id) || weaponCatalog.pistol || {};
 }
 
+// Solo practice is free-for-all: every player slot that isn't the local human is
+// an AI bot. With N players selected you fight N-1 bots and they fight each other.
 function practiceBotEnabled() {
   return game.phase === "fps"
     && game.role === "solo"
     && !game.connected
-    && game.localIndex === 0
-    && game.playerCount === 2
-    && Boolean(fps.players[PRACTICE_BOT_INDEX]);
+    && game.playerCount >= 2
+    && fps.players.length >= 2;
+}
+
+function isBotIndex(index) {
+  return practiceBotEnabled() && index !== game.localIndex && index >= 0 && index < fps.players.length && Boolean(fps.players[index]);
+}
+
+function botIndexes() {
+  const list = [];
+  for (let i = 0; i < fps.players.length; i++) {
+    if (i !== game.localIndex && fps.players[i]) list.push(i);
+  }
+  return list;
 }
 
 function isPracticeBotPlayer(index) {
-  return index === PRACTICE_BOT_INDEX && Boolean(fps.players[index]?.isPracticeBot);
+  return Boolean(fps.players[index]?.isPracticeBot);
 }
 
 function clearPracticeBots() {
@@ -30,8 +43,9 @@ function clearPracticeBots() {
     if (!player) continue;
     player.isPracticeBot = false;
     player.practiceBot = null;
-    if (player.nickname === "Practice Bot") player.nickname = "";
-    if (game.playerNames?.[i] === "Practice Bot") game.playerNames[i] = `P${i + 1}`;
+    const botNamePattern = /^(Practice Bot|Bot \d+)$/;
+    if (botNamePattern.test(player.nickname || "")) player.nickname = "";
+    if (botNamePattern.test(game.playerNames?.[i] || "")) game.playerNames[i] = `P${i + 1}`;
   }
 }
 
@@ -77,21 +91,19 @@ function switchBotToParryWeapon(bot, state) {
   return true;
 }
 
-function placeBotAtEnemySpawn(bot) {
+function placeBotAtEnemySpawn(bot, index = PRACTICE_BOT_INDEX) {
   const theme = fpsArenaThemes[game.fpsMapIndex] || fpsArenaThemes[0];
   const spawns = getArenaSpawnPoints(theme);
-  const spawn = spawns[PRACTICE_BOT_INDEX] || spawns[1] || spawns[0];
+  const spawn = spawns[index] || spawns[index % Math.max(1, spawns.length)] || spawns[1] || spawns[0];
   if (!spawn) return;
   bot.pos.set(spawn.x, getSpawnY(spawn, theme), spawn.z);
   bot.vel.set(0, 0, 0);
   bot.grounded = false;
   bot.groundSurface = null;
-  const target = fps.players[game.localIndex];
-  if (target) {
-    const look = aimAnglesFromTo(botViewOrigin(bot), playerBodyHitCenter(target));
-    bot.yaw = look.yaw;
-    bot.pitch = look.pitch;
-  }
+  // Face roughly toward the middle of the arena so bots open looking at the fight.
+  const look = aimAnglesFromTo(botViewOrigin(bot), new THREE.Vector3(0, 1.2, 0));
+  bot.yaw = look.yaw;
+  bot.pitch = 0;
   bot.targetPos = bot.pos.clone();
   bot.targetYaw = bot.yaw;
   bot.targetPitch = bot.pitch;
@@ -133,14 +145,8 @@ function chooseBotWeapon(bot, state, targetDistance = 20, force = false) {
   state.switchTimer = wantsGunPeek ? randRange(1.3, 2.8) : randRange(4.5, 8.0);
 }
 
-function resetPracticeBot() {
-  clearPracticeBots();
-  if (!practiceBotEnabled()) return;
-  const bot = fps.players[PRACTICE_BOT_INDEX];
-  bot.isPracticeBot = true;
-  setPlayerName?.(PRACTICE_BOT_INDEX, "Practice Bot");
-  placeBotAtEnemySpawn(bot);
-  bot.practiceBot = {
+function makeBotState(bot) {
+  return {
     moveTimer: 0,
     switchTimer: randRange(2.8, 5.2),
     fireTimer: randRange(1.0, 1.8),
@@ -157,8 +163,19 @@ function resetPracticeBot() {
     lastPosition: bot.pos.clone(),
     guardWasActive: false,
     forceGunAfterMelee: false,
-    forceGunAfterGuard: false
+    forceGunAfterGuard: false,
+    targetIndex: null,
+    targetTimer: 0
   };
+}
+
+function initBot(index) {
+  const bot = fps.players[index];
+  if (!bot) return;
+  bot.isPracticeBot = true;
+  setPlayerName?.(index, `Bot ${index}`);
+  placeBotAtEnemySpawn(bot, index);
+  bot.practiceBot = makeBotState(bot);
   bot.botAmmo = freshAmmoState();
   bot.reloading = false;
   bot.reloadTimer = 0;
@@ -169,6 +186,12 @@ function resetPracticeBot() {
   bot.visualRecoil = 0;
   bot.radarActive = false;
   chooseBotWeapon(bot, bot.practiceBot, 20, true);
+}
+
+function resetPracticeBot() {
+  clearPracticeBots();
+  if (!practiceBotEnabled()) return;
+  for (const index of botIndexes()) initBot(index);
 }
 
 function botViewOrigin(bot) {
@@ -245,7 +268,7 @@ function updateBotAnimationTimers(bot, dt) {
   }
 }
 
-function updateBotGuardState(bot, target, state, visible, distance, dt) {
+function updateBotGuardState(bot, target, targetIndex, state, visible, distance, dt) {
   state.parryThinkTimer -= dt;
   if (state.guardWasActive && !bot.parryGuardActive && (bot.parryGuardCooldown || 0) <= 0) {
     bot.parryGuardCooldown = PARRY_GUARD_COOLDOWN;
@@ -258,7 +281,12 @@ function updateBotGuardState(bot, target, state, visible, distance, dt) {
   if (state.parryThinkTimer > 0 || (bot.parryGuardCooldown || 0) > 0 || (bot.weaponSwapTimer || 0) > 0) return;
   state.parryThinkTimer = randRange(0.32, 0.7);
 
-  const threat = visible && playerAimingAtBot(bot, target) && (input.shootHeld || input.aiming || game.activeWeapon === "gun" || game.activeWeapon === "melee");
+  // A target counts as "aiming a real attack" differently for the human (read
+  // their live input) versus another bot (assume it's always a live combatant).
+  const targetThreatening = targetIndex === game.localIndex
+    ? (input.shootHeld || input.aiming || game.activeWeapon === "gun" || game.activeWeapon === "melee")
+    : true;
+  const threat = visible && playerAimingAtBot(bot, target) && targetThreatening;
   const ambient = visible && distance < 28 && Math.random() < 0.075;
   if (!threat && !ambient) return;
 
@@ -413,17 +441,34 @@ function botFireDelay(weaponId) {
   return base * randRange(1.2, cfg.fireDelay <= 130 ? 2.2 : 1.75) + randRange(0.04, 0.18);
 }
 
-function botApplyDamageToLocal(botIndex, damage, headshot, distance, weaponId) {
-  const target = fps.players[game.localIndex];
+// Applies a bot's hit to ANY victim — the local human or another bot. Feedback is
+// routed by who's involved: the local player gets the damage-taken / killed-by
+// treatment, the local player's own kills get the elimination banner, and
+// bot-on-bot kills only post to the killfeed (no screen flash for fights you
+// aren't in).
+function applyBotShotDamage(targetIndex, attackerIndex, damage, headshot, distance, weaponId) {
+  const target = fps.players[targetIndex];
   if (!target || target.health <= 0 || damage <= 0) return;
+  const isLocalTarget = targetIndex === game.localIndex;
+  const isLocalAttacker = attackerIndex === game.localIndex;
   const wasAlive = target.health > 0;
   target.health = Math.max(0, target.health - damage);
-  markLocalPlayerOnHit?.();
-  showDamageTaken(damage);
+  if (isLocalTarget) {
+    markLocalPlayerOnHit?.();
+    showDamageTaken(damage);
+  } else if (isLocalAttacker) {
+    markEnemyOnHit(targetIndex);
+    const popPos = headshot ? playerHeadHitCenter(target) : playerBodyHitCenter(target).add(new THREE.Vector3(0, 0.5, 0));
+    showDamageDealt(damage, popPos, Boolean(headshot));
+  }
   if (wasAlive && target.health <= 0) {
-    showKilledBy(weaponLabelText(weaponId), { headshot, distance, killerIndex: botIndex });
+    const killDetails = { weaponName: weaponLabelText(weaponId), distance, headshot: Boolean(headshot), killerIndex: attackerIndex, finalKill: aliveFpsPlayerIndexes().length <= 1 };
+    if (isLocalTarget) showKilledBy(weaponLabelText(weaponId), { headshot, distance, killerIndex: attackerIndex });
+    else if (isLocalAttacker) showEliminationNotice(targetIndex, killDetails);
+    else showBattleLogElimination(targetIndex, killDetails);
     const alive = aliveFpsPlayerIndexes();
     if (alive.length === 1) startVictoryLap(alive[0], "deathmatch");
+    else if (alive.length === 0) startVictoryLap(-1, "deathmatch");
   }
   updateHud();
 }
@@ -455,7 +500,7 @@ function applyPracticeBotDamageEntry(entry, parryEvent = null) {
   updateHud();
 }
 
-function botMeleeStrike(bot, botIndex, target, weaponId, state) {
+function botMeleeStrike(bot, botIndex, target, targetIndex, weaponId, state) {
   const cfg = botConfig(weaponId);
   const range = cfg.range || (weaponId === "melee" ? 2.6 : 4.6);
   const origin = botViewOrigin(bot);
@@ -475,7 +520,7 @@ function botMeleeStrike(bot, botIndex, target, weaponId, state) {
   if (distance > range || dir.dot(targetDir) < 0.72 || Math.random() < 0.18) return;
   const headshot = origin.distanceTo(head) < range && dir.dot(head.clone().sub(origin).normalize()) > 0.78 && Math.random() < 0.24;
   const damage = Math.max(12, Math.floor((headshot ? (cfg.damage || 60) * (cfg.crit || 1.25) : (cfg.damage || 45)) * 0.55));
-  if (canPlayerParryShot(game.localIndex, botIndex)) {
+  if (targetIndex === game.localIndex && canPlayerParryShot(game.localIndex, botIndex)) {
     const parry = triggerParryForHit({
       parrierIndex: game.localIndex,
       attackerIndex: botIndex,
@@ -488,10 +533,10 @@ function botMeleeStrike(bot, botIndex, target, weaponId, state) {
     if (parry.damageEntry) applyPracticeBotDamageEntry(parry.damageEntry, parry.event);
     return;
   }
-  botApplyDamageToLocal(botIndex, damage, headshot, distance, weaponId);
+  applyBotShotDamage(targetIndex, botIndex, damage, headshot, distance, weaponId);
 }
 
-function botFireGun(bot, botIndex, target, weaponId, state) {
+function botFireGun(bot, botIndex, target, targetIndex, weaponId, state) {
   const cfg = botConfig(weaponId);
   if (cfg.projectile) return;
   bot.botAmmo ||= freshAmmoState();
@@ -540,7 +585,7 @@ function botFireGun(bot, botIndex, target, weaponId, state) {
     const wallsBefore = countObstaclesBeforeDistance(intersections, meshWallHit, playerHit.distance);
     if (wallsBefore < 2 && (!wallHit || playerHit.distance < wallHit.distance)) {
       len = playerHit.distance;
-      if (canPlayerParryShot(game.localIndex, botIndex)) {
+      if (targetIndex === game.localIndex && canPlayerParryShot(game.localIndex, botIndex)) {
         const parry = triggerParryForHit({
           parrierIndex: game.localIndex,
           attackerIndex: botIndex,
@@ -555,7 +600,7 @@ function botFireGun(bot, botIndex, target, weaponId, state) {
         visualHit = true;
       } else {
         const damage = Math.floor(cfg.damage * (playerHit.headshot ? (cfg.crit || 1) : 1) * (wallsBefore === 1 ? 0.5 : 1) * 0.74);
-        botApplyDamageToLocal(botIndex, damage, playerHit.headshot, playerHit.distance, weaponId);
+        applyBotShotDamage(targetIndex, botIndex, damage, playerHit.headshot, playerHit.distance, weaponId);
         visualHit = true;
       }
     }
@@ -564,7 +609,7 @@ function botFireGun(bot, botIndex, target, weaponId, state) {
   drawLaser(origin, direction, len, visualHit || Boolean(parryEvent), true, weaponId);
 }
 
-function updateBotCombat(bot, botIndex, target, state, visible, distance, dt) {
+function updateBotCombat(bot, botIndex, target, targetIndex, state, visible, distance, dt) {
   state.fireTimer -= dt;
   state.aimDecisionTimer = Math.max(0, (state.aimDecisionTimer || 0) - dt);
   state.aimHoldTimer = Math.max(0, (state.aimHoldTimer || 0) - dt);
@@ -593,38 +638,87 @@ function updateBotCombat(bot, botIndex, target, state, visible, distance, dt) {
   }
 
   if (bot.weapon === "melee" || cfg.meleeAttack) {
-    if (distance < (cfg.range || 4.6) + 0.8) botMeleeStrike(bot, botIndex, target, weaponId, state);
+    if (distance < (cfg.range || 4.6) + 0.8) botMeleeStrike(bot, botIndex, target, targetIndex, weaponId, state);
     else state.fireTimer = randRange(0.25, 0.5);
     return;
   }
-  botFireGun(bot, botIndex, target, weaponId, state);
+  botFireGun(bot, botIndex, target, targetIndex, weaponId, state);
 }
 
-function updatePracticeBot(dt, now = performance.now()) {
-  if (!practiceBotEnabled()) return;
-  const bot = fps.players[PRACTICE_BOT_INDEX];
-  const target = fps.players[game.localIndex];
-  if (!bot?.isPracticeBot || !bot.practiceBot) resetPracticeBot();
-  if (!bot?.isPracticeBot || !bot.practiceBot || !target) return;
+// Each bot fights the nearest living opponent, human or bot alike. The full scan
+// is throttled (~once a second per bot) with a little stickiness so targeting
+// stays cheap and bots don't flip between equidistant enemies every frame.
+function pickBotTarget(bot, botIndex, state, dt) {
+  state.targetTimer = (state.targetTimer || 0) - dt;
+  const current = state.targetIndex;
+  const curP = current != null ? fps.players[current] : null;
+  const curAlive = curP && current !== botIndex && curP.health > 0;
+  if (curAlive && state.targetTimer > 0) return { index: current, player: curP };
+
+  let best = null;
+  let bestScore = Infinity;
+  for (let i = 0; i < fps.players.length; i++) {
+    if (i === botIndex) continue;
+    const p = fps.players[i];
+    if (!p || p.health <= 0) continue;
+    const score = bot.pos.distanceTo(p.pos) + (botCanSeePlayer(bot, p) ? 0 : 45);
+    if (score < bestScore) { bestScore = score; best = { index: i, player: p }; }
+  }
+  state.targetTimer = randRange(0.5, 1.1);
+  if (curAlive && best && best.index !== current) {
+    const curScore = bot.pos.distanceTo(curP.pos) + (botCanSeePlayer(bot, curP) ? 0 : 45);
+    if (!(bestScore + 5 < curScore)) best = { index: current, player: curP };
+  }
+  state.targetIndex = best ? best.index : null;
+  return best;
+}
+
+function updateOneBot(botIndex, dt) {
+  const bot = fps.players[botIndex];
+  if (!bot) return;
+  if (!bot.isPracticeBot) initBot(botIndex);
+  else if (!bot.practiceBot) bot.practiceBot = makeBotState(bot);
   const state = bot.practiceBot;
   updateBotAnimationTimers(bot, dt);
-  if (bot.health <= 0 || target.health <= 0 || game.finalKillCinematicActive) {
+  if (bot.health <= 0 || game.finalKillCinematicActive) {
     bot.aiming = false;
     bot.parryGuardActive = false;
     bot.parryGuardTimer = 0;
     return;
   }
 
+  const picked = pickBotTarget(bot, botIndex, state, dt);
+  if (!picked) {
+    // Last one standing (or everyone else down): coast to a stop and idle.
+    bot.aiming = false;
+    bot.parryGuardActive = false;
+    bot.parryGuardTimer = 0;
+    const damp = Math.pow(0.82, dt * 60);
+    bot.vel.x *= damp;
+    bot.vel.z *= damp;
+    bot.targetPos = bot.pos.clone();
+    bot.targetYaw = bot.yaw;
+    bot.targetPitch = bot.pitch;
+    return;
+  }
+
+  const target = picked.player;
+  const targetIndex = picked.index;
   const distance = bot.pos.distanceTo(target.pos);
   const visible = botCanSeePlayer(bot, target);
   chooseBotWeapon(bot, state, distance);
   updateBotAim(bot, target, state, dt);
-  updateBotGuardState(bot, target, state, visible, distance, dt);
+  updateBotGuardState(bot, target, targetIndex, state, visible, distance, dt);
   updateBotMovement(bot, target, state, visible, dt);
-  updateBotCombat(bot, PRACTICE_BOT_INDEX, target, state, visible, distance, dt);
+  updateBotCombat(bot, botIndex, target, targetIndex, state, visible, distance, dt);
   bot.targetPos = bot.pos.clone();
   bot.targetYaw = bot.yaw;
   bot.targetPitch = bot.pitch;
+}
+
+function updatePracticeBot(dt, now = performance.now()) {
+  if (!practiceBotEnabled()) return;
+  for (const botIndex of botIndexes()) updateOneBot(botIndex, dt);
 }
 
 Object.assign(globalThis, {

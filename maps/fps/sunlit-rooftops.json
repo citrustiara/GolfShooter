@@ -1,5 +1,16 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 175,
+    "spacing": 22,
+    "innerMargin": 12,
+    "minHeight": 12,
+    "maxHeight": 70,
+    "seed": 5519,
+    "groundColor": "#b9b29c",
+    "colors": ["#bfb6a0", "#a7b0b8", "#cbb89a", "#9aa3ab", "#cfc6b2", "#b3a48c"]
+  },
   "id": "sunlit-rooftops",
   "name": "Sunlit Rooftops",
   "sky": 12447743,

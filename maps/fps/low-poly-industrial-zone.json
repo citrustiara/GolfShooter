@@ -1,5 +1,16 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 250,
+    "spacing": 26,
+    "innerMargin": 22,
+    "minHeight": 12,
+    "maxHeight": 80,
+    "seed": 3914,
+    "ground": false,
+    "colors": ["#161b22", "#1c222b", "#11161d", "#242b35", "#2a2118"]
+  },
   "id": "low-poly-industrial-zone",
   "name": "Low Poly Industrial Zone",
   "sky": 725536,

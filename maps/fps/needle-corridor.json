@@ -139,5 +139,38 @@
       "rifle",
       "melee"
     ]
+  },
+  "configPresets": [
+    {
+      "id": "tactical-sniper",
+      "label": "Tactical Sniper",
+      "config": {
+        "hp": 150,
+        "weapons": ["tacticalSniper", "katana"],
+        "abilities": ["dash", "grapple"],
+        "abilityKeys": { "dash": "KeyE", "grapple": "KeyQ" }
+      }
+    },
+    {
+      "id": "explosive-alley",
+      "label": "Explosive Alley",
+      "config": {
+        "hp": 200,
+        "weapons": ["rocket", "grenadeLauncher", "melee"],
+        "abilities": ["dash", "smoke"],
+        "abilityKeys": { "dash": "KeyE" }
+      }
+    }
+  ],
+  "backdrop": {
+    "shape": "box",
+    "radius": 360,
+    "spacing": 24,
+    "innerMargin": 12,
+    "minHeight": 10,
+    "maxHeight": 74,
+    "seed": 4116,
+    "groundColor": "#222a38",
+    "colors": ["#3a4358", "#46506a", "#2f3647", "#515d78", "#394a63", "#2b3242"]
   }
 }

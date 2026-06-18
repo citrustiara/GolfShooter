@@ -233,13 +233,13 @@ function fireProjectileWeapon(cfg) {
     spawnGrenade(origin, vel, true, game.localIndex, options);
     send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, ...options });
   } else if (cfg.projectile === "rocket") {
-    const vel = dir.clone().multiplyScalar(58).add(shooter.vel.clone().multiplyScalar(0.25));
+    const vel = dir.clone().multiplyScalar(92).add(shooter.vel.clone().multiplyScalar(0.25));
     spawnGrenade(origin, vel, true, game.localIndex, { kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
     send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "rocket", weapon: game.primaryWeapon, timer: 4, gravity: 0, damageMultiplier: 1.14, radiusMultiplier: 0.85 });
   } else {
-    const vel = dir.clone().multiplyScalar(54).add(shooter.vel);
-    spawnGrenade(origin, vel, true, game.localIndex, { kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
-    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.82, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
+    const vel = dir.clone().multiplyScalar(84).add(shooter.vel);
+    spawnGrenade(origin, vel, true, game.localIndex, { kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.6, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
+    send({ type: "fpsGrenadeThrow", x: origin.x, y: origin.y, z: origin.z, vx: vel.x, vy: vel.y, vz: vel.z, owner: game.localIndex, kind: "grenadeLauncher", weapon: game.primaryWeapon, timer: 1.65, gravity: GRENADE_GRAVITY * 0.6, damageMultiplier: 0.86, radiusMultiplier: 0.82 });
   }
   updateHud();
 }

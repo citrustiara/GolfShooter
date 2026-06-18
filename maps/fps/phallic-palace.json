@@ -1,5 +1,21 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 245,
+    "spacing": 30,
+    "innerMargin": 16,
+    "minHeight": 8,
+    "maxHeight": 48,
+    "widthMin": 0.7,
+    "widthMax": 1.05,
+    "heightExp": 1.2,
+    "recede": 0.4,
+    "gapChance": 0.18,
+    "seed": 4480,
+    "groundColor": "#caa46a",
+    "colors": ["#cda86d", "#c39a5c", "#d8b87e", "#b98c4e", "#e0c489"]
+  },
   "id": "phallic-palace",
   "name": "Phallic Palace",
   "sky": 16757604,

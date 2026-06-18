@@ -1,5 +1,16 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 175,
+    "spacing": 22,
+    "innerMargin": 14,
+    "minHeight": 10,
+    "maxHeight": 64,
+    "seed": 2207,
+    "groundColor": "#0a1018",
+    "colors": ["#16202c", "#1b2735", "#101822", "#22304a", "#2a1d3a", "#123038"]
+  },
   "id": "neon-depot",
   "name": "Neon Depot",
   "sky": 1054754,

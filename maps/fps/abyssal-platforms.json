@@ -1,5 +1,22 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 180,
+    "spacing": 24,
+    "innerMargin": 16,
+    "minHeight": 70,
+    "maxHeight": 150,
+    "widthMin": 0.4,
+    "widthMax": 0.82,
+    "heightExp": 1.2,
+    "recede": 0.1,
+    "gapChance": 0.3,
+    "baseY": -95,
+    "seed": 9041,
+    "ground": false,
+    "colors": ["#0c1018", "#0f1622", "#0a0f18", "#141d2b", "#0a1420"]
+  },
   "id": "abyssal-platforms",
   "name": "Abyssal Platforms",
   "sky": 527380,

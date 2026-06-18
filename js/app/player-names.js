@@ -12,7 +12,7 @@ function cleanPlayerName(value) {
 }
 
 function fallbackPlayerName(index) {
-  return fps.players[index]?.isPracticeBot ? "Practice Bot" : `P${index + 1}`;
+  return fps.players[index]?.isPracticeBot ? `Bot ${index}` : `P${index + 1}`;
 }
 
 function ensurePlayerNames(count = game.playerCount) {

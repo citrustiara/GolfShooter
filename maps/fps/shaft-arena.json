@@ -1,5 +1,19 @@
 {
   "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 92,
+    "spacing": 16,
+    "innerMargin": 8,
+    "minHeight": 14,
+    "maxHeight": 60,
+    "widthMin": 0.35,
+    "widthMax": 0.7,
+    "gapChance": 0.3,
+    "seed": 1180,
+    "groundColor": "#13161c",
+    "colors": ["#1d222b", "#242a34", "#181d25", "#2b2230", "#202833"]
+  },
   "id": "shaft-arena",
   "name": "Shaft Arena: Reactor Well",
   "sky": 2233890,
