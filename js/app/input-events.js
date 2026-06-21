@@ -12,6 +12,7 @@ let smoothedPerfFps = 0;
 let lastPerfStatsAt = 0;
 let chatMessageSeq = 0;
 let lastPauseOpenedByPointerUnlockAt = 0;
+let suppressFpsMouseInputUntil = 0;
 
 function updatePerfStats(dt, now) {
   updateNetworkPing?.(now);
@@ -85,6 +86,12 @@ function applyPendingMouseLook() {
 function onMouseDown(e) {
   if (game.phase !== "fps" && game.phase !== "fpsVictoryLap") return;
   ensureAudio();
+  if (performance.now() < suppressFpsMouseInputUntil) {
+    input.shootHeld = false;
+    input.aiming = false;
+    cancelParryGuard();
+    return;
+  }
   if (game.finalKillCinematicActive || (game.phase === "fps" && fps.players[game.localIndex]?.health <= 0)) {
     input.shootHeld = false;
     input.aiming = false;
@@ -196,6 +203,25 @@ function requestStandardPointerLock() {
   } catch {}
 }
 function canUsePauseMenu() { return game.phase === "fps" || game.phase === "golf"; }
+function pauseMenuIsOpen() { return canUsePauseMenu() && !settingsPanel.classList.contains("hidden"); }
+function isPauseMenuInteractiveTarget(target) {
+  if (!target) return false;
+  return Boolean(
+    settingsPanel?.contains(target) ||
+    settingsBtn?.contains(target) ||
+    (chatHud?.classList.contains("chat-open") && chatHud.contains(target))
+  );
+}
+function shouldResumeFromPauseBackdrop(e) {
+  return pauseMenuIsOpen() && e.button === 0 && !isPauseMenuInteractiveTarget(e.target);
+}
+function resumeFromPauseBackdrop() {
+  suppressFpsMouseInputUntil = performance.now() + 220;
+  setPauseMenuOpen(false);
+  if (game.phase === "fps" && fps.players[game.localIndex]?.health > 0 && !game.finalKillCinematicActive) {
+    requestPointerLockSafe();
+  }
+}
 function syncAbilityKeySettings() {
   if (!abilityKeySettings || !abilityKeyList) return;
   const show = game.phase === "fps";
@@ -258,6 +284,7 @@ function setPauseMenuOpen(open = true) {
     overlay.classList.remove("fps-pause-open");
     if (document.activeElement === chatInput) chatInput.blur();
   }
+  updateFpsSettingsVisibility();
 }
 function updateFpsSettingsVisibility() {
   const canPause = canUsePauseMenu();
@@ -475,6 +502,11 @@ window.addEventListener("resize", resize);
 // gesture unlocks WebAudio so the menu/lobby music can start.
 document.addEventListener("pointerdown", (e) => {
   ensureAudio();
+  if (shouldResumeFromPauseBackdrop(e)) {
+    e.preventDefault();
+    resumeFromPauseBackdrop();
+    return;
+  }
   if (game.phase === "lobby" || (!game.phase && !menu.classList.contains("hidden")) || game.phase === "menu") startLobbyMusic();
   if (e.target.closest?.("button, .weapon-card, select, input, .map-pill")) playSound("uiClick", { volume: 0.8 });
 });
