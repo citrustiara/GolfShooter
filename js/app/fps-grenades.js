@@ -1,5 +1,12 @@
 import "./globals.js";
 
+const ROCKET_JUMP_SELF_DAMAGE_SCALE = 0.10;
+const ROCKET_JUMP_MAX_SELF_DAMAGE = 16;
+const ROCKET_JUMP_UPWARD_BIAS = 0.85;
+const ROCKET_JUMP_FORCES = { rocket: 36, grenadeLauncher: 29 };
+const ROCKET_JUMP_MAX_HORIZONTAL_SPEED = 56;
+const ROCKET_JUMP_MAX_UPWARD_SPEED = 34;
+
 function updateGrenades(dt) {
   for (let i = world.grenades.length - 1; i >= 0; i--) {
     const g = world.grenades[i];
@@ -220,6 +227,43 @@ function throwSmokeGrenade() {
 
 function grenadeRadius(g) { return GRENADE_SPLASH_RADIUS * (g.radiusMultiplier || 1); }
 function grenadeDamage(g) { return GRENADE_MAX_DAMAGE * (g.damageMultiplier || 1); }
+function isRocketJumpExplosive(g) { return g?.kind === "rocket" || g?.kind === "grenadeLauncher"; }
+function explosiveDamageForTarget(g, targetIndex, dist, radius) {
+  const baseDamage = Math.floor((1.0 - dist / radius) * grenadeDamage(g));
+  if (baseDamage <= 0) return 0;
+  if (isRocketJumpExplosive(g) && targetIndex === g.owner) {
+    return Math.min(ROCKET_JUMP_MAX_SELF_DAMAGE, Math.max(1, Math.floor(baseDamage * ROCKET_JUMP_SELF_DAMAGE_SCALE)));
+  }
+  return baseDamage;
+}
+function applyRocketJumpImpulse(g, pos, dist, radius) {
+  if (!isRocketJumpExplosive(g) || g.owner !== game.localIndex || dist >= radius) return;
+  const player = fps.players[game.localIndex];
+  if (!player || player.health <= 0) return;
+  const falloff = Math.sqrt(Math.max(0, 1 - dist / radius));
+  if (falloff <= 0) return;
+  const center = player.pos.clone().add(new THREE.Vector3(0, 0.72, 0));
+  const dir = center.sub(pos);
+  if (dir.lengthSq() < 0.0001) dir.set(0, 1, 0);
+  else dir.normalize();
+  dir.y = Math.max(dir.y + ROCKET_JUMP_UPWARD_BIAS, 0.45);
+  dir.normalize();
+  const force = (ROCKET_JUMP_FORCES[g.kind] || ROCKET_JUMP_FORCES.rocket) * falloff;
+  const previousHorizontalSpeed = Math.hypot(player.vel.x, player.vel.z);
+  const previousY = player.vel.y;
+  player.vel.addScaledVector(dir, force);
+  player.grounded = false;
+  const horizontalSpeed = Math.hypot(player.vel.x, player.vel.z);
+  if (horizontalSpeed > ROCKET_JUMP_MAX_HORIZONTAL_SPEED && horizontalSpeed > previousHorizontalSpeed) {
+    const targetSpeed = Math.max(previousHorizontalSpeed, ROCKET_JUMP_MAX_HORIZONTAL_SPEED);
+    const scale = targetSpeed / horizontalSpeed;
+    player.vel.x *= scale;
+    player.vel.z *= scale;
+  }
+  if (player.vel.y > ROCKET_JUMP_MAX_UPWARD_SPEED && player.vel.y > previousY) {
+    player.vel.y = Math.max(previousY, ROCKET_JUMP_MAX_UPWARD_SPEED);
+  }
+}
 function explosiveWeaponLabel(g) { if (g.weaponName) return g.weaponName; if (g.weapon && weaponCatalog[g.weapon]) return weaponLabelText(g.weapon); if (g.kind === "rocket") return "Rocket Launcher"; if (g.kind === "grenadeLauncher") return "Grenade Launcher"; return "Grenade"; }
 function projectileHitObstacle(g) { if (g.kind !== "rocket" && g.kind !== "grenadeLauncher") return false; const radius = g.kind === "grenadeLauncher" ? 0.32 : 0.26; const b = new THREE.Box3(); for (const obs of world.obstacles) { b.setFromObject(obs); if (b.distanceToPoint(g.mesh.position) < radius) return true; } return sphereIntersectsTriangleMeshColliders(world.meshColliders, g.mesh.position, radius); }
 function projectileHitPlayer(g) {
@@ -241,7 +285,7 @@ function explodeGrenade(g) {
     const dist = pos.distanceTo(target.pos.clone().add(new THREE.Vector3(0, 0.72, 0)));
     const radius = grenadeRadius(g);
     if (dist < radius && target.health > 0) {
-      const dmg = Math.floor((1.0 - dist / radius) * grenadeDamage(g));
+      const dmg = explosiveDamageForTarget(g, i, dist, radius);
       if (dmg > 0) {
         const killDistance = ownerPos ? ownerPos.distanceTo(target.pos) : dist;
         const damageEntry = { target: i, damage: dmg, headshot: false, distance: killDistance, weaponName, killed: false };
@@ -255,6 +299,7 @@ function explodeGrenade(g) {
           if (g.owner !== game.localIndex) markLocalPlayerOnHit?.();
           showDamageTaken(dmg);
         }
+        if (i === g.owner && i === game.localIndex && isRocketJumpExplosive(g) && target.health > 0) applyRocketJumpImpulse(g, pos, dist, radius);
         if (damageEntry.killed && i !== game.localIndex && g.owner === game.localIndex) {
           const aliveAfterKill = aliveFpsPlayerIndexes();
           const cinematicKill = aliveAfterKill.length === 1 && aliveAfterKill[0] === g.owner && willFpsKillWinMapOrMatch(g.owner);
