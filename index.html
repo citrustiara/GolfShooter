@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
-  <link rel="stylesheet" href="css/style.css?v=12" />
+  <link rel="stylesheet" href="css/style.css?v=13" />
   <script type="importmap">
     {
       "imports": {
@@ -91,7 +91,15 @@
           <span class="ability-icon">🪝</span>
         </div>
       </div>
-      <div class="chip hidden" id="healthChip">Health<strong id="healthText">100</strong></div>
+      <div class="health-chip hidden" id="healthChip" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+        <div class="health-chip-top">
+          <span class="health-chip-label">HP</span>
+          <strong id="healthText">100</strong>
+        </div>
+        <div class="health-bar-track" aria-hidden="true">
+          <div class="health-bar-fill"></div>
+        </div>
+      </div>
       <div class="chip hidden" id="weaponChip">Weapon<strong id="weaponText">Gun</strong></div>
       <div class="chip hidden" id="ammoChip">Ammo<strong id="ammoText">7 / 7</strong></div>
     </div>
@@ -355,6 +363,6 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=11"></script>
+  <script type="module" src="js/main.js?v=12"></script>
 </body>
 </html>

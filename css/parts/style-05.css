@@ -280,6 +280,26 @@ select {
     padding: 8px 12px 10px;
   }
 
+  #healthChip {
+    bottom: 24px;
+    width: clamp(190px, 54vw, 270px);
+    padding: 6px 8px 8px;
+  }
+
+  #healthChip.ads {
+    bottom: 18px;
+    width: clamp(138px, 42vw, 210px);
+    opacity: 0.52;
+  }
+
+  .health-bar-track {
+    height: 10px;
+  }
+
+  #healthChip.ads .health-bar-track {
+    height: 6px;
+  }
+
   .ability-container {
     gap: 6px;
     max-width: calc(100vw - 24px);

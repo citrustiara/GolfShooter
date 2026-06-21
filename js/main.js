@@ -13,7 +13,7 @@ await import("./app/fps-grapple.js?v=2");
 await import("./app/fps-parry.js");
 await import("./app/fps-bot.js");
 await import("./app/match-results.js");
-await import("./app/hud-weapons.js?v=2");
+await import("./app/hud-weapons.js?v=3");
 await import("./app/fps-network-state.js");
 await import("./app/input-events.js?v=8");
 await import("./app/notices-content.js");

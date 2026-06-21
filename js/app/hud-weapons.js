@@ -7,7 +7,23 @@ function updateHud() {
   turnLabel.textContent = isFps ? "Rounds" : "Turn";
   strokeLabel.textContent = isFps ? "Maps" : "Strokes";
   holeText.textContent = isFps ? `${rules.currentMapSlot + 1}/${rules.mapCount}` : `${game.holeIndex + 1}`; turnText.textContent = isFps ? `${formatScores(game.fpsKillWins)} / ${rules.roundsPerMap}` : (game.role === "solo" ? "Solo" : playerDisplayName(game.localIndex, `P${game.localIndex + 1}`)); strokeText.textContent = isFps ? formatScores(game.fpsMapWins) : (game.role === "solo" ? `${totals[0]}` : formatScores(totals));
-  healthChip.classList.toggle("hidden", !isFps); healthText.textContent = `${Math.ceil(fps.players[game.localIndex].health)}`; abilityContainer.classList.toggle("hidden", !isFps);
+  healthChip.classList.toggle("hidden", !isFps);
+  if (isFps) {
+    const localPlayer = fps.players[game.localIndex] || {};
+    const maxHealth = Math.max(1, Number(localPlayer.maxHealth || game.maxHealth || 100));
+    const health = Math.max(0, Math.min(maxHealth, Number(localPlayer.health) || 0));
+    const healthPct = Math.max(0, Math.min(1, health / maxHealth));
+    const healthHue = Math.round(healthPct * 118);
+    healthText.textContent = `${Math.ceil(health)}`;
+    healthChip.style.setProperty("--health-pct", `${healthPct * 100}%`);
+    healthChip.style.setProperty("--health-color", `hsl(${healthHue}, 90%, 52%)`);
+    healthChip.setAttribute("aria-valuemax", `${Math.ceil(maxHealth)}`);
+    healthChip.setAttribute("aria-valuenow", `${Math.ceil(health)}`);
+    healthChip.classList.toggle("ads", Boolean(input.aiming && game.activeWeapon === "gun" && !game.parryGuardActive));
+  } else {
+    healthChip.classList.remove("ads");
+  }
+  abilityContainer.classList.toggle("hidden", !isFps);
   if (isFps) {
     for (const [name, id] of [["jump", "#jumpAbility"], ["heal", "#healAbility"], ["radar", "#radarAbility"], ["grenade", "#grenadeAbility"], ["smoke", "#smokeAbility"], ["jetpack", "#jetpackAbility"], ["dash", "#dashAbility"], ["grapple", "#grappleAbility"]]) {
       const el = document.querySelector(id);
