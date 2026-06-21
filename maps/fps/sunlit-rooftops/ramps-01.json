@@ -55,17 +55,6 @@
     "color": 8421504
   },
   {
-    "name": "se-east-ramp",
-    "x": 24.75,
-    "y": 16,
-    "z": 10,
-    "width": 4,
-    "length": 12,
-    "height": 6,
-    "rot": 0,
-    "color": 12756605
-  },
-  {
     "name": "west-north-ramp-1",
     "x": 6,
     "y": 12,
@@ -89,9 +78,9 @@
   },
   {
     "name": "west-north-ramp-1",
-    "x": 24.75,
-    "y": 16,
-    "z": 22,
+    "x": -35.5,
+    "y": 12.75,
+    "z": 23.25,
     "width": 4,
     "length": 12,
     "height": 6,
@@ -99,13 +88,13 @@
     "color": 12756605
   },
   {
-    "name": "west-north-ramp-1",
-    "x": -35.5,
-    "y": 12.75,
-    "z": 23.25,
+    "name": "east-ne-annex-ramp",
+    "x": 38,
+    "y": 16,
+    "z": -24.5,
     "width": 4,
-    "length": 12,
-    "height": 6,
+    "length": 6,
+    "height": 2.7,
     "rot": 3.142,
     "color": 12756605
   }

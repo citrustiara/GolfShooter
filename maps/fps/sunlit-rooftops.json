@@ -103,17 +103,6 @@
       "color": 8421504
     },
     {
-      "name": "se-east-ramp",
-      "x": 24.75,
-      "y": 16,
-      "z": 10,
-      "width": 4,
-      "length": 12,
-      "height": 6,
-      "rot": 0,
-      "color": 12756605
-    },
-    {
       "name": "west-north-ramp-1",
       "x": 6,
       "y": 12,
@@ -137,17 +126,6 @@
     },
     {
       "name": "west-north-ramp-1",
-      "x": 24.75,
-      "y": 16,
-      "z": 22,
-      "width": 4,
-      "length": 12,
-      "height": 6,
-      "rot": 3.142,
-      "color": 12756605
-    },
-    {
-      "name": "west-north-ramp-1",
       "x": -35.5,
       "y": 12.75,
       "z": 23.25,
@@ -156,10 +134,182 @@
       "height": 6,
       "rot": 3.142,
       "color": 12756605
+    },
+    {
+      "name": "east-ne-annex-ramp",
+      "x": 38,
+      "y": 16,
+      "z": -24.5,
+      "width": 4,
+      "length": 6,
+      "height": 2.7,
+      "rot": 3.142,
+      "color": 12756605
     }
   ],
   "collision": [],
-  "decor": [],
+  "decor": [
+    {
+      "name": "catwalk-rail-w",
+      "x": 22.7,
+      "y": 22.2,
+      "z": 15.5,
+      "sx": 0.14,
+      "sy": 0.9,
+      "sz": 32,
+      "color": 7370109
+    },
+    {
+      "name": "catwalk-rail-e",
+      "x": 27.3,
+      "y": 22.2,
+      "z": 15.5,
+      "sx": 0.14,
+      "sy": 0.9,
+      "sz": 32,
+      "color": 7370109
+    },
+    {
+      "name": "crane-spreader",
+      "x": 24.8,
+      "y": 40,
+      "z": 15.5,
+      "sx": 0.5,
+      "sy": 0.5,
+      "sz": 31,
+      "color": 4473928
+    },
+    {
+      "name": "crane-cable-1",
+      "x": 23.6,
+      "y": 22.2,
+      "z": 3,
+      "sx": 0.18,
+      "sy": 17.8,
+      "sz": 0.18,
+      "color": 3355443
+    },
+    {
+      "name": "crane-cable-2",
+      "x": 26,
+      "y": 22.2,
+      "z": 3,
+      "sx": 0.18,
+      "sy": 17.8,
+      "sz": 0.18,
+      "color": 3355443
+    },
+    {
+      "name": "crane-cable-3",
+      "x": 23.6,
+      "y": 22.2,
+      "z": 28,
+      "sx": 0.18,
+      "sy": 17.8,
+      "sz": 0.18,
+      "color": 3355443
+    },
+    {
+      "name": "crane-cable-4",
+      "x": 26,
+      "y": 22.2,
+      "z": 28,
+      "sx": 0.18,
+      "sy": 17.8,
+      "sz": 0.18,
+      "color": 3355443
+    },
+    {
+      "name": "crane-cable-center",
+      "x": 24.8,
+      "y": 22.2,
+      "z": 16,
+      "sx": 0.18,
+      "sy": 17.8,
+      "sz": 0.18,
+      "color": 3355443
+    },
+    {
+      "name": "crane-hook",
+      "x": 24.8,
+      "y": 22.2,
+      "z": 16,
+      "sx": 0.9,
+      "sy": 1,
+      "sz": 0.9,
+      "color": 2960685
+    },
+    {
+      "name": "billboard-post-1",
+      "x": 35.5,
+      "y": 16,
+      "z": -13,
+      "sx": 0.5,
+      "sy": 7,
+      "sz": 0.5,
+      "color": 3355443
+    },
+    {
+      "name": "billboard-post-2",
+      "x": 35.5,
+      "y": 16,
+      "z": -7,
+      "sx": 0.5,
+      "sy": 7,
+      "sz": 0.5,
+      "color": 3355443
+    },
+    {
+      "name": "billboard-panel",
+      "x": 35.3,
+      "y": 22.5,
+      "z": -10,
+      "sx": 0.4,
+      "sy": 4,
+      "sz": 8,
+      "color": 12604735
+    },
+    {
+      "name": "west-tank-lid",
+      "x": -46,
+      "y": 23.4,
+      "z": 5,
+      "sx": 3.2,
+      "sy": 0.5,
+      "sz": 3.2,
+      "color": 7370109
+    },
+    {
+      "name": "center-antenna",
+      "x": 2.5,
+      "y": 31,
+      "z": 2.5,
+      "sx": 0.3,
+      "sy": 6,
+      "sz": 0.3,
+      "color": 3355443
+    },
+    {
+      "name": "center-antenna-light",
+      "x": 2.5,
+      "y": 37,
+      "z": 2.5,
+      "sx": 0.5,
+      "sy": 0.5,
+      "sz": 0.5,
+      "color": 16711680
+    },
+    {
+      "name": "ne-annex-antenna",
+      "x": 33,
+      "y": 21.7,
+      "z": -30,
+      "sx": 0.3,
+      "sy": 5,
+      "sz": 0.3,
+      "color": 3355443
+    }
+  ],
   "assets": [],
   "shape": "l",
   "config": {
