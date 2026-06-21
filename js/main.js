@@ -9,7 +9,7 @@ await import("./app/fps-frame.js");
 await import("./app/fps-movement.js");
 await import("./app/fps-combat.js");
 await import("./app/fps-grenades.js");
-await import("./app/fps-grapple.js");
+await import("./app/fps-grapple.js?v=2");
 await import("./app/fps-parry.js");
 await import("./app/fps-bot.js");
 await import("./app/match-results.js");

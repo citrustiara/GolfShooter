@@ -234,6 +234,7 @@ function hideFpsHudUi() {
   if (crosshairEl) crosshairEl.style.opacity = "";
   enemyBoxLayer?.replaceChildren();
   grappleLockBox?.classList.add("hidden");
+  globalThis.setGrappleReticle?.(false, { resetPosition: true });
   if (healVignette) healVignette.style.opacity = "0";
   input.shootHeld = false;
   input.aiming = false;

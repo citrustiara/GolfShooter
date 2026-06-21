@@ -84,80 +84,55 @@
   box-shadow: 0 0 0 1px rgba(14, 14, 17, 0.6);
 }
 
-/* Grapple-target reticle: a faint ring + corner ticks that fades in around the
-   crosshair when the player is aiming at something the grapple hook can grab.
-   Turns red when the target is an enemy (a grapple-kill pull is available). */
+/* Grapple-target reticle: one unobtrusive circle. It stays white at the
+   crosshair for hookable surfaces, then quickly snaps to a locked enemy in red. */
 .grapple-reticle {
+  --grapple-reticle-color: rgba(245, 250, 255, 0.72);
+  --grapple-reticle-glow: rgba(245, 250, 255, 0.42);
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 9;
-  border: 1.5px solid rgba(238, 244, 250, 0.5);
-  border-radius: 50%;
-  box-shadow: 0 0 5px rgba(238, 244, 250, 0.35), inset 0 0 4px rgba(238, 244, 250, 0.22);
+  border: 2px solid var(--grapple-reticle-color);
+  border-radius: 50% !important;
+  background: transparent;
+  box-shadow: 0 0 8px var(--grapple-reticle-glow), inset 0 0 5px rgba(245, 250, 255, 0.22);
   opacity: 0;
-  transition: opacity 90ms ease, width 90ms ease, height 90ms ease, border-color 90ms ease;
+  transition:
+    opacity 70ms ease,
+    left 85ms cubic-bezier(0.2, 0.9, 0.25, 1),
+    top 85ms cubic-bezier(0.2, 0.9, 0.25, 1),
+    border-color 70ms ease,
+    box-shadow 70ms ease;
+  will-change: left, top, opacity;
 }
 
 .grapple-reticle.active {
-  opacity: 0.85;
-  width: 26px;
-  height: 26px;
+  opacity: 0.96;
 }
 
-/* Four faint corner ticks just outside the ring. */
 .grapple-reticle::before,
 .grapple-reticle::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 1.5px dashed currentColor;
-  color: rgba(238, 244, 250, 0.4);
-  opacity: 0;
-  transition: opacity 90ms ease;
+  content: none;
+  display: none;
 }
-
-.grapple-reticle.active::before { opacity: 0.55; }
 
 .grapple-reticle.enemy {
-  border-color: rgba(255, 56, 56, 0.92);
-  box-shadow: 0 0 8px rgba(255, 30, 30, 0.55), inset 0 0 5px rgba(255, 30, 30, 0.3);
+  --grapple-reticle-color: rgba(255, 45, 45, 0.95);
+  --grapple-reticle-glow: rgba(255, 30, 30, 0.62);
+  box-shadow: 0 0 11px var(--grapple-reticle-glow), inset 0 0 6px rgba(255, 30, 30, 0.32);
 }
-
-.grapple-reticle.enemy::before { color: rgba(255, 56, 56, 0.6); }
 
 .grapple-reticle.hidden { display: none; }
 
-/* Grapple lock-on: a bold red bracket box that snaps onto the acquired enemy,
-   moving the "enemy" cue off the crosshair and onto the target itself. */
+/* The old grapple lock box is intentionally disabled; lock-on uses the same
+   circular reticle as the crosshair cue, tinted red and moved to the enemy. */
 .grapple-lock-box {
-  position: absolute;
-  z-index: 9;
-  pointer-events: none;
-  border: 2px solid rgba(255, 42, 42, 0.95);
-  box-shadow: 0 0 12px rgba(255, 30, 30, 0.6), inset 0 0 8px rgba(255, 30, 30, 0.3);
-  animation: grapple-lock-pulse 0.7s ease-in-out infinite;
-}
-.grapple-lock-box::before,
-.grapple-lock-box::after {
-  content: "";
-  position: absolute;
-  width: 11px;
-  height: 11px;
-  border: 3px solid rgba(255, 42, 42, 0.95);
-}
-.grapple-lock-box::before { top: -4px; left: -4px; border-right: none; border-bottom: none; }
-.grapple-lock-box::after { bottom: -4px; right: -4px; border-left: none; border-top: none; }
-.grapple-lock-box.hidden { display: none; }
-
-@keyframes grapple-lock-pulse {
-  0%, 100% { opacity: 0.78; }
-  50% { opacity: 1; }
+  display: none !important;
 }
 
 .reload-progress {
@@ -688,6 +663,7 @@
 .overlay.final-kill-running #damageLayer,
 .overlay.final-kill-running #enemyBoxLayer,
 .overlay.final-kill-running .grapple-lock-box,
+.overlay.final-kill-running .grapple-reticle,
 .overlay.final-kill-running .spectate-banner,
 .overlay.final-kill-running .fps-scoreboard {
   opacity: 0 !important;

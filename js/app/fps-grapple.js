@@ -168,25 +168,51 @@ function grappleHitPlayer(index, damage = GRAPPLE_PLAYER_DAMAGE) {
   }
   updateHud();
 }
-// Faint ring around the crosshair when the player is looking at something the
-// grapple hook can grab; it turns red when that something is an enemy player.
+function grappleReticleCenter() {
+  return { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
+}
+
+function grappleReticleScreenPoint(point) {
+  if (!point) return null;
+  const viewDir = directionFromAngles(input.yaw, input.pitch);
+  if (point.clone().sub(camera.position).dot(viewDir) < 0.2) return null;
+  const screen = toScreen(point);
+  if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) return null;
+  return screen;
+}
+
+function setGrappleReticle(active, { enemy = false, point = null, resetPosition = false } = {}) {
+  if (!grappleReticle) return;
+  if (active || resetPosition) {
+    const screen = active && point ? (grappleReticleScreenPoint(point) || grappleReticleCenter()) : grappleReticleCenter();
+    grappleReticle.style.left = `${screen.x}px`;
+    grappleReticle.style.top = `${screen.y}px`;
+  }
+  grappleReticle.classList.toggle("active", Boolean(active));
+  grappleReticle.classList.toggle("enemy", Boolean(active && enemy));
+}
+
+// Single grapple cue: a white ring at the crosshair for hookable surfaces, or
+// the same ring snapped onto the locked enemy and tinted red. No lock boxes.
 function updateGrappleReticle() {
   if (!grappleReticle) return;
   const ready = game.phase === "fps" && game.countdown <= 0 && game.radarTimer <= 0
     && fps.players[game.localIndex]?.health > 0
     && abilityAllowed("grapple") && !game.grapple?.active
     && game.grappleCharges > 0 && game.grappleGapTimer <= 0;
-  if (!ready) { grappleReticle.classList.remove("active", "enemy"); setGrappleLockBox(null); return; }
+  if (!ready) { setGrappleReticle(false); setGrappleLockBox(null); return; }
   const p = fps.players[game.localIndex];
   const origin = new THREE.Vector3(p.pos.x, p.pos.y + (p.currentCamHeight || 1.58), p.pos.z);
   const dir = directionFromAngles(input.yaw, input.pitch).normalize();
   const lock = findGrappleLockTarget(origin, dir);
-  const target = lock ? null : findGrappleTarget(origin, dir);
-  grappleReticle.classList.toggle("active", Boolean(lock || target));
-  // The red enemy cue now lives on the locked enemy (a box around them), so the
-  // crosshair ring stays neutral whenever a lock is held.
-  grappleReticle.classList.remove("enemy");
-  setGrappleLockBox(lock ? fps.players[lock.index] : null);
+  if (lock) {
+    setGrappleReticle(true, { enemy: true, point: lock.point });
+    setGrappleLockBox(null);
+    return;
+  }
+  const target = findGrappleTarget(origin, dir);
+  setGrappleReticle(Boolean(target));
+  setGrappleLockBox(null);
 }
 // Screen-space bounding rect of an enemy's hitbox, or null if off-screen/behind.
 function enemyScreenRect(player) {
@@ -209,16 +235,9 @@ function enemyScreenRect(player) {
   if (behind || !Number.isFinite(minX)) return null;
   return { left: minX, top: minY, width: Math.max(8, maxX - minX), height: Math.max(8, maxY - minY) };
 }
-// Red lock-on box drawn around the enemy the grapple has acquired.
-function setGrappleLockBox(player) {
-  if (!grappleLockBox) return;
-  const rect = player ? enemyScreenRect(player) : null;
-  if (!rect) { grappleLockBox.classList.add("hidden"); return; }
-  grappleLockBox.style.left = `${rect.left}px`;
-  grappleLockBox.style.top = `${rect.top}px`;
-  grappleLockBox.style.width = `${rect.width}px`;
-  grappleLockBox.style.height = `${rect.height}px`;
-  grappleLockBox.classList.remove("hidden");
+// Legacy hook for old callers: lock-on now uses the moving grapple reticle only.
+function setGrappleLockBox() {
+  grappleLockBox?.classList.add("hidden");
 }
 function releaseGrapple() {
   game.grapple = null;
@@ -264,6 +283,7 @@ Object.assign(globalThis, {
   tryParryGrappleTarget,
   activateGrappleAbility,
   grappleHitPlayer,
+  setGrappleReticle,
   updateGrappleReticle,
   enemyScreenRect,
   setGrappleLockBox,
