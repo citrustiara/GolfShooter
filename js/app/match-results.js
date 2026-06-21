@@ -142,20 +142,19 @@ function hideDefeatScreen() {
 }
 // Cinematic defeat card for the player who loses the match — the dark, red-tinted
 // counterpart to the winner's TARGET EXECUTED screen. Reports what killed them and
-// offers the only way out: back to the lobby (host) or a wait note (guest).
+// offers post-match actions for both host and guests.
 function showDefeatScreen(reason) {
   if (!defeatOverlay) return false;
   // Shown the instant the match is lost; if it's already up (e.g. finishMatch
   // re-asserting it after the lap) don't replay the punch-in.
   if (defeatOverlay.classList.contains("revealed") && !defeatOverlay.classList.contains("hidden")) return true;
-  const guest = game.role === "guest";
   document.exitPointerLock?.();
   input.shootHeld = false; input.aiming = false; input.pointerLocked = false;
   if (defeatKilledByEl) defeatKilledByEl.textContent = defeatKilledByText().toUpperCase();
   if (defeatStatusEl) defeatStatusEl.textContent = reason === "deathmatch" && game.fpsMapWins?.length ? `MAPS ${formatScores(game.fpsMapWins)}` : "";
   if (defeatHostNote) {
-    defeatHostNote.classList.toggle("hidden", !guest);
-    defeatHostNote.textContent = guest ? "Choices route through the host." : "";
+    defeatHostNote.classList.add("hidden");
+    defeatHostNote.textContent = "";
   }
   defeatOverlay.classList.remove("hidden");
   defeatOverlay.setAttribute("aria-hidden", "false");

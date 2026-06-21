@@ -5,8 +5,13 @@ const PERF_STATS_UPDATE_MS = 250;
 const MOUSE_FIX_STORAGE_KEY = "golfDuelMouseFix";
 const MOUSE_STALE_EVENT_MS = 80;
 const MOUSE_FRAME_DELTA_LIMIT = 900;
+const GOLF_MOUSE_FIX_DRAG_LIMIT_FACTOR = 1.25;
+const CHAT_MAX_LENGTH = 120;
+const CHAT_MAX_MESSAGES = 7;
 let smoothedPerfFps = 0;
 let lastPerfStatsAt = 0;
+let chatMessageSeq = 0;
+let lastPauseOpenedByPointerUnlockAt = 0;
 
 function updatePerfStats(dt, now) {
   updateNetworkPing?.(now);
@@ -127,7 +132,10 @@ function pointerGroundPoint(e) {
   return raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.53), point) ? point : null;
 }
 function updateGolfDragAim(e) {
-  const dx = e.clientX - game.dragStart.x;
+  if (input.mouseFixEnabled && mouseEventAgeMs(e, performance.now()) > MOUSE_STALE_EVENT_MS) return;
+  const rawDx = e.clientX - game.dragStart.x;
+  const maxFixedDx = Math.max(window.innerWidth, window.innerHeight, 1) * GOLF_MOUSE_FIX_DRAG_LIMIT_FACTOR;
+  const dx = input.mouseFixEnabled ? Math.max(-maxFixedDx, Math.min(maxFixedDx, rawDx)) : rawDx;
   
   if (canControlGolf()) {
     const ballScreen = toScreen(world.ball.position.clone().setY(golfBallSurfaceY()));
@@ -146,7 +154,7 @@ function updateGolfDragAim(e) {
   game.golfShotDir.set(Math.cos(game.aimAngle), 0, Math.sin(game.aimAngle));
 }
 function onPointerDown(e) {
-  if (game.phase === "golf" && e.button !== 2) {
+  if (game.phase === "golf" && e.button !== 2 && e.target === canvas && settingsPanel.classList.contains("hidden")) {
     settingsBtn.classList.add("hidden");
     settingsPanel.classList.add("hidden");
     game.dragging = true;
@@ -224,7 +232,8 @@ function setPauseMenuOpen(open = true) {
   if (!canUsePauseMenu()) return;
   const shouldOpen = Boolean(open);
   settingsPanel.classList.toggle("hidden", !shouldOpen);
-  overlay.classList.toggle("fps-pause-open", shouldOpen && game.phase === "fps");
+  overlay.classList.toggle("fps-pause-open", shouldOpen);
+  syncChatInputVisibility(shouldOpen);
   if (shouldOpen) {
     if (game.phase === "fps") {
       if (game.parryGuardActive) endParryGuard(true);
@@ -233,10 +242,21 @@ function setPauseMenuOpen(open = true) {
     }
     input.aiming = false;
     input.shootHeld = false;
+    input.keys.clear();
+    resetPendingMouseLook();
+    if (game.phase === "golf") {
+      game.aimPower = 0;
+      input.golfChargeDir = 1;
+      powerFill.style.width = "0%";
+      if (world.golfAimArrow) world.golfAimArrow.visible = false;
+      shotArrow.classList.add("hidden");
+    }
     game.dragging = false;
     syncAbilityKeySettings();
+    focusChatInputSoon();
   } else {
     overlay.classList.remove("fps-pause-open");
+    if (document.activeElement === chatInput) chatInput.blur();
   }
 }
 function updateFpsSettingsVisibility() {
@@ -246,9 +266,14 @@ function updateFpsSettingsVisibility() {
   if (!canPause || (game.phase === "fps" && input.pointerLocked)) {
     settingsPanel.classList.add("hidden");
     overlay.classList.remove("fps-pause-open");
+    syncChatInputVisibility(false);
   } else if (!settingsPanel.classList.contains("hidden")) {
-    overlay.classList.toggle("fps-pause-open", game.phase === "fps");
+    overlay.classList.add("fps-pause-open");
     syncAbilityKeySettings();
+    syncChatInputVisibility(true);
+  } else {
+    overlay.classList.remove("fps-pause-open");
+    syncChatInputVisibility(false);
   }
   if (canPause && game.phase === "fps" && !input.pointerLocked) {
     if (game.parryGuardActive) endParryGuard(true);
@@ -273,6 +298,87 @@ function syncMouseFix(enabled, persist = true) {
   try {
     localStorage.setItem(MOUSE_FIX_STORAGE_KEY, input.mouseFixEnabled ? "1" : "0");
   } catch {}
+}
+function cleanChatText(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f<>`{}[\]\\|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, CHAT_MAX_LENGTH);
+}
+function isTextEntryTarget(target) {
+  if (!target) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+function chatSenderName(player = game.localIndex) {
+  const cleaned = cleanPlayerName?.(game.playerNames?.[player] || fps.players?.[player]?.nickname || "") || "";
+  return cleaned || playerDisplayName?.(player, `P${player + 1}`) || `P${player + 1}`;
+}
+function appendChatMessage({ player = -1, name = "", text = "", local = false } = {}) {
+  if (!chatLog) return;
+  if (canUsePauseMenu()) chatHud?.classList.remove("hidden");
+  const cleanText = cleanChatText(text);
+  if (!cleanText) return;
+  const row = document.createElement("div");
+  row.className = `chat-message${local ? " local" : ""}`;
+  const who = document.createElement("span");
+  who.className = "chat-name";
+  const playerIndex = Number.isInteger(player) ? player : -1;
+  who.textContent = `${cleanPlayerName?.(name) || chatSenderName(playerIndex >= 0 ? playerIndex : game.localIndex)}:`;
+  const body = document.createElement("span");
+  body.className = "chat-text";
+  body.textContent = cleanText;
+  row.append(who, body);
+  chatLog.appendChild(row);
+  while (chatLog.children.length > CHAT_MAX_MESSAGES) chatLog.removeChild(chatLog.firstElementChild);
+  setTimeout(() => {
+    if (!row.isConnected) return;
+    row.classList.add("expired");
+    setTimeout(() => row.remove(), 260);
+  }, 10000);
+}
+function showChatMessage(message = {}) {
+  appendChatMessage({
+    player: Number.isInteger(message.player) ? message.player : -1,
+    name: message.name,
+    text: message.text,
+    local: Boolean(message.local)
+  });
+}
+function sendChatMessage(value = chatInput?.value) {
+  const text = cleanChatText(value);
+  if (!text) return false;
+  const player = Number.isInteger(game.localIndex) ? game.localIndex : 0;
+  const name = syncLocalPlayerNameFromUi?.() || chatSenderName(player);
+  const payload = {
+    type: "chat",
+    id: `${Date.now().toString(36)}-${player}-${++chatMessageSeq}`,
+    player,
+    name,
+    text
+  };
+  showChatMessage({ ...payload, local: true });
+  if (game.connected || game.role === "host") send(payload);
+  if (chatInput) chatInput.value = "";
+  return true;
+}
+function syncChatInputVisibility(open = false) {
+  const inGame = canUsePauseMenu();
+  const show = Boolean(open && inGame);
+  chatHud?.classList.toggle("hidden", !inGame);
+  chatHud?.classList.toggle("chat-open", show);
+  chatForm?.classList.toggle("hidden", !show);
+  if (!show && document.activeElement === chatInput) chatInput.blur();
+}
+function focusChatInputSoon() {
+  if (!chatInput || !chatForm || chatForm.classList.contains("hidden")) return;
+  setTimeout(() => {
+    if (canUsePauseMenu() && !settingsPanel.classList.contains("hidden") && !chatForm.classList.contains("hidden")) {
+      chatInput.focus({ preventScroll: true });
+    }
+  }, 0);
 }
 function codeFromKeyEvent(e) { if (e.code) return e.code; const k = e.key || ""; if (k === " ") return "Space"; if (k.startsWith("Arrow")) return k; if (/^[a-z]$/i.test(k)) return `Key${k.toUpperCase()}`; if (/^[0-9]$/.test(k)) return `Digit${k}`; return k; }
 function toggleBuildMode() { game.buildMode = !game.buildMode; lobbyStatus.textContent = game.buildMode ? "Build mode on. Press V to place a block." : lobbyStatus.textContent; }
@@ -374,8 +480,10 @@ document.addEventListener("pointerdown", (e) => {
 });
 window.addEventListener("keydown", (e) => {
   const c = codeFromKeyEvent(e);
+  if (isTextEntryTarget(e.target) && e.code !== "Escape") return;
   if (e.code === "Escape" && canUsePauseMenu()) {
     e.preventDefault();
+    if (!settingsPanel.classList.contains("hidden") && performance.now() - lastPauseOpenedByPointerUnlockAt < 250) return;
     setPauseMenuOpen(settingsPanel.classList.contains("hidden") || (game.phase === "fps" && input.pointerLocked));
     return;
   }
@@ -418,8 +526,18 @@ window.addEventListener("keydown", (e) => {
     }
   }
 });
-window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); if (game.phase === "fps" && game.grapple?.active && abilityAllowed("grapple") && (c === getAbilityKey("grapple") || e.code === getAbilityKey("grapple"))) releaseGrapple(); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } input.keys.delete(e.code); input.keys.delete(c); });
-document.addEventListener("pointerlockchange", () => { input.pointerLocked = document.pointerLockElement === canvas; resetPendingMouseLook(); updateFpsSettingsVisibility(); });
+window.addEventListener("keyup", (e) => { const c = codeFromKeyEvent(e); input.keys.delete(e.code); input.keys.delete(c); if (isTextEntryTarget(e.target)) return; if (game.phase === "fps" && game.grapple?.active && abilityAllowed("grapple") && (c === getAbilityKey("grapple") || e.code === getAbilityKey("grapple"))) releaseGrapple(); if (game.phase === "golf" && c === "Space" && canControlGolf()) { if (game.aimPower > 0.04) simulateShot(game.golfShotDir, game.aimPower, true); game.aimPower = 0; input.golfChargeDir = 1; powerFill.style.width = "0%"; if (world.golfAimArrow) world.golfAimArrow.visible = false; } });
+document.addEventListener("pointerlockchange", () => {
+  const wasPointerLocked = input.pointerLocked;
+  input.pointerLocked = document.pointerLockElement === canvas;
+  resetPendingMouseLook();
+  if (wasPointerLocked && !input.pointerLocked && game.phase === "fps" && canUsePauseMenu() && settingsPanel.classList.contains("hidden")) {
+    lastPauseOpenedByPointerUnlockAt = performance.now();
+    setPauseMenuOpen(true);
+    return;
+  }
+  updateFpsSettingsVisibility();
+});
 document.addEventListener("mousemove", onMouseMove, { passive: true }); document.addEventListener("mousedown", onMouseDown); document.addEventListener("mouseup", onMouseUp); document.addEventListener("click", onClick);
 weaponCards.forEach(c => c.addEventListener("click", () => { if (game.phase !== "fps" || game.countdown <= 0 || game.randomTournament) return; const weapon = c.getAttribute("data-weapon"); if (!activeWeaponIds().includes(weapon)) return; weaponCards.forEach(x => x.classList.remove("active")); c.classList.add("active"); selectPrimaryWeapon(weapon); }));
 canvas.addEventListener("pointerdown", onPointerDown); window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", finishGolfDrag); window.addEventListener("mousedown", (e) => { if (e.button === 0 && game.phase === "golf") onPointerDown(e); }); window.addEventListener("mousemove", onPointerMove); window.addEventListener("mouseup", finishGolfDrag); canvas.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -496,6 +614,14 @@ finalKillBackBtn?.addEventListener("click", () => finalKillBackToLobby()); final
 defeatBackBtn?.addEventListener("click", () => finalKillBackToLobby());
 defeatReplayBtn?.addEventListener("click", () => replayFpsMatch());
 settingsBtn.addEventListener("click", () => setPauseMenuOpen(settingsPanel.classList.contains("hidden"))); sensitivityInput.addEventListener("input", () => syncSensitivity(sensitivityInput.value)); mouseFixInput?.addEventListener("change", () => syncMouseFix(mouseFixInput.checked));
+chatForm?.addEventListener("submit", (e) => { e.preventDefault(); sendChatMessage(); });
+chatInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    e.stopPropagation();
+    sendChatMessage();
+  }
+});
 practiceMapCountInput?.addEventListener("input", () => syncPracticeMapPlanner());
 practiceRoundsInput?.addEventListener("input", () => syncPracticeMapPlanner());
 fovInput?.addEventListener("input", () => syncFov(fovInput.value));
@@ -503,7 +629,7 @@ nicknameInput?.addEventListener("change", () => {
   const name = syncLocalPlayerNameFromUi?.();
   if (game.connected) send({ type: "playerInfo", player: game.localIndex, name, playerNames: playerNamesPayload?.() || game.playerNames });
 });
-ingameLeaveBtn?.addEventListener("click", () => { document.exitPointerLock?.(); closePeer(); showMenu(); });
+ingameLeaveBtn?.addEventListener("click", () => { input.keys.clear(); resetPendingMouseLook(); document.exitPointerLock?.(); closePeer(); showMenu(); });
 function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
 
 mapUploadInput?.addEventListener("change", (e) => {
@@ -550,7 +676,7 @@ mapUploadInput?.addEventListener("change", (e) => {
   }
 });
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive || fps.players[game.localIndex]?.health <= 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
-phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV); syncMouseFix(savedMouseFixEnabled(), false);
+phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV); syncMouseFix(savedMouseFixEnabled(), false); syncChatInputVisibility(false);
 const gdRoom = sessionStorage.getItem("gd_room");
 const gdRole = sessionStorage.getItem("gd_role");
 if (gdRoom && gdRole) {
@@ -582,6 +708,10 @@ Object.assign(globalThis, {
   setPauseMenuOpen,
   syncSensitivity,
   syncMouseFix,
+  cleanChatText,
+  showChatMessage,
+  sendChatMessage,
+  syncChatInputVisibility,
   codeFromKeyEvent,
   toggleBuildMode,
   placeBuildBox,

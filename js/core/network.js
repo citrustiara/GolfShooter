@@ -217,7 +217,8 @@ export const networkLinks = {
   markLocalPlayerOnHit: null,
   showEliminationNotice: null,
   showBattleLogElimination: null,
-  triggerKillFade: null
+  triggerKillFade: null,
+  showChatMessage: null
 };
 
 export function initNetworkLinks(links) {
@@ -475,6 +476,34 @@ function applyLocalParryCredit(message) {
   }
 }
 
+function cleanNetworkChatText(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f<>`{}[\]\\|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
+function normalizeChatMessage(message, sourceConnection = null) {
+  const text = cleanNetworkChatText(message?.text);
+  if (!text) return null;
+  let player = messagePlayerIndex(message.player);
+  if (game.role === "host" && sourceConnection) {
+    const assigned = connections.get(sourceConnection.peer)?.playerIndex;
+    if (Number.isInteger(assigned)) player = assigned;
+  }
+  if (!Number.isInteger(player)) player = Number.isInteger(game.localIndex) ? game.localIndex : -1;
+  const claimedName = game.role === "host" && sourceConnection ? "" : message.name;
+  const name = cleanNetworkPlayerName(game.playerNames?.[player] || fps.players?.[player]?.nickname || claimedName) || `P${player + 1}`;
+  return {
+    type: "chat",
+    id: String(message.id || `${Date.now()}-${player}`).slice(0, 96),
+    player,
+    name,
+    text
+  };
+}
+
 function shouldRelay(message) {
   return [
     "startTournament",
@@ -544,6 +573,14 @@ export function handleMessage(message, sourceConnection = null) {
     return;
   }
 
+  if (message.type === "chat") {
+    const chatMessage = normalizeChatMessage(message, sourceConnection);
+    if (!chatMessage) return;
+    if (game.role === "host" && sourceConnection) broadcast(chatMessage, sourceConnection);
+    networkLinks.showChatMessage?.(chatMessage);
+    return;
+  }
+
   if (game.role === "host" && sourceConnection && shouldRelay(message)) {
     broadcast(message, sourceConnection);
   }
@@ -583,7 +620,7 @@ export function handleMessage(message, sourceConnection = null) {
       const entry = connections.get(sourceConnection.peer);
       if (entry?.playerIndex !== undefined) index = entry.playerIndex;
     }
-    applyNetworkPlayerNames(message.playerNames);
+    if (!(game.role === "host" && sourceConnection)) applyNetworkPlayerNames(message.playerNames);
     if (index !== null) setNetworkPlayerName(index, message.name);
     if (game.role === "host" && sourceConnection && index !== null) {
       broadcast({ type: "playerInfo", player: index, name: globalThis.playerDisplayName?.(index, `P${index + 1}`) || `P${index + 1}`, playerNames: playerNamesForNetwork() }, sourceConnection);
@@ -842,8 +879,8 @@ export function handleMessage(message, sourceConnection = null) {
 
   if (message.type === "postMatchAction" && game.role === "host") {
     const requestedBy = Number.isInteger(message.player) ? message.player : -1;
-    const winner = game.fpsMatchWinner ?? game.result?.matchWinner ?? game.result?.winner;
-    if (Number.isInteger(winner) && winner !== -1 && requestedBy !== -1 && requestedBy !== winner) return;
+    const matchFinished = game.phase === "result" || game.fpsMatchOver || game.result?.matchOver;
+    if (!matchFinished || requestedBy < 0 || requestedBy >= game.playerCount) return;
     if (message.action === "replayFps") networkLinks.replayFpsMatch?.(true);
     else if (message.action === "lobby") networkLinks.restartTournament?.(true);
   }

@@ -76,6 +76,7 @@ body {
 .shot-arrow,
 .settings,
 .settings-panel,
+.chat-hud.chat-open,
 .menu,
 .result,
 .countdown,
@@ -511,6 +512,74 @@ select:focus {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
   pointer-events: none;
   user-select: none;
+}
+
+.chat-hud {
+  position: absolute;
+  left: 12px;
+  bottom: 30px;
+  z-index: 15;
+  width: min(360px, calc(100vw - 24px));
+  max-height: 130px;
+  color: rgba(255, 255, 255, 0.82);
+  font: 700 12px/1.28 "Space Grotesk", Inter, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.92), 1px 1px 0 rgba(0, 0, 0, 0.62);
+  pointer-events: none;
+  user-select: none;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  max-height: 92px;
+  overflow: hidden;
+}
+
+.chat-message {
+  opacity: 0.86;
+  overflow-wrap: anywhere;
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.chat-message.local { opacity: 0.98; }
+.chat-message.expired { opacity: 0; transform: translateX(-6px); }
+.chat-name { color: var(--yellow); margin-right: 4px; }
+.chat-text { color: rgba(255, 255, 255, 0.86); }
+
+.chat-input-row {
+  margin-top: 5px;
+  pointer-events: auto;
+}
+
+.chat-input-row input {
+  width: min(280px, calc(100vw - 24px));
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: none;
+  outline: none;
+  font: 800 12px/1.3 "Space Grotesk", Inter, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  text-shadow: inherit;
+  user-select: text;
+}
+
+.chat-input-row input::placeholder {
+  color: rgba(255, 255, 255, 0.52);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.chat-input-row input:focus {
+  background: transparent;
+  outline: none;
 }
 
 .ability-container {

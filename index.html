@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
-  <link rel="stylesheet" href="css/style.css?v=10" />
+  <link rel="stylesheet" href="css/style.css?v=11" />
   <script type="importmap">
     {
       "imports": {
@@ -97,6 +97,12 @@
     </div>
     <div class="kill-notice hidden" id="killNotice"></div>
     <div class="battle-log hidden" id="battleLog" aria-live="polite"></div>
+    <div class="chat-hud" id="chatHud" aria-live="polite">
+      <div class="chat-log" id="chatLog"></div>
+      <form class="chat-input-row hidden" id="chatForm" autocomplete="off">
+        <input id="chatInput" type="text" maxlength="120" spellcheck="false" autocomplete="off" placeholder="chat" />
+      </form>
+    </div>
     <div class="spectate-banner hidden" id="spectateBanner" aria-live="polite">
       <span class="spectate-banner-label">Spectating</span>
       <span class="spectate-banner-name" id="spectateBannerName"></span>
@@ -349,6 +355,6 @@
   </div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=9"></script>
+  <script type="module" src="js/main.js?v=10"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@ import "./app/globals.js";
 await import("./app/player-names.js");
 await import("./app/loadout-session.js");
 await import("./app/practice-planner.js");
-await import("./app/scene-flow.js?v=7");
+await import("./app/scene-flow.js?v=8");
 await import("./app/golf-runtime.js");
 await import("./app/fps-frame.js");
 await import("./app/fps-movement.js");
@@ -15,7 +15,7 @@ await import("./app/fps-bot.js");
 await import("./app/match-results.js");
 await import("./app/hud-weapons.js?v=2");
 await import("./app/fps-network-state.js");
-await import("./app/input-events.js?v=7");
+await import("./app/input-events.js?v=8");
 await import("./app/notices-content.js");
 await import("./app/menu-bg.js");
 
@@ -69,7 +69,8 @@ app.initNetworkLinks({
   markLocalPlayerOnHit: app.markLocalPlayerOnHit,
   showEliminationNotice: app.showEliminationNotice,
   showBattleLogElimination: app.showBattleLogElimination,
-  triggerKillFade: app.triggerKillFade
+  triggerKillFade: app.triggerKillFade,
+  showChatMessage: app.showChatMessage
 });
 
 app.animate();

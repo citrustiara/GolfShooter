@@ -149,11 +149,7 @@ function revealFinalKillMatchControls(root, result = game.result) {
   root?.classList.add("controls");
   finalKillBackBtn?.classList.remove("hidden");
   finalKillReplayBtn?.classList.remove("hidden");
-  if (game.role === "guest") {
-    setFinalKillActionNote("You won as guest — choices route through the host.");
-  } else {
-    setFinalKillActionNote("");
-  }
+  setFinalKillActionNote("");
 }
 
 function clearFinalKillCinematic() {
