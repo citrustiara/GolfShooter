@@ -206,5 +206,31 @@
     "rotX": 0,
     "rotY": 0,
     "rotZ": 0
+  },
+  {
+    "name": "crane-catwalk-deck",
+    "x": 25,
+    "y": 21.8,
+    "z": 15.5,
+    "sx": 5,
+    "sy": 0.4,
+    "sz": 32,
+    "color": 9476768,
+    "rotX": 0,
+    "rotY": 0,
+    "rotZ": 0
+  },
+  {
+    "name": "ne-annex-roof",
+    "x": 38,
+    "y": 18.3,
+    "z": -34,
+    "sx": 16,
+    "sy": 0.4,
+    "sz": 16,
+    "color": 5197647,
+    "rotX": 0,
+    "rotY": 0,
+    "rotZ": 0
   }
 ]

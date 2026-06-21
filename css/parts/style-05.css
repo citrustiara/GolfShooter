@@ -281,23 +281,23 @@ select {
   }
 
   #healthChip {
-    bottom: 24px;
-    width: clamp(190px, 54vw, 270px);
-    padding: 6px 8px 8px;
+    bottom: 22px;
+    width: clamp(200px, 58vw, 285px);
+    padding: 7px 9px 9px;
   }
 
   #healthChip.ads {
-    bottom: 18px;
-    width: clamp(138px, 42vw, 210px);
-    opacity: 0.52;
+    bottom: 16px;
+    width: clamp(145px, 44vw, 215px);
+    opacity: 0.58;
   }
 
   .health-bar-track {
-    height: 10px;
+    height: 14px;
   }
 
   #healthChip.ads .health-bar-track {
-    height: 6px;
+    height: 8px;
   }
 
   .ability-container {
