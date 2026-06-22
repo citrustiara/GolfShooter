@@ -11,3 +11,10 @@ scripts/stun-server.cjs
 webrtc_stun_guide.md
 .DS_Store
 Thumbs.db
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
