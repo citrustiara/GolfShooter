@@ -1,0 +1,10 @@
+[
+  { "x": -32, "z": 68,  "label": "T spawn" },
+  { "x": -42, "z": 50,  "label": "T ramp" },
+  { "x": -4,  "z": -12, "label": "mid" },
+  { "x": -60, "z": -28, "label": "tunnels" },
+  { "x": -46, "z": -68, "label": "B site" },
+  { "x": 0,   "z": -54, "label": "CT spawn" },
+  { "x": 44,  "z": -52, "label": "A site" },
+  { "x": 60,  "z": 6,   "label": "A long" }
+]

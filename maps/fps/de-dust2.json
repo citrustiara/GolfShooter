@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 200,
+    "spacing": 24,
+    "innerMargin": 18,
+    "minHeight": 14,
+    "maxHeight": 64,
+    "seed": 2447,
+    "ground": false,
+    "colors": ["#c2b280", "#b3a06c", "#9c8a58", "#d8c79c", "#8a7748"]
+  },
+  "id": "de-dust2",
+  "name": "Dust II",
+  "sky": 12434067,
+  "fog": 13352604,
+  "fogNear": 60,
+  "fogFar": 220,
+  "bounds": {
+    "x": 80,
+    "z": 94
+  },
+  "spawnPoints": [
+    { "x": -32, "z": 68,  "y": 11.19 },
+    { "x": -42, "z": 50,  "y": 11.19 },
+    { "x": -4,  "z": -12, "y": 2.32 },
+    { "x": -60, "z": -28, "y": 6.76 },
+    { "x": -46, "z": -68, "y": 17.68 },
+    { "x": 0,   "z": -54, "y": 14.28 },
+    { "x": 44,  "z": -52, "y": 10.08 },
+    { "x": 60,  "z": 6,   "y": 6.76 }
+  ],
+  "floors": [
+    {
+      "name": "dust2-playable-bounds",
+      "x": 0,
+      "z": 0,
+      "sx": 160,
+      "sz": 188
+    }
+  ],
+  "generatedArena": false,
+  "floorCollision": false,
+  "floor": 11048038,
+  "gridA": 12561540,
+  "gridB": 9930074,
+  "edge": 7894364,
+  "glb": "maps/fps/glb/de-dust2/de_dust2.glb",
+  "glbScale": 2.6,
+  "glbPosition": {
+    "x": 11.093,
+    "y": -2614.144,
+    "z": -3164.373
+  },
+  "glbCollidable": true,
+  "glbCollision": "mesh",
+  "meshWalkableNormalY": 0.42,
+  "meshCollisionCellSize": 6,
+  "colliderSource": {
+    "type": "runtime-triangle-mesh",
+    "script": "js/fps/mesh-collision.js",
+    "note": "Uses the GLB triangles directly for player, projectile, and hitscan collision; spawns sampled on clear walkable mesh surfaces matching Counter-Strike T/CT/A/B/mid positions."
+  },
+  "attribution": {
+    "title": "de_dust2 - cs map",
+    "note": "Community 3D model of Valve's Counter-Strike map de_dust2.",
+    "source": "user-provided GLB (de_dust2_-_cs_map.glb)"
+  },
+  "config": {
+    "hp": 100,
+    "abilities": ["grenade", "smoke"],
+    "weapons": ["ak47", "desertEagle", "melee"]
+  }
+}
