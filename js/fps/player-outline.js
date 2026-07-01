@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 
 // Soft "sticker" outline used to keep enemies readable against busy maps. It is
 // a single inverted-hull shell per body part (BackSide, scaled out a touch) in

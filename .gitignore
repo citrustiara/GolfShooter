@@ -1,4 +1,5 @@
 node_modules/
+.pake/
 .antigravitycli/
 npm-debug.log*
 yarn-debug.log*

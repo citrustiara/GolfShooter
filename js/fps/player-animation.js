@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 
 // Procedural skeletal animation for the third-person soldier rig built in
 // player-mesh.js (mesh.userData.rig = { legL, legR, armL, armR, gun }).

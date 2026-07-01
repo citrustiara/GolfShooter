@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 import { HOLES_PER_TOURNAMENT, FPS_BASE_MOUSE_SENSITIVITY } from "./constants.js";
 
 export const game = {

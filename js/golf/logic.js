@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 import { game, world, input } from "../core/state.js";
 import { materials } from "../core/engine.js";
 import { holeCatalog } from "./catalog.js";

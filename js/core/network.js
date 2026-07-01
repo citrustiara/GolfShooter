@@ -1,6 +1,6 @@
 import { game, world, fps } from "./state.js";
 import { cleanPhrase, generatePhrase, ensureAudio, playSound } from "./utils.js";
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 
 export let peer = null;
 export let conn = null;

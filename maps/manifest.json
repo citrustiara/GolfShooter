@@ -13,7 +13,8 @@
     "fps/overpass-compound.json",
     "fps/resoforge-lowpoly-tdm.json",
     "fps/low-poly-industrial-zone.json",
-    "fps/de-dust2.json"
+    "fps/de-dust2.json",
+    "fps/mirage.json"
   ],
   "golfMaps": [
     "golf/ice-runway.json",

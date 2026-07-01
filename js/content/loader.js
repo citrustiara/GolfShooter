@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { weaponCatalog, randomTournamentWeapons, tournamentCombinations } from "../core/constants.js";
 import { fpsArenaThemes } from "../fps/themes.js";

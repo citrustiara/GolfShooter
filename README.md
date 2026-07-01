@@ -52,8 +52,36 @@ You can also use any plain static file server:
 python -m http.server 4173
 ```
 
-No bundling step is required. The page does need network access for CDN assets
-unless you vendor Three.js, PeerJS, and fonts locally.
+No bundling step is required. The runtime JavaScript is vendored locally for the
+desktop build; multiplayer still needs network access for PeerJS discovery and
+WebRTC/STUN connectivity.
+
+## Desktop app
+
+Golf Duel can be packaged as a desktop app with
+[Pake](https://github.com/tw93/Pake). The desktop runtime JavaScript is vendored
+under `vendor/`, so the app no longer needs Unpkg to start. Multiplayer still
+needs network access for PeerJS discovery and WebRTC/STUN connectivity.
+
+Build the Windows desktop app from PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package-desktop.ps1
+```
+
+The script stages only the runtime files Pake needs into `.pake/app`, then runs
+`npm exec --package pake-cli@3.12.1 -- pake` with `--use-local-file`. Build
+output is printed at the end and lives under `.pake/build`.
+
+Useful variants:
+
+```powershell
+# Faster app-only build while iterating
+powershell -ExecutionPolicy Bypass -File scripts/package-desktop.ps1 -IterativeBuild
+
+# Pass a Pake/Tauri target override when you need one
+powershell -ExecutionPolicy Bypass -File scripts/package-desktop.ps1 -Targets x86_64-pc-windows-msvc
+```
 
 ## Play
 

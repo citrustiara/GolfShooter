@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 import { FPS_HEAD_VISUAL_HEIGHT } from "../core/constants.js";
 import { buildPlayerOutline } from "./player-outline.js";
 

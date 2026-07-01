@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+import * as THREE from "three";
 
 // The golf hole: a properly recessed cup (dark shaft + bottom + bright liner
 // ring + flag) plus the little "plop into the cup" sink animation and a gentle

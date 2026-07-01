@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "backdrop": {
+    "shape": "box",
+    "radius": 210,
+    "spacing": 24,
+    "innerMargin": 18,
+    "minHeight": 14,
+    "maxHeight": 68,
+    "seed": 6719,
+    "ground": false,
+    "colors": ["#b9a271", "#d0bf94", "#8d9a90", "#6f7f83", "#c88954"]
+  },
+  "id": "mirage",
+  "name": "Mirage",
+  "sky": 13294047,
+  "fog": 13750756,
+  "fogNear": 65,
+  "fogFar": 210,
+  "bounds": {
+    "x": 80,
+    "z": 80
+  },
+  "spawnPoints": [
+    { "x": -58, "z": -58, "y": 5.47 },
+    { "x": 43.95, "z": 49.18, "y": 9.28 },
+    { "x": 52, "z": -48, "y": 8.25 },
+    { "x": -47, "z": 54, "y": 0 },
+    { "x": 3, "z": 38, "y": 7.21 },
+    { "x": -45, "z": -5, "y": 9.96 },
+    { "x": 36, "z": -4, "y": 7.19 },
+    { "x": 0, "z": 0, "y": 7.11 }
+  ],
+  "floors": [
+    {
+      "name": "mirage-playable-bounds",
+      "x": 0,
+      "z": 0,
+      "sx": 160,
+      "sz": 160
+    }
+  ],
+  "generatedArena": false,
+  "floorCollision": false,
+  "floor": 12097922,
+  "gridA": 13750756,
+  "gridB": 9279891,
+  "edge": 7359875,
+  "glb": "maps/fps/glb/mirage/mirage_cs2_fps.glb",
+  "glbScale": 1,
+  "glbPosition": {
+    "x": 23.063,
+    "y": 11.379,
+    "z": 28.854
+  },
+  "glbCollidable": true,
+  "glbCollision": "mesh",
+  "meshWalkableNormalY": 0.42,
+  "meshCollisionCellSize": 6,
+  "colliderSource": {
+    "type": "runtime-triangle-mesh",
+    "script": "js/fps/mesh-collision.js",
+    "note": "Uses the optimized GLB triangles directly for player, projectile, and hitscan collision; spawns sampled on clear walkable mesh surfaces."
+  },
+  "attribution": {
+    "title": "Mirage CS2 FPS",
+    "note": "Community 3D model of Counter-Strike map Mirage.",
+    "source": "user-provided GLB (mirage_cs2_fps.glb)"
+  },
+  "optimization": {
+    "sourceBytes": 61916024,
+    "optimizedBytes": 27714328,
+    "pipeline": "gltf-transform metalrough, then optimize --compress quantize --texture-compress webp --texture-size 1024 --simplify false"
+  },
+  "config": {
+    "hp": 100,
+    "abilities": ["grenade", "smoke", "radar"],
+    "weapons": ["ak47", "desertEagle", "melee"]
+  }
+}
