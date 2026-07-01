@@ -336,22 +336,81 @@ export function raycastTriangleMeshColliders(colliders, origin, direction, maxDi
   if (!colliders?.length) return null;
   let best = null;
   for (const collider of colliders) {
-    for (const tri of collider.triangles) {
-      const distance = rayIntersectTriangle(origin, direction, tri, maxDistance);
-      if (distance === null || distance < 0 || distance > maxDistance) continue;
-      if (!best || distance < best.distance) {
-        best = {
-          distance,
-          point: origin.clone().addScaledVector(direction, distance),
-          normal: upwardNormal(tri),
-          object: collider,
-          collider,
-          triangle: tri.index
-        };
-      }
-    }
+    const hit = raycastColliderGrid(collider, origin, direction, best ? best.distance : maxDistance);
+    if (hit && (!best || hit.distance < best.distance)) best = hit;
   }
   return best;
+}
+
+// Walks the collider's XZ grid cells along the ray (2D DDA) instead of testing
+// every triangle. Bots raycast every frame for line-of-sight and gunfire, so
+// the brute-force scan (~10ms+ on big GLB maps) is not affordable here. A hit
+// is final once it is closer than the next unvisited cell boundary.
+function raycastColliderGrid(collider, origin, direction, maxDistance) {
+  // Clip the ray to the collider AABB so the walk is bounded even for
+  // maxDistance = Infinity.
+  let tMin = 0;
+  let tMax = maxDistance;
+  const { min, max } = collider.bbox;
+  for (const axis of ["x", "y", "z"]) {
+    const d = direction[axis];
+    const o = origin[axis];
+    if (Math.abs(d) < 1e-9) {
+      if (o < min[axis] - 0.5 || o > max[axis] + 0.5) return null;
+    } else {
+      let t1 = (min[axis] - 0.5 - o) / d;
+      let t2 = (max[axis] + 0.5 - o) / d;
+      if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+      tMin = Math.max(tMin, t1);
+      tMax = Math.min(tMax, t2);
+      if (tMin > tMax) return null;
+    }
+  }
+
+  const cs = collider.cellSize;
+  const dx = direction.x;
+  const dz = direction.z;
+  let ix = Math.floor((origin.x + dx * tMin) / cs);
+  let iz = Math.floor((origin.z + dz * tMin) / cs);
+  const stepX = dx > 0 ? 1 : -1;
+  const stepZ = dz > 0 ? 1 : -1;
+  const tDeltaX = Math.abs(dx) > 1e-9 ? cs / Math.abs(dx) : Infinity;
+  const tDeltaZ = Math.abs(dz) > 1e-9 ? cs / Math.abs(dz) : Infinity;
+  let tCrossX = Math.abs(dx) > 1e-9 ? ((dx > 0 ? (ix + 1) * cs : ix * cs) - origin.x) / dx : Infinity;
+  let tCrossZ = Math.abs(dz) > 1e-9 ? ((dz > 0 ? (iz + 1) * cs : iz * cs) - origin.z) / dz : Infinity;
+  const seen = new Set();
+  let best = null;
+  let bestTri = null;
+  for (;;) {
+    const bucket = collider.grid.get(`${ix},${iz}`);
+    if (bucket) {
+      for (const index of bucket) {
+        if (seen.has(index)) continue;
+        seen.add(index);
+        const tri = collider.triangles[index];
+        const distance = rayIntersectTriangle(origin, direction, tri, maxDistance);
+        if (distance === null || distance < 0) continue;
+        if (best === null || distance < best) {
+          best = distance;
+          bestTri = tri;
+        }
+      }
+    }
+    const cellExit = Math.min(tCrossX, tCrossZ);
+    if (best !== null && best <= cellExit + 0.001) break;
+    if (cellExit >= tMax) break;
+    if (tCrossX < tCrossZ) { ix += stepX; tCrossX += tDeltaX; }
+    else { iz += stepZ; tCrossZ += tDeltaZ; }
+  }
+  if (bestTri === null) return null;
+  return {
+    distance: best,
+    point: origin.clone().addScaledVector(direction, best),
+    normal: upwardNormal(bestTri),
+    object: collider,
+    collider,
+    triangle: bestTri.index
+  };
 }
 
 export function meshSurfaceYAtPoint(colliders, point, radius = 0.08) {

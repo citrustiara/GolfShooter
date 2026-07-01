@@ -12,6 +12,8 @@ export function setupArena() {
   const mapIndex = game.fpsMapIndex || 0;
   const theme = fpsArenaThemes[mapIndex] || fpsArenaThemes[0];
   const activeMap = (game.fpsCustomMapActive && game.fpsCustomMap) ? game.fpsCustomMap : theme;
+  // Heavy GLB maps drop to a lighter render profile (see engine.js) to stay playable.
+  globalThis.setSceneRenderProfile?.(activeMap?.heavyRender === true || theme?.heavyRender === true);
   const boundsX = activeMap.bounds?.x ?? theme.bounds.x;
   const boundsZ = activeMap.bounds?.z ?? theme.bounds.z;
   const gridSize = Math.max(boundsX, boundsZ) * 2;
@@ -838,10 +840,14 @@ function loadArenaAsset(asset) {
         console.info(`Triangle mesh collider ready: ${url} (${collider.triangles.length} triangles)`);
       }
     }
+    // Big mesh-collision arenas (e.g. Mirage ~584k tris) must NOT cast/receive
+    // shadows: the shadow pass would re-render every triangle each frame and
+    // tanks weak GPUs to a few FPS. The comic post shader handles their shading.
+    const isMeshMap = spec.meshCollision === true || spec.collisionMode === "mesh";
     root.traverse((child) => {
       if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+        child.castShadow = !isMeshMap;
+        child.receiveShadow = !isMeshMap;
         if (spec.collidable === true && spec.meshCollision !== true && spec.collisionMode !== "mesh") world.obstacles.push(child);
       }
     });

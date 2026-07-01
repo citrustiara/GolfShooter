@@ -664,49 +664,6 @@ nicknameInput?.addEventListener("change", () => {
 ingameLeaveBtn?.addEventListener("click", () => { input.keys.clear(); resetPendingMouseLook(); document.exitPointerLock?.(); closePeer(); showMenu(); });
 function syncFov(v) { const fov = Number(v); game.fov = fov; if (fovInput) fovInput.value = fov; if (fovValue) fovValue.textContent = `${fov}°`; }
 
-mapUploadInput?.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  if (file.name.endsWith(".json")) {
-    reader.onload = (event) => {
-      try {
-        game.fpsCustomMap = JSON.parse(event.target.result);
-        localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
-        addCustomMapOptionSelect();
-        selectCustomMapForPractice();
-        console.log("Successfully loaded custom JSON map", game.fpsCustomMap);
-      } catch (err) {
-        alert("Failed to parse JSON map");
-      }
-    };
-    reader.readAsText(file);
-  } else if (file.name.endsWith(".glb") || file.name.endsWith(".gltf")) {
-    reader.onload = (event) => {
-      game.fpsCustomMap = {
-        version: 1,
-        id: "custom-uploaded-glb",
-        name: file.name.replace(/\.(glb|gltf)$/i, ""),
-        glb: event.target.result,
-        glbCollidable: true,
-        glbCollision: "mesh",
-        floorCollision: false,
-        generatedArena: false,
-        bounds: { x: 50, z: 50 },
-        spawnPoints: [
-          { x: -20, y: 1.2, z: -20 },
-          { x: 20, y: 1.2, z: 20 }
-        ]
-      };
-      localStorage.setItem("golfDuelCustomArena", JSON.stringify(game.fpsCustomMap));
-      addCustomMapOptionSelect();
-      selectCustomMapForPractice();
-      console.log("Successfully loaded custom GLB map", game.fpsCustomMap);
-    };
-    reader.readAsDataURL(file);
-  }
-});
 window.addEventListener("wheel", (e) => { if ((game.phase !== "fps" && game.phase !== "fpsVictoryLap") || game.countdown > 0 || game.finalKillCinematicActive || fps.players[game.localIndex]?.health <= 0) return; const isW = game.phase === "fps" || (game.phase === "fpsVictoryLap" && game.localIndex === game.result.winner); if (isW) { cycleActiveWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
 phraseInput.value = generatePhrase(); loadLocalAbilityKeys?.(); syncSensitivity(1.0); syncFov(game.fov || FPS_DEFAULT_FOV); syncMouseFix(savedMouseFixEnabled(), false); syncChatInputVisibility(false);
 const gdRoom = sessionStorage.getItem("gd_room");
@@ -720,7 +677,7 @@ if (gdRoom && gdRole) {
     sessionStorage.removeItem("gd_role");
   }
 }
-try { const savedMap = localStorage.getItem("golfDuelCustomArena"); if (savedMap) { game.fpsCustomMap = JSON.parse(savedMap); addCustomMapOptionSelect(); } game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; } catch {}
+try { game.fpsImportedAssetUrl = localStorage.getItem("golfDuelArenaAsset") || ""; } catch {}
 
 Object.assign(globalThis, {
   onMouseMove,

@@ -5,9 +5,9 @@
   overflow: auto;
   padding: 32px 18px;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 214, 10, 0.16) 0 6px, transparent 7px),
+    radial-gradient(circle at 20% 20%, rgba(225, 6, 0, 0.14) 0 6px, transparent 7px),
     radial-gradient(rgba(255, 253, 245, 0.08) 2.5px, transparent 3px),
-    linear-gradient(160deg, #2a1551 0%, #471379 55%, #1c0f38 100%);
+    linear-gradient(160deg, #131316 0%, #26060a 55%, #0a0a0c 100%);
   background-size: auto, 26px 26px, auto;
   z-index: 100;
   display: flex;
@@ -296,7 +296,7 @@
   gap: 8px;
   padding: 8px;
   border: 2px solid var(--ink);
-  background: #fff8da;
+  background: #15151a;
   box-shadow: 2px 2px 0 var(--ink);
 }
 

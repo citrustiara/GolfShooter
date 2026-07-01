@@ -1,27 +1,28 @@
 /* ============================================================
-   GOLF DUEL — maximalist neobrutalist cartoon UI
+   GOLF DUEL — dark graphic-novel UI (Batman noir)
    Hard rules: zero border-radius, zero glassmorphism/blur.
-   Everything is paper slabs, fat ink borders, hard offset
-   shadows, loud clashing color, and a little rotation.
+   Black panels, white ink borders, hard offset shadows,
+   red accents only. Legacy accent names now map into the
+   black/white/red palette so every part inherits the theme.
    ============================================================ */
 :root {
-  --ink: #0e0e11;
-  --paper: #fffdf5;
-  --yellow: #ffd60a;
-  --pink: #ff3ea5;
-  --cyan: #21d0ff;
-  --lime: #6bf178;
-  --orange: #ff8a00;
-  --purple: #7c4dff;
-  --red: #ff3b30;
-  --muted-ink: #4d4d57;
+  --ink: #f0efe9;
+  --paper: #0e0e11;
+  --yellow: #e10600;
+  --pink: #ff2438;
+  --cyan: #2a2a31;
+  --lime: #c7c9cf;
+  --orange: #b3000c;
+  --purple: #1b1b20;
+  --red: #e10600;
+  --muted-ink: #9a9aa3;
   --border: 3px solid var(--ink);
   --border-fat: 4px solid var(--ink);
-  --shadow-s: 4px 4px 0 var(--ink);
-  --shadow-m: 6px 6px 0 var(--ink);
-  --shadow-l: 10px 10px 0 var(--ink);
+  --shadow-s: 4px 4px 0 var(--red);
+  --shadow-m: 6px 6px 0 var(--red);
+  --shadow-l: 10px 10px 0 var(--red);
   --display: "Archivo Black", "Arial Black", Impact, sans-serif;
-  color-scheme: light;
+  color-scheme: dark;
   font-family: "Space Grotesk", Inter, system-ui, sans-serif;
 }
 
@@ -37,7 +38,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #14101c;
+  background: #060607;
   color: var(--ink);
 }
 
@@ -133,12 +134,10 @@ button.ghost {
 
 button.ghost:hover {
   background: var(--pink);
-  color: var(--paper);
 }
 
 button.danger {
   background: var(--red);
-  color: var(--paper);
 }
 
 button.danger:hover {
@@ -167,7 +166,7 @@ input::placeholder {
 
 input:focus,
 select:focus {
-  background: #fff6c4;
+  background: #1f1f26;
   outline: 3px solid var(--pink);
   outline-offset: 2px;
 }
@@ -320,16 +319,16 @@ select:focus {
 }
 
 .fps-player-box.dead {
-  background: #d8d8d8;
-  border-color: #777 !important;
+  background: #16161a;
+  border-color: #66666e !important;
   filter: grayscale(1);
   opacity: 0.68;
-  box-shadow: 3px 3px 0 #777;
+  box-shadow: 3px 3px 0 #66666e;
 }
 
 .fps-player-box.dead .fps-player-tag,
 .fps-player-box.dead .fps-player-rounds {
-  color: #555 !important;
+  color: #8a8a92 !important;
 }
 
 .fps-player-tag {
@@ -571,7 +570,7 @@ select:focus {
   height: 18px;
   overflow: hidden;
   background:
-    repeating-linear-gradient(135deg, #f0ead9 0 9px, #fffdf5 9px 18px);
+    repeating-linear-gradient(135deg, #1a1a20 0 9px, #101014 9px 18px);
   border: var(--border);
   box-shadow: inset 3px 3px 0 rgba(14, 14, 17, 0.2);
 }
@@ -580,7 +579,7 @@ select:focus {
   content: "";
   position: absolute;
   inset: 3px;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 58%);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 58%);
   opacity: 0.72;
   pointer-events: none;
 }

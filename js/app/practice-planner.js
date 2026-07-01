@@ -140,6 +140,7 @@ function syncPracticeMapPlanner() {
     entry.config = normalizePracticeConfig(entry.config || rawConfigForMapValue(entry.mapValue));
     const row = document.createElement("div");
     row.className = "practice-map-row";
+    row.addEventListener("mouseenter", () => renderMapPreview?.(entry.mapValue));
 
     const main = document.createElement("div");
     main.className = "practice-map-main";
@@ -148,12 +149,15 @@ function syncPracticeMapPlanner() {
     badge.textContent = String(i + 1);
     const select = document.createElement("select");
     populatePracticeSelect(select, entry.mapValue);
+    select.addEventListener("focus", () => renderMapPreview?.(select.value));
+    select.addEventListener("input", () => renderMapPreview?.(select.value));
     select.addEventListener("change", () => {
       entry.mapValue = select.value;
       entry.mapIndex = select.value === "custom" ? 0 : Number(select.value) || 0;
       entry.customMapActive = select.value === "custom";
       entry.config = normalizePracticeConfig(rawConfigForMapValue(select.value));
       if (i === 0 && fpsMapSelect) fpsMapSelect.value = select.value;
+      renderMapPreview?.(select.value);
       syncPracticeMapPlanner();
     });
     const configBtn = document.createElement("button");

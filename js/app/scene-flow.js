@@ -172,14 +172,25 @@ function setLobbyCustomVisible(visible = false) {
   setElementHidden(lobbyModePicker, customOpen);
   setElementHidden(practiceMapOptions, !customOpen);
   setElementHidden(customActionGrid, !customOpen);
+  // Custom setup docks the lobby to the left and shows the top-down map preview.
+  overlay.classList.toggle("custom-setup-open", customOpen);
+  setElementHidden(document.getElementById("mapPreview"), !customOpen);
   if (lobbyStatus && game.role !== "guest") {
     lobbyStatus.textContent = customOpen
       ? "Custom practice setup. Choose maps, then start."
       : (game.role === "solo" ? "Solo practice. Choose a mode." : `Host practice lobby. Players: ${game.playerCount}`);
   }
   if (customOpen) {
-    populateMapSelects().then(() => syncPracticeMapPlanner());
+    populateMapSelects().then(() => {
+      syncPracticeMapPlanner();
+      renderMapPreview?.(practiceMapConfigs[0]?.mapValue ?? "0");
+    });
   }
+}
+
+function closeCustomSetupUi() {
+  overlay.classList.remove("custom-setup-open");
+  setElementHidden(document.getElementById("mapPreview"), true);
 }
 
 function hideFpsHudUi() {
@@ -246,9 +257,11 @@ function hideFpsHudUi() {
 function showMenu() {
   clearVictoryBanner();
   hideDefeatScreen?.();
+  setSceneRenderProfile?.(false);
   game.phase = "menu";
   menu.classList.remove("hidden");
   lobby.classList.add("hidden");
+  closeCustomSetupUi();
   resultPanel.classList.add("hidden");
   hud.classList.add("hidden");
   document.querySelector("#network").classList.add("hidden");
@@ -266,6 +279,7 @@ function showMenu() {
 function showLobby() {
   clearVictoryBanner();
   hideDefeatScreen?.();
+  setSceneRenderProfile?.(false);
   game.phase = "lobby";
   startLobbyMusic();
   lobby.classList.remove("hidden");
@@ -290,6 +304,7 @@ function showLobby() {
     setElementHidden(customActionGrid, true);
     lobbyStatus.textContent = "Waiting for host to start practice...";
     setElementHidden(practiceMapOptions, true);
+    closeCustomSetupUi();
     return;
   }
   startGolfBtn.classList.remove("hidden");
@@ -311,7 +326,7 @@ function showLobby() {
   startCustomBothBtn && (startCustomBothBtn.textContent = game.role === "solo" ? "Golf + FPS" : "Custom Golf + FPS");
   if (startRandomFpsBtn) startRandomFpsBtn.textContent = game.role === "solo" ? "Random Loadout Duel" : "Random FPS Duel";
 }
-function startGolf(courseIds = null) { clearVictoryBanner(); hideDefeatScreen?.(); stopLobbyMusic(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps", "fps-pause-open"); syncChatInputVisibility?.(false); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
+function startGolf(courseIds = null) { clearVictoryBanner(); hideDefeatScreen?.(); setSceneRenderProfile?.(false); stopLobbyMusic(); closeCustomSetupUi(); ensureGolfBalls(game.playerCount); resetTournamentState(courseIds); game.phase = "golf"; menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.remove("hidden"); settingsBtn.classList.add("hidden"); settingsPanel.classList.add("hidden"); overlay.classList.remove("fps", "fps-pause-open"); syncChatInputVisibility?.(false); world.golfRoot.visible = true; world.arenaRoot.visible = false; power.classList.remove("hidden"); resetGolfHole(); useGolfBall(activeGolfPlayerIndex()); updateHud(); }
 function applyGolfAtmosphere(hole) {
   if (!hole) return;
   const sky = hole.skyColor ?? 0x8fd3f4;
@@ -324,7 +339,7 @@ function applyGolfAtmosphere(hole) {
   }
 }
 function enterFps(isSimulation = false, options = {}) {
-  clearVictoryBanner(); hideDefeatScreen?.(); stopLobbyMusic(); ensureFpsPlayers(game.playerCount);
+  clearVictoryBanner(); hideDefeatScreen?.(); stopLobbyMusic(); closeCustomSetupUi(); ensureFpsPlayers(game.playerCount);
   game.phase = "fps"; overlay.classList.add("fps"); overlay.classList.remove("fps-pause-open"); syncChatInputVisibility?.(false); menu.classList.add("hidden"); lobby.classList.add("hidden"); hud.classList.add("hidden"); weaponSelectOverlay.classList.add("hidden"); weaponSelectOverlay.hidden = true; weaponSelectOverlay.style.display = "none"; resultPanel.classList.add("hidden"); resultPanel.classList.remove("fps-result"); world.golfRoot.visible = false; world.arenaRoot.visible = true; world.weapon && (world.weapon.visible = true); world.meleeWeapon && (world.meleeWeapon.visible = true);
   updateFpsSettingsVisibility();
   power.classList.add("hidden"); shotArrow.classList.add("hidden"); game.dragging = false;

@@ -307,6 +307,45 @@ function updateBotGuardState(bot, target, targetIndex, state, visible, distance,
   state.forceGunAfterGuard = true;
 }
 
+// Cliff probe: is there standable ground within maxDrop below (x, z)? Checks
+// arena floors, box/platform/ramp obstacles, and triangle-mesh (GLB) colliders.
+// Uses meshSurfaceYAtPoint (grid-indexed) rather than the brute-force mesh
+// raycast — this runs up to a few times per bot per frame.
+const cliffRay = new THREE.Raycaster();
+const cliffDown = new THREE.Vector3(0, -1, 0);
+const cliffProbePoint = new THREE.Vector3();
+function botGroundBelow(x, z, fromY, maxDrop = 8) {
+  if (world.arenaFloorCollision !== false) {
+    for (const floor of world.arenaFloors) {
+      const fy = Number(floor.y || 0);
+      const inside = floor.type === "circle"
+        ? Math.hypot(x - floor.x, z - floor.z) <= floor.r
+        : Math.abs(x - floor.x) <= (floor.sx || 1) / 2 && Math.abs(z - floor.z) <= (floor.sz || 1) / 2;
+      if (inside && fy <= fromY + 0.5 && fromY - fy <= maxDrop) return true;
+    }
+  }
+  if (world.meshColliders?.length) {
+    cliffProbePoint.set(x, fromY + 0.6, z);
+    const surfaceY = meshSurfaceYAtPoint(world.meshColliders, cliffProbePoint, 0.45);
+    if (surfaceY !== null && fromY - surfaceY <= maxDrop) return true;
+  }
+  const solids = [...world.platforms, ...world.obstacles];
+  if (!solids.length) return false;
+  cliffRay.set(cliffProbePoint.set(x, fromY + 0.6, z), cliffDown);
+  cliffRay.near = 0;
+  cliffRay.far = maxDrop + 0.6;
+  return cliffRay.intersectObjects(solids, true).length > 0;
+}
+
+function respawnFallenBot(bot) {
+  const index = fps.players.indexOf(bot);
+  placeBotAtEnemySpawn(bot, index >= 0 ? index : PRACTICE_BOT_INDEX);
+  if (bot.practiceBot) {
+    bot.practiceBot.stuckTimer = 0;
+    bot.practiceBot.lastPosition = bot.pos.clone();
+  }
+}
+
 function updateBotMovement(bot, target, state, visible, dt) {
   const previousPosition = bot.pos.clone();
   const previousY = previousPosition.y;
@@ -329,6 +368,25 @@ function updateBotMovement(bot, target, state, visible, dt) {
   if (distance < Math.max(5.5, state.preferredDistance - 7)) move.addScaledVector(toward, -1.1);
   if (bot.parryGuardActive) move.multiplyScalar(0.35);
   if (move.lengthSq() > 0.001) move.normalize();
+
+  // Ledge avoidance: never walk toward a drop we can't survive. If the intended
+  // direction leads off a cliff, try strafing along the edge instead; if the
+  // current velocity is carrying us over, brake hard.
+  if (bot.grounded && move.lengthSq() > 0.001 && !botGroundBelow(bot.pos.x + move.x * 2.4, bot.pos.z + move.z * 2.4, bot.pos.y)) {
+    const along = new THREE.Vector3(-move.z, 0, move.x).multiplyScalar(state.strafeDir);
+    if (botGroundBelow(bot.pos.x + along.x * 2.4, bot.pos.z + along.z * 2.4, bot.pos.y)) move.copy(along);
+    else {
+      move.set(0, 0, 0);
+      state.strafeDir *= -1;
+    }
+  }
+  if (bot.grounded) {
+    const speed = Math.hypot(bot.vel.x, bot.vel.z);
+    if (speed > 1 && !botGroundBelow(bot.pos.x + (bot.vel.x / speed) * 1.7, bot.pos.z + (bot.vel.z / speed) * 1.7, bot.pos.y)) {
+      bot.vel.x *= 0.25;
+      bot.vel.z *= 0.25;
+    }
+  }
 
   const moved = previousPosition.distanceTo(state.lastPosition || previousPosition);
   state.lastPosition = previousPosition;
@@ -419,12 +477,8 @@ function updateBotMovement(bot, target, state, visible, dt) {
   resolvePlayerVsTriangleMeshColliders(world.meshColliders, bot, previousPosition, FPS_PLAYER_RADIUS_WORLD, FPS_PLAYER_HEIGHT_WORLD);
   clampArenaPosition(bot.pos, FPS_PLAYER_RADIUS_WORLD);
 
-  if (bot.pos.y < -8 && bot.health > 0) {
-    bot.health = 0;
-    const alive = aliveFpsPlayerIndexes();
-    if (alive.length === 1) startVictoryLap(alive[0], "deathmatch");
-    else if (alive.length === 0) startVictoryLap(-1, "deathmatch");
-  }
+  // Falling off the map never ends the match: put the bot back on a spawn pad.
+  if (bot.pos.y < -8 && bot.health > 0) respawnFallenBot(bot);
 }
 
 function botShotSpread(weaponId, distance) {

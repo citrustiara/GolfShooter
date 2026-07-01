@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Golf Duel</title>
   <link rel="icon" type="image/png" href="./assets/desktop/golf-duel-icon.png" />
-  <link rel="stylesheet" href="css/style.css?v=14" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
   <script type="importmap">
     {
       "imports": {
@@ -195,7 +195,6 @@
         <div class="logo-stack">
           <span class="logo-word logo-golf">GOLF</span>
           <span class="logo-word logo-duel">DUEL</span>
-          <span class="logo-burst" aria-hidden="true">9MM<br>PAR</span>
         </div>
         <span class="logo-tag">SHOOT FIRST &middot; PUTT LATER</span>
       </div>
@@ -207,14 +206,16 @@
         </label>
         <label class="identity-field identity-field-lobby" for="phraseInput">
           <span>Lobby name</span>
-          <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="lobby-name" />
+          <div class="field-row">
+            <input id="phraseInput" maxlength="48" spellcheck="false" autocomplete="off" placeholder="lobby-name" />
+            <button type="button" class="ghost field-btn" id="randomBtn" title="Shuffle lobby name" aria-label="Shuffle lobby name">&#8635;</button>
+          </div>
         </label>
       </div>
       <div class="menu-grid">
         <button class="primary" id="createBtn">Create Match</button>
         <button id="joinBtn">Join</button>
         <button class="ghost" id="soloBtn">Practice</button>
-        <button class="ghost" id="randomBtn">Random Phrase</button>
       </div>
       <div class="error" id="menuError"></div>
     </div>
@@ -230,54 +231,42 @@
       </div>
       
       <div id="practiceMapOptions" class="hidden practice-options">
-        <div class="menu-block">
-          <label class="menu-block-label">
-            Players:
+        <div class="setup-bar">
+          <label class="setup-pill">
+            <span>Players</span>
             <select id="playerCountSelect">
-              <option value="2">2 Players</option>
-              <option value="3">3 Players</option>
-              <option value="4">4 Players</option>
-              <option value="5">5 Players</option>
-              <option value="6">6 Players</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+          <label class="setup-pill">
+            <span>Maps</span>
+            <input id="practiceMapCountInput" type="number" min="1" max="9" step="1" value="1" />
+          </label>
+          <label class="setup-pill">
+            <span>Best of</span>
+            <input id="practiceRoundsInput" type="number" min="1" max="21" step="1" value="3" />
+          </label>
+          <label class="setup-pill setup-pill-wide">
+            <span>Golf course</span>
+            <select id="golfMapSelect">
+              <option value="">Full tournament (all)</option>
             </select>
           </label>
         </div>
 
-        <div class="menu-block">
-          <label class="menu-block-label">
-            Golf Map:
-            <select id="golfMapSelect">
-              <option value="">Full Tournament (All Maps)</option>
-            </select>
-          </label>
-        </div>
-        
         <div class="practice-card">
           <select id="fpsMapSelect" class="hidden">
             <option value="">Standard Match (Random Maps)</option>
           </select>
           <div class="practice-header">
-            <strong>FPS Practice Maps</strong>
-            <span>Each map can have separate weapons, abilities, speed, and gravity.</span>
-          </div>
-          <div class="practice-controls">
-            <label>
-              Maps
-              <input id="practiceMapCountInput" type="number" min="1" max="9" step="1" value="1" />
-            </label>
-            <label>
-              Best of (rounds)
-              <input id="practiceRoundsInput" type="number" min="1" max="21" step="1" value="3" />
-            </label>
+            <strong>Maps &amp; loadouts</strong>
+            <span>Pick a map per slot. Hit <b>Config</b> on a row to tune its weapons, abilities, speed and gravity.</span>
           </div>
           <div id="practiceMapList" class="practice-map-list"></div>
-        </div>
-
-        <div class="menu-block">
-          <label class="menu-block-label">
-            Upload Custom Map:
-            <input type="file" id="mapUploadInput" accept=".json,.glb,.gltf" />
-          </label>
         </div>
       </div>
 
@@ -288,6 +277,19 @@
         <button class="ghost" id="customBackBtn">Back</button>
       </div>
       <button class="ghost lobby-leave" id="leaveBtn">Leave Match</button>
+    </div>
+
+    <div class="map-preview hidden" id="mapPreview" aria-hidden="true">
+      <div class="map-preview-head">
+        <span class="map-preview-name" id="mapPreviewName">Map</span>
+        <span class="map-preview-tag">Top-down</span>
+      </div>
+      <canvas id="mapPreviewCanvas" width="900" height="900"></canvas>
+      <div class="map-preview-legend">
+        <span><i class="lg-spawn"></i>Spawn</span>
+        <span><i class="lg-high"></i>High ground</span>
+        <span><i class="lg-low"></i>Low ground</span>
+      </div>
     </div>
 
     <div class="result hidden" id="result">
@@ -364,6 +366,6 @@
   </div>
 
   <script src="./vendor/peerjs/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=12"></script>
+  <script type="module" src="js/main.js?v=16"></script>
 </body>
 </html>

@@ -103,6 +103,6 @@ export const HEAL_EFFECT_DURATION = 1.6;
 export const DAMAGE_EFFECT_DURATION = 2.6;
 // CS2-style scoreboard team colours (first five match the 3D player materials in
 // fps/logic.js) and the per-round time limit before the HP tiebreak resolves it.
-export const PLAYER_HUD_COLORS = ["#4aa3ff", "#ff6f61", "#ffd166", "#55b96f", "#e9e4d4", "#b06bff", "#ff5ca8", "#3ad0c0"];
+export const PLAYER_HUD_COLORS = ["#e10600", "#f0efe9", "#8a8f99", "#ff5a4d", "#bfc2c7", "#7a0008", "#55555e", "#ffb3ad"];
 export const ROUND_TIME_LIMIT = 300;
 export const ABILITY_KEY_OPTIONS = ["KeyQ", "KeyE", "KeyF", "KeyG", "KeyC", "KeyV", "KeyX", "KeyZ", "Space", "ShiftLeft", "ControlLeft"];

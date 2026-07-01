@@ -1,0 +1,208 @@
+/* ============================================================
+   GOLF DUEL — Sin City / Batman noir layer
+   Ben-day halftone ink texture on panels, gritty edges, a single
+   red spot colour, and the compact custom-setup bar. Loaded last
+   so it refines the base graphic-novel styling in parts 01–05.
+   ============================================================ */
+
+/* Ink-dotted corner shading: a ben-day halftone field revealed only
+   in a panel corner by a paper-coloured radial mask painted over it,
+   so every panel reads as hand-inked rather than flat black. */
+.menu,
+.practice-card,
+.map-preview,
+.result,
+.settings-panel {
+  background-image:
+    radial-gradient(circle at 100% 0%, transparent 0, transparent 26%, var(--paper) 70%),
+    radial-gradient(rgba(240, 239, 233, 0.16) 1.1px, transparent 1.5px);
+  background-size: 100% 100%, 6px 6px;
+  background-position: 0 0, 0 0;
+  background-repeat: no-repeat, repeat;
+  background-color: var(--paper);
+}
+
+/* denser dotted gash in the opposite corner of the big panels */
+#lobby {
+  background-image:
+    radial-gradient(circle at 0% 100%, transparent 0, transparent 20%, var(--paper) 60%),
+    radial-gradient(circle at 100% 0%, transparent 0, transparent 24%, var(--paper) 66%),
+    radial-gradient(rgba(240, 239, 233, 0.15) 1.1px, transparent 1.5px);
+  background-size: 100% 100%, 100% 100%, 6px 6px;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-color: var(--paper);
+}
+
+.practice-map-row {
+  background-image:
+    radial-gradient(circle at 100% 0%, transparent 0, transparent 30%, #131317 74%),
+    radial-gradient(rgba(240, 239, 233, 0.12) 1px, transparent 1.4px);
+  background-size: 100% 100%, 5px 5px;
+  background-repeat: no-repeat, repeat;
+  background-color: #131317;
+}
+
+/* Headline gets a hard red ink bar — the lone spot colour on white ink. */
+.menu h1,
+#lobby h1 {
+  position: relative;
+  padding-left: 16px;
+  text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--paper);
+}
+
+.menu h1::before,
+#lobby h1::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4%;
+  bottom: 4%;
+  width: 7px;
+  background: var(--red);
+  box-shadow: 3px 0 0 var(--ink);
+}
+
+/* Primary buttons carry a faint halftone so red reads as printed ink. */
+button.primary {
+  background-image:
+    radial-gradient(rgba(6, 6, 8, 0.22) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+  background-color: var(--yellow);
+}
+
+/* ---------------- compact custom-setup bar ---------------- */
+.setup-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.setup-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 96px;
+  min-width: 84px;
+}
+
+.setup-pill.setup-pill-wide {
+  flex: 2 1 200px;
+}
+
+.setup-pill > span {
+  padding: 2px 7px 3px;
+  align-self: flex-start;
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.setup-pill.setup-pill-wide > span { background: var(--red); color: var(--paper); }
+
+.setup-pill select,
+.setup-pill input {
+  min-height: 44px;
+  padding: 0 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.setup-pill input[type="number"] {
+  text-align: center;
+  font-family: var(--display);
+  font-size: 18px;
+}
+
+/* Cleaner practice header wording block. */
+.practice-header strong {
+  background: var(--red);
+  color: var(--paper);
+}
+
+.practice-header b { color: var(--ink); background: var(--paper); padding: 0 4px; }
+
+/* The docked custom lobby: tighten the map list to the taller narrow panel. */
+.overlay.custom-setup-open #lobby .practice-map-list {
+  max-height: min(46vh, 560px);
+}
+
+/* Map preview panel: hard red frame corner tab already exists; add halftone
+   floor under the canvas so empty maps still feel inked. */
+.map-preview {
+  background-image:
+    radial-gradient(circle at 0% 100%, transparent 0, transparent 24%, var(--paper) 64%),
+    radial-gradient(rgba(240, 239, 233, 0.14) 1.1px, transparent 1.5px);
+  background-size: 100% 100%, 6px 6px;
+  background-repeat: no-repeat, repeat;
+}
+
+/* ============================================================
+   UX refinements: no text selection, custom noir cursors,
+   decluttered logo, balanced menu grid, caption styling.
+   ============================================================ */
+
+/* The UI is a game screen, not a document — kill text selection/drag
+   everywhere except the fields you actually type or copy from. */
+html, body { -webkit-user-select: none; user-select: none; }
+input, textarea, [contenteditable="true"],
+.phrase, .chat-log, .chat-message, .chat-input-row input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Custom cursors: an inked pointer arrow by default, a red targeting reticle
+   on anything clickable — leans into the FPS/noir identity. */
+body {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2 L3 21 L8.5 16.5 L12.5 24 L16 22 L12 15 L20 15 Z' fill='%230a0a0c' stroke='%23f0efe9' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, auto;
+}
+button, select, .weapon-card, .lobby-mode-picker button,
+.practice-config-btn, .practice-preset-btn, input[type="checkbox"], input[type="range"] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Ccircle cx='15' cy='15' r='9' fill='none' stroke='%23e10600' stroke-width='2'/%3E%3Ccircle cx='15' cy='15' r='1.6' fill='%23e10600'/%3E%3Cg stroke='%23f0efe9' stroke-width='2'%3E%3Cline x1='15' y1='1' x2='15' y2='6'/%3E%3Cline x1='15' y1='24' x2='15' y2='29'/%3E%3Cline x1='1' y1='15' x2='6' y2='15'/%3E%3Cline x1='24' y1='15' x2='29' y2='15'/%3E%3C/g%3E%3C/svg%3E") 15 15, pointer;
+}
+input[type="text"], input[type="number"], input:not([type]), textarea { cursor: text; }
+
+/* Declutter the logo toward Sin City: drop the cartoon starburst + price tag,
+   calm the tilts so it reads as a hard-inked title, not a sticker sheet. */
+#menu::before { display: none; }
+.logo-golf { transform: rotate(-1.2deg); }
+.logo-duel { transform: translateY(-12px) rotate(0.8deg); }
+.logo-tag { transform: none; box-shadow: 4px 4px 0 var(--red); }
+
+/* Balanced main-menu buttons: Create spans the row, Join + Practice pair up. */
+.menu-grid button:last-child { grid-column: auto; }
+.menu-grid button.primary { grid-column: 1 / -1; }
+
+/* Shuffle button tucked inside the lobby-name field. */
+.field-row { display: flex; gap: 8px; align-items: stretch; }
+.field-row input { flex: 1 1 auto; }
+.field-btn {
+  flex: 0 0 auto;
+  width: 54px;
+  min-width: 54px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* The little "LOBBY" tag sat at negative offsets and got clipped by the panel's
+   overflow into a weird red sliver in the corner — the H1 already says it. Drop it. */
+#lobby::before { display: none; }
+
+/* Lift the chat log above the settings gear (gear is left:18 bottom:18, 50px). */
+.chat-hud { bottom: 84px; }
+
+/* Status line reads as a noir narration caption, not another input field. */
+#lobbyStatus {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 3px 0 3px 14px;
+  border-left: 5px solid var(--red);
+  font-style: italic;
+  letter-spacing: 0.01em;
+  transform: none;
+}

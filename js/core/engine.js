@@ -3,8 +3,14 @@ import * as THREE from "three";
 export const canvas = document.querySelector("#game");
 export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
 const MAX_RENDER_PIXEL_RATIO = 1.5;
+// Heavy GLB arenas (e.g. Mirage, ~600k tris) render at reduced resolution so
+// weak GPUs stay playable — this cuts both the scene pass and the fullscreen
+// comic shader fill-rate. Toggled per-map via setSceneRenderProfile().
+const HEAVY_RENDER_SCALE = 0.7;
+let heavyRenderProfile = false;
 function syncRendererPixelRatio() {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_PIXEL_RATIO));
+  const scale = heavyRenderProfile ? HEAVY_RENDER_SCALE : 1;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_RENDER_PIXEL_RATIO) * scale);
 }
 syncRendererPixelRatio();
 renderer.shadowMap.enabled = true;
@@ -237,4 +243,16 @@ export function resize() {
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
+}
+
+// Switch the renderer between the normal profile and a lighter one for heavy
+// GLB maps: lower resolution scale + no sun shadow pass. Called from setupArena
+// (heavy) and when returning to menus/golf (normal).
+export function setSceneRenderProfile(heavy) {
+  const next = Boolean(heavy);
+  if (next === heavyRenderProfile) return;
+  heavyRenderProfile = next;
+  if (lights.sun) lights.sun.castShadow = !next;
+  syncRendererPixelRatio();
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
 }
